@@ -5,6 +5,9 @@
 #include "graphic/glfw/window/NativeWindow.h"
 #include "graphic/imguivk/VKContext.h"
 #include "log/colorful-log.h"
+#include "logic/EditorEngine.h"
+#include "logic/LogicCommands.h"
+#include "mmm/beatmap/BeatMap.h"
 #include "ui/UIManager.h"
 #include "ui/imgui/FloatingManagerUI.h"
 #include "ui/imgui/MainDockSpaceUI.h"
@@ -86,6 +89,38 @@ int GameLoop::start(Graphic::NativeWindow& window)
         context.initVKWindowRess(&window, fbWidth, fbHeight);
         context.setVSync(false);
         // context.ToggleFullscreen();
+
+        // 启动独立逻辑线程
+        Logic::EditorEngine::instance().start();
+
+        // [MVP架构测试] 在主线程创建 Model (BeatMap)，通过指令推送给 ViewModel
+        // (ECS)
+        auto dummyBeatmap = std::make_shared<MMM::BeatMap>();
+
+        // 伪造时间线数据
+        Timing t1;
+        t1.m_timestamp             = 0.0;
+        t1.m_timingEffect          = TimingEffect::SCROLL;
+        t1.m_timingEffectParameter = 500.0;
+        Timing t2;
+        t2.m_timestamp             = 5.0;
+        t2.m_timingEffect          = TimingEffect::SCROLL;
+        t2.m_timingEffectParameter = 800.0;
+        dummyBeatmap->m_timings.push_back(t1);
+        dummyBeatmap->m_timings.push_back(t2);
+
+        // 伪造音符数据
+        for ( int i = 0; i < 100; ++i ) {
+            Note n;
+            n.m_timestamp = i * 0.2;
+            n.m_type      = NoteType::NOTE;
+            dummyBeatmap->m_notes.push_back(n);
+        }
+
+        // 发送给逻辑引擎
+        Logic::EditorEngine::instance().pushCommand(
+            Logic::CmdLoadBeatmap{ dummyBeatmap });
+
         // 进入主循环
         while ( !window.shouldClose() ) {
             // 3.1 让操作系统处理窗口事件 (缩放、关闭、鼠标按键等)
@@ -95,6 +130,10 @@ int GameLoop::start(Graphic::NativeWindow& window)
                 window,
                 std::vector<Graphic::IGraphicUserHook*>{ &m_uiManager });
         }
+
+        // 停止逻辑线程
+        Logic::EditorEngine::instance().stop();
+
         // 2. 主动清理 UI 管理器里存的所有视图
         // 这样 VKOffScreenRenderer 的析构就会在这里发生，
         // 此时 VKContext 还健在，m_device 也是有效的！
