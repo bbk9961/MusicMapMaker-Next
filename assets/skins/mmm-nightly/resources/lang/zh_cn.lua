@@ -19,6 +19,8 @@ return {
 	-- ["ui.settings"] = "设置",
 	-- ["ui.exit"] = "退出",
 
+	["canvas.editor"] = "编辑器",
+
 	["title.file_manager"] = "资源管理器",
 	["ui.file_manager.initial_hint"] = "暂未打开项目",
 	["ui.file_manager.open_directory"] = "打开文件夹",

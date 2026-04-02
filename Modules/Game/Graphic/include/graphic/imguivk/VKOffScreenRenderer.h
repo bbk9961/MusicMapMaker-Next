@@ -1,5 +1,7 @@
 #pragma once
 
+#include "event/canvas/interactive/ResizeEvent.h"
+#include "event/core/EventBus.h"
 #include "graphic/imguivk/VKRenderPipeline.h"
 #include "graphic/imguivk/VKSwapchain.h"
 #include "graphic/imguivk/mem/VKMemBuffer.h"
@@ -71,6 +73,7 @@ protected:
     inline void setTargetSize(uint32_t w, uint32_t h)
     {
         if ( w != m_targetWidth || h != m_targetHeight ) {
+            resizeCall(m_targetWidth, m_targetHeight, w, h);
             m_targetWidth     = w;
             m_targetHeight    = h;
             m_lastRequestTime = std::chrono::steady_clock::now();
@@ -79,6 +82,9 @@ protected:
         }
     }
 
+    // --- 改变尺寸后的回调 ---
+    virtual void resizeCall(uint32_t oldW, uint32_t oldH, uint32_t w,
+                            uint32_t h) const = 0;
 
     /// @brief 是否需要重建
     std::atomic<bool> m_need_reCreate{ true };

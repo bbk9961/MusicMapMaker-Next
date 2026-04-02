@@ -2,6 +2,11 @@
 
 #include "ui/IRenderableView.h"
 
+namespace MMM::Logic
+{
+struct RenderSnapshot;
+}
+
 namespace MMM::Canvas
 {
 class Basic2DCanvas : public UI::IRenderableView
@@ -20,6 +25,10 @@ public:
 
     ///@brief 是否需要重新记录命令 (比如数据变了)
     bool isDirty() const override;
+
+    // --- 改变尺寸后的回调 ---
+    void resizeCall(uint32_t oldW, uint32_t oldH, uint32_t w,
+                    uint32_t h) const override;
 
     /**
      * @brief 获取 Shader 源码接口 (在固定时刻需要创建)
@@ -40,9 +49,20 @@ public:
                         vk::Device& logicalDevice, vk::CommandPool& cmdPool,
                         vk::Queue& queue) override;
 
+protected:
+    const std::vector<Graphic::Vertex::VKBasicVertex>&
+                                 getVertices() const override;
+    const std::vector<uint32_t>& getIndices() const override;
+    void                         onRecordDrawCmds(vk::CommandBuffer& cmdBuf,
+                                                  vk::PipelineLayout pipelineLayout,
+                                                  vk::DescriptorSet  defaultDescriptor) override;
+
 private:
     /// @brief 画布名称
     std::string m_canvasName;
+
+    /// @brief 当前正在使用的渲染快照
+    Logic::RenderSnapshot* m_currentSnapshot{ nullptr };
 
     /// @brief 缓存spv源码，避免重复读盘
     std::unordered_map<std::string, std::vector<std::string>>
