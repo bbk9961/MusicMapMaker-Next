@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mmm/note/Note.h"
+#include <vector>
 
 namespace MMM::Logic
 {
@@ -20,6 +21,19 @@ struct NoteComponent {
 
     /// @brief 所属轨道索引
     int m_trackIndex{ 0 };
+
+    /// @brief 滑动轨道偏移 (如果是 Flick 类型)
+    int m_dtrack{ 0 };
+
+    /// @brief 折线子物件定义 (如果是 Polyline 类型)
+    struct SubNote {
+        ::MMM::NoteType type;
+        double          timestamp;
+        double          duration;
+        int             trackIndex;
+        int             dtrack;
+    };
+    std::vector<SubNote> m_subNotes;
 };
 
 }  // namespace MMM::Logic

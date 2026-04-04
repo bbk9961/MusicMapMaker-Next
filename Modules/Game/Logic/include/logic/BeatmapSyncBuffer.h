@@ -9,6 +9,18 @@
 namespace MMM::Logic
 {
 
+// 预定义纹理ID，用于跨线程纹理映射
+enum class TextureID : uint32_t {
+    None = 0,
+    Note,
+    HoldHead,
+    HoldEnd,
+    HoldBodyVertical,
+    HoldBodyHorizontal,
+    FlickArrowLeft,
+    FlickArrowRight
+};
+
 /**
  * @brief 碰撞拾取包围盒
  */
@@ -80,6 +92,9 @@ private:
 
     // 原子指针，指向最新写完且可供读取的缓冲区
     std::atomic<RenderSnapshot*> m_completed{ nullptr };
+
+    // 原子标记，指示 completed 是否包含未被 UI 消费的新数据
+    std::atomic<bool> m_hasNew{ false };
 
     // UI 线程上次拿到的读取缓冲区
     // 当 UI 请求新的，就把这个老的换回 m_completed 给逻辑线程重复利用
