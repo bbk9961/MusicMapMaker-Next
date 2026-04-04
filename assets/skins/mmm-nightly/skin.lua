@@ -47,6 +47,15 @@ local Skin = {
 			file_explorer_icon = "image/sidebar/folder.svg",
 			audio_explorer_icon = "image/sidebar/music.svg",
 		},
+		note = {
+			note = "image/note/note.png",
+			head = "image/note/head.png",
+			holdend = "image/note/holdend.png",
+			holdbodyvertical = "image/note/holdbodyvertical.png",
+			holdbodyhorizontal = "image/note/holdbodyhorizontal.png",
+			arrowleft = "image/note/arrowleft.png",
+			arrowright = "image/note/arrowright.png",
+		},
 	},
 
 	-- 2d绘制画布配置

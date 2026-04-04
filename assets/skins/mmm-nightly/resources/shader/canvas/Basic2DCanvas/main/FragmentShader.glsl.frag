@@ -10,6 +10,5 @@ layout(binding = 0) uniform sampler2D texSampler;
 
 void main() {
     // 顶点颜色与纹理采样颜色相乘
-    outColor = fragColor;
-        // * texture(texSampler, fragUV);
+    outColor = fragColor * texture(texSampler, fragUV);
 }
