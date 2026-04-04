@@ -183,7 +183,7 @@ VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
         // 下面配置表示：FinalAlpha = (SrcAlpha * 1) + (DstAlpha * 0) =>
         // 直接使用新像素的 Alpha
         .setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
-        .setDstAlphaBlendFactor(vk::BlendFactor::eZero)
+        .setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
         .setAlphaBlendOp(vk::BlendOp::eAdd)
         // 需要写出的分量 - rgba都要写出
         .setColorWriteMask(

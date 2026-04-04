@@ -7,18 +7,7 @@
 namespace MMM::Logic::System
 {
 
-enum class TextureID : uint32_t {
-    None                = 0,
-    Note                = 1,
-    HoldHead            = 2,
-    HoldBodyVertical    = 3,
-    HoldEnd             = 4,
-    FlickArrowLeft      = 5,
-    FlickArrowRight     = 6,
-    FlickArrowUp        = 7,
-    FlickArrowDown      = 8,
-    NoteSelectionBorder = 100
-};
+using TextureID = MMM::Logic::TextureID;
 
 // 内部批处理器，负责根据 TextureID 自动切分 DrawCall
 struct Batcher {
@@ -75,9 +64,10 @@ struct Batcher {
         currentTex = tex;
     }
 
-    /// @brief 推送一个矩形，如果是带纹理的，颜色固定为白色
+    /// @brief 推送一个矩形
     void pushQuad(float x, float y, float w, float h, glm::vec4 color)
     {
+        // 保持原本的几何逻辑，确保布局不翻转
         pushFreeQuad(
             { x, y }, { x + w, y }, { x + w, y - h }, { x, y - h }, color);
     }
@@ -140,10 +130,11 @@ struct Batcher {
         // v2: 右上 pos -> (uMax, vMin) uv
         // v3: 右下 pos -> (uMax, vMax) uv
         // v4: 左下 pos -> (uMin, vMax) uv
-        v1.uv = { uvMin.x, uvMin.y };
-        v2.uv = { uvMax.x, uvMin.y };
-        v3.uv = { uvMax.x, uvMax.y };
-        v4.uv = { uvMin.x, uvMax.y };
+        // 核心修复：翻转 UV 的 Y 轴映射，解决纹理颠倒问题
+        v1.uv = { uvMin.x, uvMax.y };
+        v2.uv = { uvMax.x, uvMax.y };
+        v3.uv = { uvMax.x, uvMin.y };
+        v4.uv = { uvMin.x, uvMin.y };
 
         v1.color = v2.color = v3.color =
             v4.color        = { color.r, color.g, color.b, color.a };
