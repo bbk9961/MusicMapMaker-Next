@@ -263,10 +263,17 @@ void Basic2DCanvas::reloadTextures(vk::PhysicalDevice& physicalDevice,
         physicalDevice, logicalDevice, cmdPool, queue);
 
     // 注册所有纹理到图集
-    // 1. 注册 1x1 纯白纹理作为 None (用于绘制纯色几何体而不切换 DrawCall)
-    unsigned char white[] = { 255, 255, 255, 255 };
+    // 1. 注册 4x4 纯白纹理作为 None (用于绘制纯色几何体而不切换 DrawCall)
+    // 使用 4x4 配合 UV 收缩可以彻底防止线性过滤导致的采样溢出
+    unsigned char white[] = { 255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+                              255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+                              255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+                              255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+                              255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+                              255, 255, 255, 255, 255, 255, 255, 255, 255, 255,
+                              255, 255, 255, 255 };
     m_textureAtlas->addTexture(
-        static_cast<uint32_t>(Logic::TextureID::None), white, 1, 1);
+        static_cast<uint32_t>(Logic::TextureID::None), white, 4, 4);
 
 
 

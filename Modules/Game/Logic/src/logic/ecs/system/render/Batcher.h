@@ -117,8 +117,20 @@ struct Batcher {
         auto it = snapshot->uvMap.find(static_cast<uint32_t>(currentTex));
         if ( it != snapshot->uvMap.end() ) {
             // it->second = (u, v, w, h)
-            uvMin = glm::vec2(it->second.x, it->second.y);
-            uvMax = uvMin + glm::vec2(it->second.z, it->second.w);
+            float u = it->second.x;
+            float v = it->second.y;
+            float w = it->second.z;
+            float h = it->second.w;
+
+            // 关键修复：UV 收缩 (Half-pixel inset)
+            // 假设合图大小为 2048x2048，收缩 0.5
+            // 像素以防止线性过滤溢出到相邻纹理
+            const float texSize    = 2048.0f;
+            const float halfPixelU = 0.5f / texSize;
+            const float halfPixelV = 0.5f / texSize;
+
+            uvMin = glm::vec2(u + halfPixelU, v + halfPixelV);
+            uvMax = glm::vec2(u + w - halfPixelU, v + h - halfPixelV);
         }
 
 
