@@ -23,15 +23,32 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
     const ScrollCache* cache       = *cachePtr;
     double             currentAbsY = cache->getAbsY(currentTime);
 
+    // 1. 获取基准纹理 (Note) 的比例与信息
+    auto itBase = snapshot->uvMap.find(static_cast<uint32_t>(TextureID::Note));
+    if ( itBase == snapshot->uvMap.end() ) return;
+    float baseWRatio = itBase->second.z;
+    float baseHRatio = itBase->second.w;
+    float baseAspect = baseWRatio / baseHRatio;
 
-    // 物件实际渲染宽度和高度 (由缩放控制)
-    float noteW       = singleTrackW * config.noteScaleX;
-    float noteH       = 20.0f * config.noteScaleY;
-    float noteXOffset = (singleTrackW - noteW) * 0.5f;
+    // 2. 计算基准尺寸 (画布空间)
+    float noteW = singleTrackW * config.noteScaleX;
+    float noteH = noteW / baseAspect;
+
+    // 3. 定义辅助 Lambda 计算任意纹理在画布上的比例尺寸
+    auto getDrawSize = [&](TextureID id) -> glm::vec2 {
+        auto it = snapshot->uvMap.find(static_cast<uint32_t>(id));
+        if ( it == snapshot->uvMap.end() ) return { noteW, noteH };
+        float wRatio = it->second.z / baseWRatio;
+        float drawW  = noteW * wRatio;
+        float drawH  = drawW * (it->second.w / it->second.z);
+        return { drawW, drawH };
+    };
 
     for ( auto entity : noteView ) {
         const auto& transform = noteView.get<const TransformComponent>(entity);
         const auto& note      = noteView.get<const NoteComponent>(entity);
+        if ( note.m_isSubNote ) continue;
+
         const InteractionComponent* interaction =
             registry.try_get<InteractionComponent>(entity);
         bool isHovered = interaction ? interaction->isHovered : false;
@@ -39,99 +56,261 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
         float minY    = transform.m_pos.y;
         float visualH = transform.m_size.y;
 
-        // 计算判定线上的屏幕 Y (主音符起始位置)
+        // 计算判定线上的屏幕 Y (主音符中心线或基准位置)
         float screenY = judgmentLineY - minY;
 
         // 简易视口剔除 (Y 轴剔除)
         if ( screenY - visualH > bottomY ) continue;
         if ( screenY < topY ) continue;
 
-        // 当前音符所在轨道 X (居中绘制)
-        float startX = leftX + note.m_trackIndex * singleTrackW + noteXOffset;
-
         // 设置颜色：如果是被悬停，则叠加一层橙色高亮
         glm::vec4 texColor = { 1.0f, 1.0f, 1.0f, 1.0f };
         if ( isHovered ) texColor = { 1.0f, 0.5f, 0.0f, 1.0f };
 
-        // 同步拾取包围盒
-        snapshot->hitboxes.push_back(
-            { entity, startX, screenY - visualH, noteW, visualH });
+        // 同步拾取包围盒 (使用 Note 基准宽度和实际视觉高度)
+        snapshot->hitboxes.push_back({ entity,
+                                       leftX +
+                                           note.m_trackIndex * singleTrackW +
+                                           (singleTrackW - noteW) * 0.5f,
+                                       screenY - visualH,
+                                       noteW,
+                                       visualH });
 
         if ( note.m_type == ::MMM::NoteType::NOTE ) {
             batcher.setTexture(TextureID::Note);
-            batcher.pushQuad(startX, screenY, noteW, noteH, texColor);
-        } else if ( note.m_type == ::MMM::NoteType::HOLD ) {
-            // Body
-            batcher.setTexture(TextureID::HoldBodyVertical);
-            batcher.pushQuad(startX,
-                             screenY - noteH * 0.5f,
+            batcher.pushQuad(leftX + note.m_trackIndex * singleTrackW +
+                                 (singleTrackW - noteW) * 0.5f,
+                             screenY + noteH * 0.5f,
                              noteW,
-                             std::max(0.0f, visualH - noteH),
+                             noteH,
                              texColor);
-            // End
-            batcher.setTexture(TextureID::HoldEnd);
-            batcher.pushQuad(
-                startX, screenY - visualH + noteH, noteW, noteH, texColor);
-            // Head
-            batcher.setTexture(TextureID::HoldHead);
-            batcher.pushQuad(startX, screenY, noteW, noteH, texColor);
-        } else if ( note.m_type == ::MMM::NoteType::FLICK ) {
-            batcher.setTexture(TextureID::HoldHead);
-            batcher.pushQuad(startX, screenY, noteW, noteH, texColor);
+        } else if ( note.m_type == ::MMM::NoteType::HOLD ) {
+            // 图层顺序: Body (最下) -> Head -> End (最上)
+            glm::vec2 headSize = getDrawSize(TextureID::HoldHead);
+            glm::vec2 endSize  = getDrawSize(TextureID::HoldEnd);
+            glm::vec2 bodySize = getDrawSize(TextureID::HoldBodyVertical);
 
-            if ( note.m_dtrack < 0 ) {
-                batcher.setTexture(TextureID::FlickArrowLeft);
-                batcher.pushQuad(startX, screenY, noteW, noteH, texColor);
-            } else if ( note.m_dtrack > 0 ) {
-                batcher.setTexture(TextureID::FlickArrowRight);
-                batcher.pushQuad(startX, screenY, noteW, noteH, texColor);
+            float headX = leftX + note.m_trackIndex * singleTrackW +
+                          (singleTrackW - headSize.x) * 0.5f;
+            float endX  = leftX + note.m_trackIndex * singleTrackW +
+                          (singleTrackW - endSize.x) * 0.5f;
+            float bodyX = leftX + note.m_trackIndex * singleTrackW +
+                          (singleTrackW - bodySize.x) * 0.5f;
+
+            // 1. Body
+            batcher.setTexture(TextureID::HoldBodyVertical);
+            batcher.pushQuad(bodyX, screenY, bodySize.x, visualH, texColor);
+
+            // 2. Head
+            batcher.setTexture(TextureID::HoldHead);
+            batcher.pushQuad(headX,
+                             screenY + headSize.y * 0.5f,
+                             headSize.x,
+                             headSize.y,
+                             texColor);
+
+            // 3. End
+            batcher.setTexture(TextureID::HoldEnd);
+            batcher.pushQuad(endX,
+                             screenY - visualH + endSize.y * 0.5f,
+                             endSize.x,
+                             endSize.y,
+                             texColor);
+
+        } else if ( note.m_type == ::MMM::NoteType::FLICK ) {
+            // 图层顺序: BodyH (最下) -> Head -> Arrow (最上)
+            glm::vec2 headSize = getDrawSize(TextureID::HoldHead);
+            float     headX    = leftX + note.m_trackIndex * singleTrackW +
+                                 (singleTrackW - headSize.x) * 0.5f;
+
+            // 1. BodyH
+            if ( note.m_dtrack != 0 ) {
+                auto itBodyH = snapshot->uvMap.find(
+                    static_cast<uint32_t>(TextureID::HoldBodyHorizontal));
+                if ( itBodyH != snapshot->uvMap.end() ) {
+                    float drawH = noteH * (itBodyH->second.w / baseHRatio);
+                    float drawW = std::abs(note.m_dtrack) * singleTrackW;
+                    float startTrack =
+                        std::min((float)note.m_trackIndex,
+                                 (float)note.m_trackIndex + note.m_dtrack);
+                    float bodyX =
+                        leftX + startTrack * singleTrackW + singleTrackW * 0.5f;
+
+                    batcher.setTexture(TextureID::HoldBodyHorizontal);
+                    batcher.pushQuad(
+                        bodyX, screenY + drawH * 0.5f, drawW, drawH, texColor);
+                }
+            }
+
+            // 2. Head
+            batcher.setTexture(TextureID::HoldHead);
+            batcher.pushQuad(headX,
+                             screenY + headSize.y * 0.5f,
+                             headSize.x,
+                             headSize.y,
+                             texColor);
+
+            // 3. Arrow
+            if ( note.m_dtrack != 0 ) {
+                TextureID arrowId   = (note.m_dtrack < 0)
+                                          ? TextureID::FlickArrowLeft
+                                          : TextureID::FlickArrowRight;
+                glm::vec2 arrowSize = getDrawSize(arrowId);
+                float     arrowX =
+                    leftX + (note.m_trackIndex + note.m_dtrack) * singleTrackW +
+                    (singleTrackW - arrowSize.x) * 0.5f;
+                batcher.setTexture(arrowId);
+                batcher.pushQuad(arrowX,
+                                 screenY + arrowSize.y * 0.5f,
+                                 arrowSize.x,
+                                 arrowSize.y,
+                                 texColor);
             }
         } else if ( note.m_type == ::MMM::NoteType::POLYLINE ) {
+            // Polyline 图层排序逻辑 (分轮绘制)
+
+            // 第一轮: 绘制所有 Body (BodyH, BodyV, Transition)
             for ( size_t i = 0; i < note.m_subNotes.size(); ++i ) {
-                const auto& sub = note.m_subNotes[i];
-                float       subX =
-                    leftX + sub.trackIndex * singleTrackW + noteXOffset;
-                double subAbsY = cache->getAbsY(sub.timestamp);
-                float  subScreenY =
-                    judgmentLineY - static_cast<float>(subAbsY - currentAbsY);
+                const auto& sub          = note.m_subNotes[i];
+                double      subStartAbsY = cache->getAbsY(sub.timestamp);
+                float       subStartY =
+                    judgmentLineY -
+                    static_cast<float>(subStartAbsY - currentAbsY);
 
-                if ( i + 1 < note.m_subNotes.size() ) {
-                    const auto& next = note.m_subNotes[i + 1];
-                    float       nextX =
-                        leftX + next.trackIndex * singleTrackW + noteXOffset;
-                    double nextAbsY = cache->getAbsY(next.timestamp);
-                    float  nextScreenY =
-                        judgmentLineY -
-                        static_cast<float>(nextAbsY - currentAbsY);
+                float subEndTrack = (float)sub.trackIndex;
+                float subEndY     = subStartY;
 
-                    batcher.setTexture(TextureID::HoldBodyVertical);
-                    batcher.pushFreeQuad(
-                        { subX, subScreenY - noteH * 0.5f },
-                        { subX + noteW, subScreenY - noteH * 0.5f },
-                        { nextX + noteW, nextScreenY + noteH * 0.5f },
-                        { nextX, nextScreenY + noteH * 0.5f },
-                        texColor);
-                }
-
-                if ( i == 0 ) {
-                    batcher.setTexture(TextureID::HoldHead);
-                    batcher.pushQuad(subX, subScreenY, noteW, noteH, texColor);
-                } else if ( i == note.m_subNotes.size() - 1 ) {
-                    batcher.setTexture(TextureID::HoldEnd);
-                    batcher.pushQuad(subX, subScreenY, noteW, noteH, texColor);
-                }
-
-                if ( sub.type == ::MMM::NoteType::FLICK ) {
-                    if ( sub.dtrack < 0 ) {
-                        batcher.setTexture(TextureID::FlickArrowLeft);
-                        batcher.pushQuad(
-                            subX, subScreenY, noteW, noteH, texColor);
-                    } else if ( sub.dtrack > 0 ) {
-                        batcher.setTexture(TextureID::FlickArrowRight);
-                        batcher.pushQuad(
-                            subX, subScreenY, noteW, noteH, texColor);
+                // 子物件自身 Body
+                if ( sub.type == ::MMM::NoteType::FLICK && sub.dtrack != 0 ) {
+                    subEndTrack  = (float)sub.trackIndex + sub.dtrack;
+                    auto itBodyH = snapshot->uvMap.find(
+                        static_cast<uint32_t>(TextureID::HoldBodyHorizontal));
+                    if ( itBodyH != snapshot->uvMap.end() ) {
+                        float drawH = noteH * (itBodyH->second.w / baseHRatio);
+                        float drawW = std::abs(sub.dtrack) * singleTrackW;
+                        float startTrack =
+                            std::min((float)sub.trackIndex, subEndTrack);
+                        float bodyX = leftX + startTrack * singleTrackW +
+                                      singleTrackW * 0.5f;
+                        batcher.setTexture(TextureID::HoldBodyHorizontal);
+                        batcher.pushQuad(bodyX,
+                                         subStartY + drawH * 0.5f,
+                                         drawW,
+                                         drawH,
+                                         texColor);
                     }
+                } else if ( sub.type == ::MMM::NoteType::HOLD &&
+                            sub.duration > 0 ) {
+                    double subEndAbsY =
+                        cache->getAbsY(sub.timestamp + sub.duration);
+                    subEndY = judgmentLineY -
+                              static_cast<float>(subEndAbsY - currentAbsY);
+                    glm::vec2 bodySize =
+                        getDrawSize(TextureID::HoldBodyVertical);
+                    float bodyX = leftX + sub.trackIndex * singleTrackW +
+                                  (singleTrackW - bodySize.x) * 0.5f;
+                    batcher.setTexture(TextureID::HoldBodyVertical);
+                    batcher.pushQuad(bodyX,
+                                     subStartY,
+                                     bodySize.x,
+                                     subStartY - subEndY,
+                                     texColor);
                 }
+
+                // 过渡 Body
+                if ( i + 1 < note.m_subNotes.size() ) {
+                    const auto& next          = note.m_subNotes[i + 1];
+                    double      nextStartAbsY = cache->getAbsY(next.timestamp);
+                    float       nextStartY =
+                        judgmentLineY -
+                        static_cast<float>(nextStartAbsY - currentAbsY);
+                    glm::vec2 bodySize =
+                        getDrawSize(TextureID::HoldBodyVertical);
+                    float curBodyX  = leftX + subEndTrack * singleTrackW +
+                                      (singleTrackW - bodySize.x) * 0.5f;
+                    float nextBodyX = leftX + next.trackIndex * singleTrackW +
+                                      (singleTrackW - bodySize.x) * 0.5f;
+                    batcher.setTexture(TextureID::HoldBodyVertical);
+                    batcher.pushFreeQuad({ curBodyX, subEndY },
+                                         { curBodyX + bodySize.x, subEndY },
+                                         { nextBodyX + bodySize.x, nextStartY },
+                                         { nextBodyX, nextStartY },
+                                         texColor);
+                }
+            }
+
+            // 第二轮: 绘制 Node 装饰 (所有折点)
+            batcher.setTexture(TextureID::Node);
+            for ( size_t i = 1; i < note.m_subNotes.size(); ++i ) {
+                const auto& sub          = note.m_subNotes[i];
+                double      subStartAbsY = cache->getAbsY(sub.timestamp);
+                float       subStartY =
+                    judgmentLineY -
+                    static_cast<float>(subStartAbsY - currentAbsY);
+                glm::vec2 nodeSize = getDrawSize(TextureID::Node);
+                float     nodeX    = leftX + sub.trackIndex * singleTrackW +
+                                     (singleTrackW - nodeSize.x) * 0.5f;
+                batcher.pushQuad(nodeX,
+                                 subStartY + nodeSize.y * 0.5f,
+                                 nodeSize.x,
+                                 nodeSize.y,
+                                 texColor);
+            }
+
+            // 第三轮: 绘制起始 HoldHead
+            const auto& first      = note.m_subNotes[0];
+            double      fStartAbsY = cache->getAbsY(first.timestamp);
+            float       fStartY =
+                judgmentLineY - static_cast<float>(fStartAbsY - currentAbsY);
+            glm::vec2 headSize = getDrawSize(TextureID::HoldHead);
+            float     headX    = leftX + first.trackIndex * singleTrackW +
+                                 (singleTrackW - headSize.x) * 0.5f;
+            batcher.setTexture(TextureID::HoldHead);
+            batcher.pushQuad(headX,
+                             fStartY + headSize.y * 0.5f,
+                             headSize.x,
+                             headSize.y,
+                             texColor);
+
+            // 第四轮: 绘制结尾特殊样式 (End 或 Arrow)
+            const auto& last       = note.m_subNotes.back();
+            double      lStartAbsY = cache->getAbsY(last.timestamp);
+            float       lStartY =
+                judgmentLineY - static_cast<float>(lStartAbsY - currentAbsY);
+            float lEndTrack =
+                (float)last.trackIndex +
+                (last.type == ::MMM::NoteType::FLICK ? last.dtrack : 0);
+            float lEndY =
+                lStartY -
+                (last.type == ::MMM::NoteType::HOLD
+                     ? static_cast<float>(
+                           cache->getAbsY(last.timestamp + last.duration) -
+                           lStartAbsY)
+                     : 0);
+
+            if ( last.type == ::MMM::NoteType::FLICK ) {
+                TextureID arrowId   = (last.dtrack < 0)
+                                          ? TextureID::FlickArrowLeft
+                                          : TextureID::FlickArrowRight;
+                glm::vec2 arrowSize = getDrawSize(arrowId);
+                float     arrowX    = leftX + lEndTrack * singleTrackW +
+                                      (singleTrackW - arrowSize.x) * 0.5f;
+                batcher.setTexture(arrowId);
+                batcher.pushQuad(arrowX,
+                                 lStartY + arrowSize.y * 0.5f,
+                                 arrowSize.x,
+                                 arrowSize.y,
+                                 texColor);
+            } else if ( last.type == ::MMM::NoteType::HOLD ) {
+                glm::vec2 endSize = getDrawSize(TextureID::HoldEnd);
+                float     endX    = leftX + last.trackIndex * singleTrackW +
+                                    (singleTrackW - endSize.x) * 0.5f;
+                batcher.setTexture(TextureID::HoldEnd);
+                batcher.pushQuad(endX,
+                                 lEndY + endSize.y * 0.5f,
+                                 endSize.x,
+                                 endSize.y,
+                                 texColor);
             }
         }
     }
