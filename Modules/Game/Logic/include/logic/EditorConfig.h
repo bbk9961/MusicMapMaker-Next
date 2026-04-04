@@ -29,8 +29,8 @@ struct EditorConfig {
     float judgelineWidth{ 4 };
 
     /// @brief 物件尺寸缩放
-    float noteScaleX{ .975f };
-    float noteScaleY{ .975f };
+    float noteScaleX{ 1.25f };
+    float noteScaleY{ 1.25f };
 };
 
 }  // namespace MMM::Logic
