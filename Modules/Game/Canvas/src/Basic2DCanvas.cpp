@@ -283,6 +283,8 @@ void Basic2DCanvas::reloadTextures(vk::PhysicalDevice& physicalDevice,
     m_textureAtlas->addTexture(
         static_cast<uint32_t>(Logic::TextureID::HoldHead),
         skin.getAssetPath("note.head"));
+    m_textureAtlas->addTexture(static_cast<uint32_t>(Logic::TextureID::Node),
+                               skin.getAssetPath("note.node"));
     m_textureAtlas->addTexture(static_cast<uint32_t>(Logic::TextureID::HoldEnd),
                                skin.getAssetPath("note.holdend"));
     m_textureAtlas->addTexture(

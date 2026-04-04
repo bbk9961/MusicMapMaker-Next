@@ -50,6 +50,7 @@ local Skin = {
 		note = {
 			note = "image/note/note.png",
 			head = "image/note/head.png",
+			node = "image/note/node.png",
 			holdend = "image/note/holdend.png",
 			holdbodyvertical = "image/note/holdbodyvertical.png",
 			holdbodyhorizontal = "image/note/holdbodyhorizontal.png",
