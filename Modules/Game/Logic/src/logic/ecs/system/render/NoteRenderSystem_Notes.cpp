@@ -1,4 +1,5 @@
 #include "Batcher.h"
+#include "config/skin/SkinConfig.h"
 #include "logic/ecs/components/InteractionComponent.h"
 #include "logic/ecs/components/NoteComponent.h"
 #include "logic/ecs/components/TransformComponent.h"
@@ -44,10 +45,20 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
         return { drawW, drawH };
     };
 
+    // 4. 获取皮肤配色方案
+    auto& skin   = Config::SkinManager::instance();
+    auto  toVec4 = [](const Config::Color& c) {
+        return glm::vec4(c.r, c.g, c.b, c.a);
+    };
+
+    glm::vec4 colorTap   = toVec4(skin.getColor("note_tap"));
+    glm::vec4 colorHold  = toVec4(skin.getColor("note_hold"));
+    glm::vec4 colorNode  = toVec4(skin.getColor("note_node"));
+    glm::vec4 colorArrow = toVec4(skin.getColor("note_flick_arrow"));
+
     for ( auto entity : noteView ) {
         const auto& transform = noteView.get<const TransformComponent>(entity);
         const auto& note      = noteView.get<const NoteComponent>(entity);
-        if ( note.m_isSubNote ) continue;
 
         const InteractionComponent* interaction =
             registry.try_get<InteractionComponent>(entity);
@@ -63,10 +74,6 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
         if ( screenY - visualH > bottomY ) continue;
         if ( screenY < topY ) continue;
 
-        // 设置颜色：如果是被悬停，则叠加一层橙色高亮
-        glm::vec4 texColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-        if ( isHovered ) texColor = { 1.0f, 0.5f, 0.0f, 1.0f };
-
         // 同步拾取包围盒 (使用 Note 基准宽度和实际视觉高度)
         snapshot->hitboxes.push_back({ entity,
                                        leftX +
@@ -76,6 +83,13 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                                        noteW,
                                        visualH });
 
+        // 如果是子物件，则在此处跳过后续绘制逻辑（但保留上面的 Hitbox 提交）
+        if ( note.m_isSubNote ) continue;
+
+        // 设置颜色高亮叠加
+        glm::vec4 hoverTint = { 1.0f, 1.0f, 1.0f, 1.0f };
+        if ( isHovered ) hoverTint = { 1.0f, 0.5f, 0.0f, 1.0f };
+
         if ( note.m_type == ::MMM::NoteType::NOTE ) {
             batcher.setTexture(TextureID::Note);
             batcher.pushQuad(leftX + note.m_trackIndex * singleTrackW +
@@ -83,10 +97,10 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                              screenY + noteH * 0.5f,
                              noteW,
                              noteH,
-                             texColor);
+                             colorTap * hoverTint);
         } else if ( note.m_type == ::MMM::NoteType::HOLD ) {
             // 图层顺序: Body (最下) -> Head -> End (最上)
-            glm::vec2 headSize = getDrawSize(TextureID::HoldHead);
+            glm::vec2 headSize = getDrawSize(TextureID::Note);
             glm::vec2 endSize  = getDrawSize(TextureID::HoldEnd);
             glm::vec2 bodySize = getDrawSize(TextureID::HoldBodyVertical);
 
@@ -99,15 +113,16 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
 
             // 1. Body
             batcher.setTexture(TextureID::HoldBodyVertical);
-            batcher.pushQuad(bodyX, screenY, bodySize.x, visualH, texColor);
+            batcher.pushQuad(
+                bodyX, screenY, bodySize.x, visualH, colorHold * hoverTint);
 
-            // 2. Head
-            batcher.setTexture(TextureID::HoldHead);
+            // 2. Head (复用 Note 纹理)
+            batcher.setTexture(TextureID::Note);
             batcher.pushQuad(headX,
                              screenY + headSize.y * 0.5f,
                              headSize.x,
                              headSize.y,
-                             texColor);
+                             colorHold * hoverTint);
 
             // 3. End
             batcher.setTexture(TextureID::HoldEnd);
@@ -115,11 +130,11 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                              screenY - visualH + endSize.y * 0.5f,
                              endSize.x,
                              endSize.y,
-                             texColor);
+                             colorHold * hoverTint);
 
         } else if ( note.m_type == ::MMM::NoteType::FLICK ) {
             // 图层顺序: BodyH (最下) -> Head -> Arrow (最上)
-            glm::vec2 headSize = getDrawSize(TextureID::HoldHead);
+            glm::vec2 headSize = getDrawSize(TextureID::Note);
             float     headX    = leftX + note.m_trackIndex * singleTrackW +
                                  (singleTrackW - headSize.x) * 0.5f;
 
@@ -137,18 +152,21 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                         leftX + startTrack * singleTrackW + singleTrackW * 0.5f;
 
                     batcher.setTexture(TextureID::HoldBodyHorizontal);
-                    batcher.pushQuad(
-                        bodyX, screenY + drawH * 0.5f, drawW, drawH, texColor);
+                    batcher.pushQuad(bodyX,
+                                     screenY + drawH * 0.5f,
+                                     drawW,
+                                     drawH,
+                                     colorHold * hoverTint);
                 }
             }
 
-            // 2. Head
-            batcher.setTexture(TextureID::HoldHead);
+            // 2. Head (复用 Note 纹理)
+            batcher.setTexture(TextureID::Note);
             batcher.pushQuad(headX,
                              screenY + headSize.y * 0.5f,
                              headSize.x,
                              headSize.y,
-                             texColor);
+                             colorHold * hoverTint);
 
             // 3. Arrow
             if ( note.m_dtrack != 0 ) {
@@ -164,7 +182,7 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                                  screenY + arrowSize.y * 0.5f,
                                  arrowSize.x,
                                  arrowSize.y,
-                                 texColor);
+                                 colorArrow * hoverTint);
             }
         } else if ( note.m_type == ::MMM::NoteType::POLYLINE ) {
             // Polyline 图层排序逻辑 (分轮绘制)
@@ -197,7 +215,7 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                                          subStartY + drawH * 0.5f,
                                          drawW,
                                          drawH,
-                                         texColor);
+                                         colorHold * hoverTint);
                     }
                 } else if ( sub.type == ::MMM::NoteType::HOLD &&
                             sub.duration > 0 ) {
@@ -214,7 +232,7 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                                      subStartY,
                                      bodySize.x,
                                      subStartY - subEndY,
-                                     texColor);
+                                     colorHold * hoverTint);
                 }
 
                 // 过渡 Body
@@ -235,7 +253,7 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                                          { curBodyX + bodySize.x, subEndY },
                                          { nextBodyX + bodySize.x, nextStartY },
                                          { nextBodyX, nextStartY },
-                                         texColor);
+                                         colorHold * hoverTint);
                 }
             }
 
@@ -254,23 +272,23 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                                  subStartY + nodeSize.y * 0.5f,
                                  nodeSize.x,
                                  nodeSize.y,
-                                 texColor);
+                                 colorNode * hoverTint);
             }
 
-            // 第三轮: 绘制起始 HoldHead
+            // 第三轮: 绘制起始 HoldHead (复用 Note 纹理)
             const auto& first      = note.m_subNotes[0];
             double      fStartAbsY = cache->getAbsY(first.timestamp);
             float       fStartY =
                 judgmentLineY - static_cast<float>(fStartAbsY - currentAbsY);
-            glm::vec2 headSize = getDrawSize(TextureID::HoldHead);
+            glm::vec2 headSize = getDrawSize(TextureID::Note);
             float     headX    = leftX + first.trackIndex * singleTrackW +
                                  (singleTrackW - headSize.x) * 0.5f;
-            batcher.setTexture(TextureID::HoldHead);
+            batcher.setTexture(TextureID::Note);
             batcher.pushQuad(headX,
                              fStartY + headSize.y * 0.5f,
                              headSize.x,
                              headSize.y,
-                             texColor);
+                             colorHold * hoverTint);
 
             // 第四轮: 绘制结尾特殊样式 (End 或 Arrow)
             const auto& last       = note.m_subNotes.back();
@@ -300,7 +318,7 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                                  lStartY + arrowSize.y * 0.5f,
                                  arrowSize.x,
                                  arrowSize.y,
-                                 texColor);
+                                 colorArrow * hoverTint);
             } else if ( last.type == ::MMM::NoteType::HOLD ) {
                 glm::vec2 endSize = getDrawSize(TextureID::HoldEnd);
                 float     endX    = leftX + last.trackIndex * singleTrackW +
@@ -310,7 +328,7 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                                  lEndY + endSize.y * 0.5f,
                                  endSize.x,
                                  endSize.y,
-                                 texColor);
+                                 colorHold * hoverTint);
             }
         }
     }

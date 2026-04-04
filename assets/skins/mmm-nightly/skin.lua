@@ -15,6 +15,12 @@ local Skin = {
 		primary = { 0.0, 0.8, 0.8, 1.0 },
 		text = { 1.0, 1.0, 1.0, 1.0 },
 		alert = { 1.0, 0.2, 0.2, 1.0 },
+
+		-- 音符精确配色 (由代码迁移)
+		note_tap = { 0.8902, 0.8588, 0.7608, 1.0 },
+		note_hold = { 0.7333, 0.7608, 0.6000, 1.0 },
+		note_node = { 0.9843, 0.8667, 0.8118, 1.0 },
+		note_flick_arrow = { 0.9922, 0.9255, 0.5608, 1.0 },
 	},
 
 	-- 翻译配置
@@ -49,7 +55,6 @@ local Skin = {
 		},
 		note = {
 			note = "image/note/note.png",
-			head = "image/note/head.png",
 			node = "image/note/node.png",
 			holdend = "image/note/holdend.png",
 			holdbodyvertical = "image/note/holdbodyvertical.png",
