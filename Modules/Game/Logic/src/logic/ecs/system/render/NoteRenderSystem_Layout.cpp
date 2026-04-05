@@ -33,9 +33,19 @@ void NoteRenderSystem::renderTrackLayout(
                 singleTrackW /
                 texAspect;  // 每个轨道按照宽度等比缩放计算出的单块高度
 
+            // 为了防止图集边缘线性采样溢出产生黑边，向内收缩 0.5 个像素的 UV
+            const float halfPixelU = 0.5f / 2048.0f;
+            const float halfPixelV = 0.5f / 2048.0f;
+
+            float uMin = uvIt->second.x + halfPixelU;
+            float uMax = uvIt->second.x + uvIt->second.z - halfPixelU;
+
             for ( int i = 0; i < trackCount; ++i ) {
                 float trackX   = leftX + i * singleTrackW;
                 float currentY = bottomY;  // 从底向上绘制
+
+                // 稍微扩展一点宽度，防止浮点数精度导致的轨道间隙
+                float drawW = singleTrackW + 0.5f;
 
                 while ( currentY > topY ) {
                     float remainH     = currentY - topY;
@@ -44,15 +54,18 @@ void NoteRenderSystem::renderTrackLayout(
                     float vMax = 1.0f;
                     float vMin = 1.0f - (actualDrawH / drawH);
 
+                    float finalVMin =
+                        uvIt->second.y + vMin * uvIt->second.w + halfPixelV;
+                    float finalVMax =
+                        uvIt->second.y + vMax * uvIt->second.w - halfPixelV;
+
                     batcher.pushUVQuad(
                         trackX,
                         currentY,
-                        singleTrackW,
-                        actualDrawH,
-                        glm::vec2(uvIt->second.x,
-                                  uvIt->second.y + vMin * uvIt->second.w),
-                        glm::vec2(uvIt->second.x + uvIt->second.z,
-                                  uvIt->second.y + vMax * uvIt->second.w),
+                        drawW,
+                        actualDrawH + 0.5f,  // 高度也稍微向下扩展防止横向接缝
+                        glm::vec2(uMin, finalVMin),
+                        glm::vec2(uMax, finalVMax),
                         { 1.0f, 1.0f, 1.0f, 1.0f });
 
                     currentY -= drawH;
@@ -70,12 +83,42 @@ void NoteRenderSystem::renderTrackLayout(
                            config.trackBoxLineWidth,
                            { 0.5f, 0.5f, 0.5f, 1.0f });
 
-    // 绘制判定线 (横向贯穿轨道区域)
-    batcher.pushQuad(leftX,
-                     judgmentLineY + config.judgelineWidth * 0.5f,
-                     trackAreaW,
-                     config.judgelineWidth,
-                     { 1.0f, 1.0f, 1.0f, 1.0f });
+    // 绘制判定区域 (横向贯穿轨道区域)
+    batcher.setTexture(TextureID::JudgeArea);
+    auto judgeUvIt = batcher.snapshot->uvMap.find(
+        static_cast<uint32_t>(TextureID::JudgeArea));
+    if ( judgeUvIt != batcher.snapshot->uvMap.end() ) {
+        float texW = judgeUvIt->second.z * 2048.0f;
+        float texH = judgeUvIt->second.w * 2048.0f;
+        if ( texW > 0 && texH > 0 ) {
+            float aspect = texW / texH;
+            float drawH  = trackAreaW / aspect;  // 根据宽度等比缩放计算高度
+
+            // 为了防止图集边缘线性采样溢出产生黑边
+            const float halfPixelU = 0.5f / 2048.0f;
+            const float halfPixelV = 0.5f / 2048.0f;
+
+            batcher.pushUVQuad(
+                leftX,
+                judgmentLineY + drawH * 0.5f,
+                trackAreaW,
+                drawH,
+                glm::vec2(judgeUvIt->second.x + halfPixelU,
+                          judgeUvIt->second.y + halfPixelV),
+                glm::vec2(
+                    judgeUvIt->second.x + judgeUvIt->second.z - halfPixelU,
+                    judgeUvIt->second.y + judgeUvIt->second.w - halfPixelV),
+                { 1.0f, 1.0f, 1.0f, 1.0f });
+        }
+    } else {
+        // Fallback: 绘制原有的纯色判定线
+        batcher.setTexture(TextureID::None);
+        batcher.pushQuad(leftX,
+                         judgmentLineY + config.judgelineWidth * 0.5f,
+                         trackAreaW,
+                         config.judgelineWidth,
+                         { 1.0f, 1.0f, 1.0f, 1.0f });
+    }
 }
 
 }  // namespace MMM::Logic::System

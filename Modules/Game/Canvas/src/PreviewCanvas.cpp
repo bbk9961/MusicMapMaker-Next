@@ -161,12 +161,13 @@ void PreviewCanvas::reloadTextures(vk::PhysicalDevice& physicalDevice,
     addTex(Logic::TextureID::FlickArrowLeft, "note.arrowleft");
     addTex(Logic::TextureID::FlickArrowRight, "note.arrowright");
     addTex(Logic::TextureID::Track, "panel.track");
+    addTex(Logic::TextureID::JudgeArea, "panel.judgearea");
 
     m_textureAtlas->build(2048);
 
     m_atlasUVs.clear();
     for ( uint32_t i = static_cast<uint32_t>(Logic::TextureID::None);
-          i <= static_cast<uint32_t>(Logic::TextureID::Track);
+          i <= static_cast<uint32_t>(Logic::TextureID::JudgeArea);
           ++i ) {
         if ( i == static_cast<uint32_t>(Logic::TextureID::Background) )
             continue;
