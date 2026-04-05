@@ -37,7 +37,7 @@ void BeatmapSession::pushCommand(LogicCommand&& cmd)
     m_commandQueue.enqueue(std::move(cmd));
 }
 
-void BeatmapSession::update(double dt, const EditorConfig& config)
+void BeatmapSession::update(double dt, const Common::EditorConfig& config)
 {
     m_lastConfig = config;
 
@@ -46,9 +46,27 @@ void BeatmapSession::update(double dt, const EditorConfig& config)
 
     // 更新播放时间
     if ( m_isPlaying ) {
-        // 播放时各走各的：ECS 逻辑钟平滑累加，避免音频缓冲区跳跃导致的视觉卡顿
-        double speed = Audio::AudioManager::instance().getPlaybackSpeed();
-        m_currentTime += dt * speed;
+        float speed = Audio::AudioManager::instance().getPlaybackSpeed();
+
+        // 1. 平时：直接累加正常 ECS 周期自己的 dt，保证视觉流畅
+        m_currentTime += static_cast<double>(dt * speed);
+        m_syncClock.advance(dt, speed);
+
+        // 2. 周期性：通过同步计时器修正可能的累积偏移
+        m_syncTimer += dt;
+        if ( m_syncTimer >= config.syncConfig.syncInterval ) {
+            double audioTime = Audio::AudioManager::instance().getCurrentTime();
+            // 修正视觉时间偏移 (根据配置的同步模式: Integral 或 WaterTank)
+            m_syncClock.sync(audioTime, config.syncConfig);
+            // 将逻辑时间对齐至硬件时间，防止长期累积误差
+            m_currentTime = audioTime;
+            m_syncTimer   = 0.0;
+        }
+
+        m_visualTime = m_syncClock.getVisualTime() + config.visualOffset;
+    } else {
+        m_visualTime = m_currentTime + config.visualOffset;
+        m_syncTimer  = 0.0;
     }
 
     // 同步最新的图集 UV 映射
@@ -58,9 +76,10 @@ void BeatmapSession::update(double dt, const EditorConfig& config)
     updateECSAndRender(config);
 }
 
-void BeatmapSession::updateECSAndRender(const EditorConfig& config)
+void BeatmapSession::updateECSAndRender(const Common::EditorConfig& config)
 {
     // 1. 调用 ECS System 更新全局物理位置 (Logical Transform)
+    // 注意：物理位置更新应基于逻辑时间 m_currentTime
     System::NoteTransformSystem::update(
         m_noteRegistry, m_timelineRegistry, m_currentTime, config);
 
@@ -78,7 +97,7 @@ void BeatmapSession::updateECSAndRender(const EditorConfig& config)
         // 注入当前 UV 映射到快照，供 Batcher 使用
         snapshot->uvMap       = m_atlasUVMap;
         snapshot->isPlaying   = m_isPlaying;
-        snapshot->currentTime = m_currentTime;
+        snapshot->currentTime = m_visualTime;  // 快照使用视觉平滑时间
 
         if ( m_currentBeatmap ) {
             auto bgPath =
@@ -92,11 +111,12 @@ void BeatmapSession::updateECSAndRender(const EditorConfig& config)
         float judgmentLineY = camera.viewportHeight * config.judgeline_pos;
 
         // 3. 调用 ECS System 针对当前 Camera 生成渲染快照
+        // 使用视觉时间 m_visualTime 进行剔除和位置映射
         System::NoteRenderSystem::generateSnapshot(m_noteRegistry,
                                                    m_timelineRegistry,
                                                    snapshot,
                                                    cameraId,
-                                                   m_currentTime,
+                                                   m_visualTime,
                                                    camera.viewportWidth,
                                                    camera.viewportHeight,
                                                    judgmentLineY,

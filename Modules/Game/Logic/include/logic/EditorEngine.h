@@ -1,9 +1,9 @@
 #pragma once
 
+#include "common/EditorConfig.h"
+#include "common/LogicCommands.h"
 #include "logic/BeatmapSession.h"
 #include "logic/BeatmapSyncBuffer.h"
-#include "logic/EditorConfig.h"
-#include "logic/LogicCommands.h"
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -72,6 +72,23 @@ public:
         return m_atlasUVMap;
     }
 
+    /**
+     * @brief 获取当前编辑器配置
+     */
+    const Common::EditorConfig& getEditorConfig() const
+    {
+        return m_editorConfig;
+    }
+
+    /**
+     * @brief 设置编辑器配置 (同时分发指令给 Session)
+     */
+    void setEditorConfig(const Common::EditorConfig& config)
+    {
+        m_editorConfig = config;
+        pushCommand(CmdUpdateEditorConfig{ config });
+    }
+
 private:
     /**
      * @brief 逻辑线程的主循环
@@ -95,7 +112,7 @@ private:
     std::mutex m_bufferMutex;
 
     /// @brief 编辑器配置
-    EditorConfig m_editorConfig;
+    Common::EditorConfig m_editorConfig;
 
     /// @brief 图集 UV 映射表
     std::unordered_map<uint32_t, glm::vec4> m_atlasUVMap;

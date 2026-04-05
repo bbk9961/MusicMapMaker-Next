@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logic/EditorConfig.h"
+#include "common/EditorConfig.h"
 #include <entt/entt.hpp>
 #include <memory>
 #include <string>
@@ -19,7 +19,7 @@ namespace MMM::Logic
  * @brief 更新编辑器配置指令
  */
 struct CmdUpdateEditorConfig {
-    EditorConfig config;
+    Common::EditorConfig config;
 };
 
 /**

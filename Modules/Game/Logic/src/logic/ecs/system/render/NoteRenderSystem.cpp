@@ -11,7 +11,7 @@ void NoteRenderSystem::generateSnapshot(
     entt::registry& registry, const entt::registry& timelineRegistry,
     RenderSnapshot* snapshot, const std::string& cameraId, double currentTime,
     float viewportWidth, float viewportHeight, float judgmentLineY,
-    int32_t trackCount, const EditorConfig& config)
+    int32_t trackCount, const Common::EditorConfig& config)
 {
     const auto* cache = timelineRegistry.ctx().find<ScrollCache>();
     if ( !cache ) return;

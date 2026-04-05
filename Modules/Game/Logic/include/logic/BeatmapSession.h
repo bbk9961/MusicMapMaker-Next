@@ -1,7 +1,8 @@
 #pragma once
 
-#include "logic/EditorConfig.h"
-#include "logic/LogicCommands.h"
+#include "common/EditorConfig.h"
+#include "common/LogicCommands.h"
+#include "logic/SyncClock.h"
 #include <concurrentqueue.h>
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
@@ -52,7 +53,7 @@ public:
      * @param dt 距离上一帧的时间间隔（秒）
      * @param config 当前编辑器配置
      */
-    void update(double dt, const EditorConfig& config);
+    void update(double dt, const Common::EditorConfig& config);
 
 private:
     /**
@@ -69,7 +70,7 @@ private:
      * @brief 执行逻辑计算和生成渲染快照
      * @param config 当前编辑器配置
      */
-    void updateECSAndRender(const EditorConfig& config);
+    void updateECSAndRender(const Common::EditorConfig& config);
 
     /// @brief ECS 注册表：音符
     entt::registry m_noteRegistry;
@@ -83,6 +84,15 @@ private:
     /// @brief 谱面当前播放时间 (秒)
     double m_currentTime{ 0.0 };
 
+    /// @brief 谱面当前视觉渲染时间 (秒)
+    double m_visualTime{ 0.0 };
+
+    /// @brief 同步时钟
+    SyncClock m_syncClock;
+
+    /// @brief 同步计时器 (秒)
+    double m_syncTimer{ 0.0 };
+
     /// @brief 谱面是否正在播放
     bool m_isPlaying{ false };
 
@@ -93,7 +103,7 @@ private:
     std::shared_ptr<MMM::BeatMap> m_currentBeatmap;
 
     /// @brief 当前编辑器配置缓存
-    EditorConfig m_lastConfig;
+    Common::EditorConfig m_lastConfig;
 
     /// @brief 所有注册的摄像机(视口)信息
     std::unordered_map<std::string, CameraInfo> m_cameras;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "logic/EditorConfig.h"
+#include "common/EditorConfig.h"
 #include <entt/entt.hpp>
 
 namespace MMM::Logic::System
@@ -24,7 +24,7 @@ public:
      */
     static void update(entt::registry& registry,
                        entt::registry& timelineRegistry, double currentTime,
-                       const EditorConfig& config);
+                       const Common::EditorConfig& config);
 };
 
 }  // namespace MMM::Logic::System

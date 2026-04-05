@@ -12,18 +12,23 @@ add_library(UI STATIC
 )
 
 target_include_directories(UI
- PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+	PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+	PRIVATE ${PROJECT_SOURCE_DIR}/Modules/Game/Logic/include
 )
 
 target_link_libraries(UI
- PUBLIC
-  Log
-  Event
-  Config
-  Graphic
-  3rd_glm
-  3rd_imgui
-  3rd_clay
-  3rd_stb
-  3rd_lunasvg
+	PUBLIC
+		Log
+		Common
+		Event
+		Config
+		Graphic
+		3rd_glm
+		3rd_imgui
+		3rd_clay
+		3rd_stb
+		3rd_lunasvg
+		3rd_concurrentqueue
+		3rd_entt
 )
+

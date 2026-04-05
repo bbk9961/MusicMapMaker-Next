@@ -1,6 +1,6 @@
 #pragma once
 
-namespace MMM::Logic
+namespace MMM::Common
 {
 
 struct TrackLayout {
@@ -48,6 +48,21 @@ struct PreviewAreaConfig {
     AreaMargin margin;
 };
 
+enum class SyncMode {
+    None,      ///< 直接同步音频时间 (可能抖动)
+    Integral,  ///< 积分制同步 (平滑追踪)
+    WaterTank  ///< 水箱制同步 (固定延迟)
+};
+
+struct SyncConfig {
+    SyncMode mode{ SyncMode::Integral };
+    float    integralFactor{ 0.1f };    ///< 积分追踪系数 (0.0~1.0)
+    float    waterTankBuffer{ 0.05f };  ///< 水箱缓冲时间 (秒)
+    double   syncInterval{
+        10.0
+    };  ///< 强制同步周期 (秒)，例如 0.02 代表每 20ms 同步一次音频时钟
+};
+
 /// @brief 编辑器配置
 struct EditorConfig {
     /// @brief 轨道布局
@@ -58,6 +73,9 @@ struct EditorConfig {
 
     /// @brief 预览区配置
     PreviewAreaConfig previewConfig;
+
+    /// @brief 同步配置
+    SyncConfig syncConfig;
 
     /// @brief 轨道布局包围框线宽(px)
     float trackBoxLineWidth{ 2 };
@@ -74,6 +92,10 @@ struct EditorConfig {
 
     /// @brief 物件填充模式
     BackgroundFillMode noteFillMode{ BackgroundFillMode::Stretch };
+
+    /// @brief 视觉偏移量 (秒)
+    /// @note 正值代表物件提前显示，负值代表物件延后显示
+    float visualOffset{ 0.0f };
 };
 
-}  // namespace MMM::Logic
+}  // namespace MMM::Common

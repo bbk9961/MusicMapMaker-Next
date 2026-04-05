@@ -5,9 +5,9 @@ namespace MMM::Logic::System
 {
 
 void BackgroundRenderSystem::render(Batcher& batcher, float viewportWidth,
-                                    float                 viewportHeight,
-                                    const EditorConfig&   config,
-                                    const RenderSnapshot* snapshot)
+                                    float                       viewportHeight,
+                                    const Common::EditorConfig& config,
+                                    const RenderSnapshot*       snapshot)
 {
     if ( snapshot->backgroundPath.empty() ) return;
 

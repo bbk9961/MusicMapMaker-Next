@@ -1,5 +1,6 @@
 # Modules/Game/CMakeLists.txt
 
+add_subdirectory("Common")
 add_subdirectory("Graphic")
 add_subdirectory("Logic")
 add_subdirectory("UI")
@@ -12,6 +13,7 @@ add_library(Game STATIC
 target_link_libraries(Game
 	PUBLIC
 		Log
+		Common
 		Canvas
 		UI
 		Graphic

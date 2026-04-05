@@ -1,4 +1,5 @@
 #include "canvas/Basic2DCanvas.h"
+#include "common/LogicCommands.h"
 #include "config/skin/SkinConfig.h"
 #include "event/canvas/interactive/ResizeEvent.h"
 #include "event/core/EventBus.h"
@@ -8,7 +9,6 @@
 #include "log/colorful-log.h"
 #include "logic/BeatmapSyncBuffer.h"
 #include "logic/EditorEngine.h"
-#include "logic/LogicCommands.h"
 #include "ui/ITextureLoader.h"
 #include "ui/IUIView.h"
 #include "ui/UIManager.h"

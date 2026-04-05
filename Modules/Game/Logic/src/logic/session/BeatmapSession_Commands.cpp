@@ -33,6 +33,7 @@ void BeatmapSession::processCommands()
                     m_isPlaying = arg.isPlaying;
                     if ( m_isPlaying ) {
                         Audio::AudioManager::instance().play();
+                        m_syncClock.reset(m_currentTime);
                     } else {
                         Audio::AudioManager::instance().pause();
                         // 当且仅当暂停播放时，从音频引擎读取一次时间，令 ECS
@@ -151,6 +152,7 @@ void BeatmapSession::processCommands()
                     }
                 } else if constexpr ( std::is_same_v<T, CmdSeek> ) {
                     m_currentTime = arg.time;
+                    m_syncClock.reset(arg.time);
                     Audio::AudioManager::instance().seek(arg.time);
                 } else if constexpr ( std::is_same_v<T, CmdSetPlaybackSpeed> ) {
                     Audio::AudioManager::instance().setPlaybackSpeed(arg.speed);

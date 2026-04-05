@@ -27,6 +27,8 @@ return {
 	["ui.file_manager.open_directory"] = "打开文件夹",
 	["title.audio_manager"] = "音频管理器",
 	["ui.audio_manager.initial_hint"] = "暂未打开项目,无音频",
+	["ui.audio_manager.visual_offset"] = "渲染视觉偏移",
+	["ui.audio_manager.visual_offset_tooltip"] = "调整整体渲染相对于音频的偏移量(ms)，正值代表物件提前显示",
 
 	-- 带格式化参数的文本 (TR_FMT)
 	-- 大括号 {} 的位置和数量须和代码里的逻辑一致

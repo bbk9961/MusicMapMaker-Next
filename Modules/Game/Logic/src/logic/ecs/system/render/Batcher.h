@@ -1,13 +1,14 @@
 #pragma once
 
+#include "common/EditorConfig.h"
 #include "logic/BeatmapSyncBuffer.h"
-#include "logic/EditorConfig.h"
 #include <glm/glm.hpp>
 
 namespace MMM::Logic::System
 {
 
-using TextureID = MMM::Logic::TextureID;
+using TextureID          = MMM::Logic::TextureID;
+using BackgroundFillMode = MMM::Common::BackgroundFillMode;
 
 // 内部批处理器，负责根据 TextureID 自动切分 DrawCall
 struct Batcher {

@@ -1,0 +1,140 @@
+#include "Batcher.h"
+#include "logic/ecs/components/NoteComponent.h"
+#include "logic/ecs/system/NoteRenderSystem.h"
+
+namespace MMM::Logic::System
+{
+
+static glm::vec2 getDrawSize(RenderSnapshot* snapshot, TextureID id,
+                             float baseW, float baseH)
+{
+    auto itBase = snapshot->uvMap.find(static_cast<uint32_t>(TextureID::Note));
+    if ( itBase == snapshot->uvMap.end() ) return { baseW, baseH };
+    float baseWRatio = itBase->second.z;
+
+    auto it = snapshot->uvMap.find(static_cast<uint32_t>(id));
+    if ( it == snapshot->uvMap.end() ) return { baseW, baseH };
+
+    float wRatio = it->second.z / baseWRatio;
+    float drawW  = baseW * wRatio;
+    float drawH  = drawW * (it->second.w / it->second.z);
+    return { drawW, drawH };
+}
+
+static float getTexAspect(RenderSnapshot* snapshot, TextureID id)
+{
+    auto it = snapshot->uvMap.find(static_cast<uint32_t>(id));
+    if ( it == snapshot->uvMap.end() ) return 1.0f;
+    return it->second.z / it->second.w;
+}
+
+void NoteRenderSystem::renderTap(Batcher&                           batcher,
+                                 const ::MMM::Logic::NoteComponent& note,
+                                 const Common::EditorConfig& config, float x,
+                                 float y, float w, float h, float aspect,
+                                 glm::vec4 color)
+{
+    batcher.setTexture(TextureID::Note);
+    batcher.pushFilledQuad(
+        x, y + h * 0.5f, w, h, { aspect, 1.0f }, config.noteFillMode, color);
+}
+
+void NoteRenderSystem::renderHold(Batcher&                           batcher,
+                                  const ::MMM::Logic::NoteComponent& note,
+                                  const Common::EditorConfig&        config,
+                                  RenderSnapshot* snapshot, float x, float y,
+                                  float w, float h, float visualH,
+                                  float singleTrackW, glm::vec4 color,
+                                  glm::vec4 hoverTint)
+{
+    glm::vec2 headSize = getDrawSize(snapshot, TextureID::Note, w, h);
+    glm::vec2 endSize  = getDrawSize(snapshot, TextureID::HoldEnd, w, h);
+    glm::vec2 bodySize =
+        getDrawSize(snapshot, TextureID::HoldBodyVertical, w, h);
+
+    float headX = x;
+    float endX  = x + (w - endSize.x) * 0.5f;
+    float bodyX = x + (w - bodySize.x) * 0.5f;
+
+    // 1. Body
+    batcher.setTexture(TextureID::HoldBodyVertical);
+    batcher.pushQuad(bodyX, y, bodySize.x, visualH, color * hoverTint);
+
+    // 2. Head
+    batcher.setTexture(TextureID::Note);
+    batcher.pushFilledQuad(headX,
+                           y + headSize.y * 0.5f,
+                           headSize.x,
+                           headSize.y,
+                           { getTexAspect(snapshot, TextureID::Note), 1.0f },
+                           config.noteFillMode,
+                           color * hoverTint);
+
+    // 3. End
+    batcher.setTexture(TextureID::HoldEnd);
+    batcher.pushFilledQuad(endX,
+                           y - visualH + endSize.y * 0.5f,
+                           endSize.x,
+                           endSize.y,
+                           { getTexAspect(snapshot, TextureID::HoldEnd), 1.0f },
+                           config.noteFillMode,
+                           color * hoverTint);
+}
+
+void NoteRenderSystem::renderFlick(Batcher&                           batcher,
+                                   const ::MMM::Logic::NoteComponent& note,
+                                   const Common::EditorConfig&        config,
+                                   RenderSnapshot* snapshot, float x, float y,
+                                   float w, float h, float singleTrackW,
+                                   glm::vec4 color, glm::vec4 arrowColor,
+                                   glm::vec4 hoverTint)
+{
+    glm::vec2 headSize = getDrawSize(snapshot, TextureID::Note, w, h);
+    float     headX    = x;
+
+    // 1. BodyH
+    if ( note.m_dtrack != 0 ) {
+        auto itBodyH = snapshot->uvMap.find(
+            static_cast<uint32_t>(TextureID::HoldBodyHorizontal));
+        if ( itBodyH != snapshot->uvMap.end() ) {
+            float drawH = h * (itBodyH->second.w /
+                               snapshot->uvMap.at(uint32_t(TextureID::Note)).w);
+            float drawW = std::abs(note.m_dtrack) * singleTrackW;
+            float startTrack = std::min(0.0f, (float)note.m_dtrack);
+            float bodyX      = x + (w - singleTrackW) * 0.5f +
+                               startTrack * singleTrackW + singleTrackW * 0.5f;
+
+            batcher.setTexture(TextureID::HoldBodyHorizontal);
+            batcher.pushQuad(
+                bodyX, y + drawH * 0.5f, drawW, drawH, color * hoverTint);
+        }
+    }
+
+    // 2. Head
+    batcher.setTexture(TextureID::Note);
+    batcher.pushQuad(headX,
+                     y + headSize.y * 0.5f,
+                     headSize.x,
+                     headSize.y,
+                     color * hoverTint);
+
+    // 3. Arrow
+    if ( note.m_dtrack != 0 ) {
+        TextureID arrowId   = (note.m_dtrack < 0) ? TextureID::FlickArrowLeft
+                                                  : TextureID::FlickArrowRight;
+        glm::vec2 arrowSize = getDrawSize(snapshot, arrowId, w, h);
+        float     arrowX    = x + (w - singleTrackW) * 0.5f +
+                              note.m_dtrack * singleTrackW +
+                              (singleTrackW - arrowSize.x) * 0.5f;
+        batcher.setTexture(arrowId);
+        batcher.pushFilledQuad(arrowX,
+                               y + arrowSize.y * 0.5f,
+                               arrowSize.x,
+                               arrowSize.y,
+                               { getTexAspect(snapshot, arrowId), 1.0f },
+                               config.noteFillMode,
+                               arrowColor * hoverTint);
+    }
+}
+
+}  // namespace MMM::Logic::System

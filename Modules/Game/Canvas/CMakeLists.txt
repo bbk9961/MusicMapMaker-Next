@@ -5,5 +5,5 @@ add_library(Canvas STATIC
     src/PreviewCanvas.cpp
 )
 
-target_link_libraries(Canvas PUBLIC Log Config UI Graphic Logic 3rd_glm 3rd_entt)
+target_link_libraries(Canvas PUBLIC Log Common Config UI Graphic Logic 3rd_glm 3rd_entt)
 target_include_directories(Canvas PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)

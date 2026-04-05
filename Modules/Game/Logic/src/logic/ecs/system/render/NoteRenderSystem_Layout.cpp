@@ -6,7 +6,7 @@ namespace MMM::Logic::System
 
 void NoteRenderSystem::renderTrackLayout(
     Batcher& batcher, float viewportWidth, float viewportHeight,
-    float judgmentLineY, int32_t trackCount, const EditorConfig& config,
+    float judgmentLineY, int32_t trackCount, const Common::EditorConfig& config,
     float& leftX, float& rightX, float& topY, float& bottomY, float& trackAreaW,
     float& singleTrackW)
 {
