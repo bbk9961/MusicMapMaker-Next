@@ -160,8 +160,8 @@ void PreviewCanvas::reloadTextures(vk::PhysicalDevice& physicalDevice,
     addTex(Logic::TextureID::HoldBodyHorizontal, "note.holdbodyhorizontal");
     addTex(Logic::TextureID::FlickArrowLeft, "note.arrowleft");
     addTex(Logic::TextureID::FlickArrowRight, "note.arrowright");
-    addTex(Logic::TextureID::Track, "panel.track");
-    addTex(Logic::TextureID::JudgeArea, "panel.judgearea");
+    addTex(Logic::TextureID::Track, "panel.track.background");
+    addTex(Logic::TextureID::JudgeArea, "panel.track.judgearea");
 
     m_textureAtlas->build(2048);
 

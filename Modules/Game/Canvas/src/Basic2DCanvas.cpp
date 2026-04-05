@@ -344,10 +344,10 @@ void Basic2DCanvas::reloadTextures(vk::PhysicalDevice& physicalDevice,
         skin.getAssetPath("note.arrowright"));
 
     m_textureAtlas->addTexture(static_cast<uint32_t>(Logic::TextureID::Track),
-                               skin.getAssetPath("panel.track"));
+                               skin.getAssetPath("panel.track.background"));
     m_textureAtlas->addTexture(
         static_cast<uint32_t>(Logic::TextureID::JudgeArea),
-        skin.getAssetPath("panel.judgearea"));
+        skin.getAssetPath("panel.track.judgearea"));
 
     // 构建图集
     m_textureAtlas->build(2048);

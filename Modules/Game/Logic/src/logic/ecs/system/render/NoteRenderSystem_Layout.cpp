@@ -92,21 +92,24 @@ void NoteRenderSystem::renderTrackLayout(
         float texH = judgeUvIt->second.w * 2048.0f;
         if ( texW > 0 && texH > 0 ) {
             float aspect = texW / texH;
-            float drawH =
-                singleTrackW / aspect;  // 根据单轨道宽度等比缩放计算高度
+
+            // 应用 noteScaleX 和 noteScaleY 缩放判定区
+            float drawW = singleTrackW * config.noteScaleX;
+            float drawH = (singleTrackW / aspect) * config.noteScaleY;
 
             // 为了防止图集边缘线性采样溢出产生黑边
             const float halfPixelU = 0.5f / 2048.0f;
             const float halfPixelV = 0.5f / 2048.0f;
 
             for ( int i = 0; i < trackCount; ++i ) {
-                float trackX = leftX + i * singleTrackW;
-
-                // 稍微扩展一点宽度，防止浮点数精度导致的轨道间隙
-                float drawW = singleTrackW + 0.5f;
+                // 计算当前轨道的中心 X，然后根据缩放后的宽度求得实际绘制的 left
+                // X
+                float trackCenterX =
+                    leftX + i * singleTrackW + singleTrackW * 0.5f;
+                float drawX = trackCenterX - drawW * 0.5f;
 
                 batcher.pushUVQuad(
-                    trackX,
+                    drawX,
                     judgmentLineY + drawH * 0.5f,
                     drawW,
                     drawH,
