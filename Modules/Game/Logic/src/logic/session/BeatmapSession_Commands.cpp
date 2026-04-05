@@ -1,3 +1,4 @@
+#include "audio/AudioManager.h"
 #include "logic/BeatmapSession.h"
 #include "logic/EditorEngine.h"
 #include "logic/ecs/components/InteractionComponent.h"
@@ -30,19 +31,24 @@ void BeatmapSession::processCommands()
                     }
                 } else if constexpr ( std::is_same_v<T, CmdSetPlayState> ) {
                     m_isPlaying = arg.isPlaying;
+                    if ( m_isPlaying ) {
+                        Audio::AudioManager::instance().play();
+                    } else {
+                        Audio::AudioManager::instance().pause();
+                        // 当且仅当暂停播放时，从音频引擎读取一次时间，令 ECS
+                        // 进度与实际播放位置一致
+                        m_currentTime =
+                            Audio::AudioManager::instance().getCurrentTime();
+                    }
                 } else if constexpr ( std::is_same_v<T, CmdLoadBeatmap> ) {
                     loadBeatmap(arg.beatmap);
                 } else if constexpr ( std::is_same_v<T, CmdSetHoveredEntity> ) {
-                    // 先清空所有实体的 Hover 状态 (简易处理，未来可优化)
                     auto view = m_noteRegistry.view<InteractionComponent>();
                     for ( auto entity : view ) {
                         m_noteRegistry.get<InteractionComponent>(entity)
                             .isHovered = false;
                     }
-
-                    // 设置新的 Hover 实体
                     if ( arg.entity != entt::null ) {
-                        // 如果没有该组件则添加
                         if ( !m_noteRegistry.all_of<InteractionComponent>(
                                  arg.entity) ) {
                             m_noteRegistry.emplace<InteractionComponent>(
@@ -59,7 +65,6 @@ void BeatmapSession::processCommands()
                                 .isSelected = false;
                         }
                     }
-
                     if ( arg.entity != entt::null ) {
                         if ( !m_noteRegistry.all_of<InteractionComponent>(
                                  arg.entity) ) {
@@ -88,12 +93,8 @@ void BeatmapSession::processCommands()
                          m_noteRegistry.valid(m_draggedEntity) ) {
                         auto it = m_cameras.find(arg.cameraId);
                         if ( it != m_cameras.end() ) {
-                            // 1. 获取判定线位置
                             float judgmentLineY = it->second.viewportHeight *
                                                   m_lastConfig.judgeline_pos;
-
-                            // 2. 将屏幕 Y 映射回逻辑绝对 Y
-                            // noteAbsY = currentAbsY + judgmentLineY - screenY
                             auto* cache = m_timelineRegistry.ctx()
                                               .find<System::ScrollCache>();
                             if ( cache ) {
@@ -101,17 +102,12 @@ void BeatmapSession::processCommands()
                                     cache->getAbsY(m_currentTime);
                                 double targetAbsY =
                                     currentAbsY + (judgmentLineY - arg.mouseY);
-
-                                // 3. 反查时间戳
                                 double targetTime = cache->getTime(targetAbsY);
 
-                                // 4. 更新 NoteComponent
                                 if ( auto* note =
                                          m_noteRegistry.try_get<NoteComponent>(
                                              m_draggedEntity) ) {
                                     note->m_timestamp = targetTime;
-
-                                    // 计算轨道区域
                                     float leftX = it->second.viewportWidth *
                                                   m_lastConfig.trackLayout.left;
                                     float rightX =
@@ -119,16 +115,13 @@ void BeatmapSession::processCommands()
                                         m_lastConfig.trackLayout.right;
                                     float trackAreaW = rightX - leftX;
                                     float noteW = trackAreaW / m_trackCount;
-
-                                    // 更新轨道
-                                    int track = static_cast<int>(std::round(
+                                    int   track = static_cast<int>(std::round(
                                         (arg.mouseX - leftX - noteW / 2.0f) /
                                         noteW));
                                     track =
                                         std::clamp(track, 0, m_trackCount - 1);
                                     note->m_trackIndex = track;
 
-                                    // 同步更新 TransformComponent (X 坐标)
                                     if ( auto* trans =
                                              m_noteRegistry
                                                  .try_get<TransformComponent>(
@@ -156,6 +149,11 @@ void BeatmapSession::processCommands()
                         m_currentBeatmap->m_baseMapMetadata.track_count =
                             arg.trackCount;
                     }
+                } else if constexpr ( std::is_same_v<T, CmdSeek> ) {
+                    m_currentTime = arg.time;
+                    Audio::AudioManager::instance().seek(arg.time);
+                } else if constexpr ( std::is_same_v<T, CmdSetPlaybackSpeed> ) {
+                    Audio::AudioManager::instance().setPlaybackSpeed(arg.speed);
                 }
             },
             cmd);

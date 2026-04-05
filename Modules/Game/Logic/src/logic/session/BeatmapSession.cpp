@@ -1,4 +1,5 @@
 #include "logic/BeatmapSession.h"
+#include "audio/AudioManager.h"
 #include "log/colorful-log.h"
 #include "logic/BeatmapSyncBuffer.h"
 #include "logic/EditorEngine.h"
@@ -45,7 +46,9 @@ void BeatmapSession::update(double dt, const EditorConfig& config)
 
     // 更新播放时间
     if ( m_isPlaying ) {
-        m_currentTime += dt;
+        // 播放时各走各的：ECS 逻辑钟平滑累加，避免音频缓冲区跳跃导致的视觉卡顿
+        double speed = Audio::AudioManager::instance().getPlaybackSpeed();
+        m_currentTime += dt * speed;
     }
 
     // 同步最新的图集 UV 映射
@@ -73,7 +76,10 @@ void BeatmapSession::updateECSAndRender(const EditorConfig& config)
         snapshot->clear();
 
         // 注入当前 UV 映射到快照，供 Batcher 使用
-        snapshot->uvMap = m_atlasUVMap;
+        snapshot->uvMap       = m_atlasUVMap;
+        snapshot->isPlaying   = m_isPlaying;
+        snapshot->currentTime = m_currentTime;
+
         if ( m_currentBeatmap ) {
             auto bgPath =
                 m_currentBeatmap->m_baseMapMetadata.map_path.parent_path() /
@@ -89,6 +95,7 @@ void BeatmapSession::updateECSAndRender(const EditorConfig& config)
         System::NoteRenderSystem::generateSnapshot(m_noteRegistry,
                                                    m_timelineRegistry,
                                                    snapshot,
+                                                   cameraId,
                                                    m_currentTime,
                                                    camera.viewportWidth,
                                                    camera.viewportHeight,

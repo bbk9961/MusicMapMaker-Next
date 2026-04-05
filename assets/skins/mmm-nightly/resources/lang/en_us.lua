@@ -12,6 +12,7 @@ return {
 	-- 带格式化参数的文本 (TR_FMT)
 	-- 大括号 {} 的位置和数量须和代码里的逻辑一致
 	-- ["title.fps: {}"] = "FPS: {}",
+	["canvas.preview"] = "Preview",
 
 	-- 支持调整参数顺序 (fmt 库特性)
 	-- 原文: "Position: {}, {}"

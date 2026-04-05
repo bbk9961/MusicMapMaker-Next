@@ -10,12 +10,12 @@
 namespace MMM::Logic::System
 {
 
-void NoteRenderSystem::renderNotes(entt::registry& registry,
-                                   RenderSnapshot* snapshot, double currentTime,
-                                   float judgmentLineY, int32_t trackCount,
-                                   const EditorConfig& config, Batcher& batcher,
-                                   float leftX, float rightX, float topY,
-                                   float bottomY, float singleTrackW)
+void NoteRenderSystem::renderNotes(
+    entt::registry& registry, RenderSnapshot* snapshot,
+    const std::string& cameraId, double currentTime, float judgmentLineY,
+    int32_t trackCount, const EditorConfig& config, Batcher& batcher,
+    float leftX, float rightX, float topY, float bottomY, float singleTrackW,
+    float renderScaleY)
 {
     auto noteView =
         registry.view<const TransformComponent, const NoteComponent>();
@@ -70,8 +70,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
         const auto& note      = noteView.get<const NoteComponent>(entity);
 
         float minY    = transform.m_pos.y;
-        float visualH = transform.m_size.y;
-        float screenY = judgmentLineY - minY;
+        float visualH = transform.m_size.y * renderScaleY;
+        float screenY = judgmentLineY - (minY * renderScaleY);
 
         // 视口剔除 (Y 轴剔除)
         if ( screenY - visualH > bottomY || screenY < topY ) continue;
@@ -107,8 +107,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
         bool isHovered = interaction ? interaction->isHovered : false;
 
         float minY    = transform.m_pos.y;
-        float visualH = transform.m_size.y;
-        float screenY = judgmentLineY - minY;
+        float visualH = transform.m_size.y * renderScaleY;
+        float screenY = judgmentLineY - (minY * renderScaleY);
 
         // 设置颜色高亮叠加
         glm::vec4 hoverTint = { 1.0f, 1.0f, 1.0f, 1.0f };
@@ -225,7 +225,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                 double      subStartAbsY = cache->getAbsY(sub.timestamp);
                 float       subStartY =
                     judgmentLineY -
-                    static_cast<float>(subStartAbsY - currentAbsY);
+                    static_cast<float>(subStartAbsY - currentAbsY) *
+                        renderScaleY;
 
                 float subEndTrack = (float)sub.trackIndex;
                 float subEndY     = subStartY;
@@ -254,7 +255,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                     double subEndAbsY =
                         cache->getAbsY(sub.timestamp + sub.duration);
                     subEndY = judgmentLineY -
-                              static_cast<float>(subEndAbsY - currentAbsY);
+                              static_cast<float>(subEndAbsY - currentAbsY) *
+                                  renderScaleY;
                     glm::vec2 bodySize =
                         getDrawSize(TextureID::HoldBodyVertical);
                     float bodyX = leftX + sub.trackIndex * singleTrackW +
@@ -273,7 +275,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                     double      nextStartAbsY = cache->getAbsY(next.timestamp);
                     float       nextStartY =
                         judgmentLineY -
-                        static_cast<float>(nextStartAbsY - currentAbsY);
+                        static_cast<float>(nextStartAbsY - currentAbsY) *
+                            renderScaleY;
                     glm::vec2 bodySize =
                         getDrawSize(TextureID::HoldBodyVertical);
                     float curBodyX  = leftX + subEndTrack * singleTrackW +
@@ -296,7 +299,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                 double      subStartAbsY = cache->getAbsY(sub.timestamp);
                 float       subStartY =
                     judgmentLineY -
-                    static_cast<float>(subStartAbsY - currentAbsY);
+                    static_cast<float>(subStartAbsY - currentAbsY) *
+                        renderScaleY;
                 glm::vec2 nodeSize = getDrawSize(TextureID::Node);
                 float     nodeX    = leftX + sub.trackIndex * singleTrackW +
                                      (singleTrackW - nodeSize.x) * 0.5f;
@@ -313,7 +317,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
             const auto& first      = note.m_subNotes[0];
             double      fStartAbsY = cache->getAbsY(first.timestamp);
             float       fStartY =
-                judgmentLineY - static_cast<float>(fStartAbsY - currentAbsY);
+                judgmentLineY -
+                static_cast<float>(fStartAbsY - currentAbsY) * renderScaleY;
             glm::vec2 headSize = getDrawSize(TextureID::Note);
             float     headX    = leftX + first.trackIndex * singleTrackW +
                                  (singleTrackW - headSize.x) * 0.5f;
@@ -330,7 +335,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
             const auto& last       = note.m_subNotes.back();
             double      lStartAbsY = cache->getAbsY(last.timestamp);
             float       lStartY =
-                judgmentLineY - static_cast<float>(lStartAbsY - currentAbsY);
+                judgmentLineY -
+                static_cast<float>(lStartAbsY - currentAbsY) * renderScaleY;
             float lEndTrack =
                 (float)last.trackIndex +
                 (last.type == ::MMM::NoteType::FLICK ? last.dtrack : 0);
@@ -339,7 +345,8 @@ void NoteRenderSystem::renderNotes(entt::registry& registry,
                 (last.type == ::MMM::NoteType::HOLD
                      ? static_cast<float>(
                            cache->getAbsY(last.timestamp + last.duration) -
-                           lStartAbsY)
+                           lStartAbsY) *
+                           renderScaleY
                      : 0);
 
             if ( last.type == ::MMM::NoteType::FLICK ) {

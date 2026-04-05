@@ -20,6 +20,7 @@ return {
 	-- ["ui.exit"] = "退出",
 
 	["canvas.editor"] = "编辑器",
+	["canvas.preview"] = "预览",
 
 	["title.file_manager"] = "资源管理器",
 	["ui.file_manager.initial_hint"] = "暂未打开项目",

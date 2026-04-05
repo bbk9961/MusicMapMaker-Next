@@ -16,6 +16,7 @@ target_link_libraries(Game
 		UI
 		Graphic
 		Logic
+		Audio
 		3rd_entt
 		3rd_glm
 		MMM

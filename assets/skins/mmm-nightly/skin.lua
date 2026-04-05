@@ -16,7 +16,15 @@ local Skin = {
 		text = { 1.0, 1.0, 1.0, 1.0 },
 		alert = { 1.0, 0.2, 0.2, 1.0 },
 
-		-- 音符精确配色 (由代码迁移)
+		-- 预览区配色
+		preview = {
+			-- 主画布范围 示意包围框背景色
+			boundingbox = { 0.7, 0.7, 0.7, 0.5 },
+			-- 判定线色
+			judgeline = { 0.0, 1.0, 1.0, 1.0 },
+		},
+
+		-- 音符配色 塞西莉娅配色
 		note_tap = { 0.8902, 0.8588, 0.7608, 1.0 },
 		note_hold = { 0.7333, 0.7608, 0.6000, 1.0 },
 		note_node = { 0.9843, 0.8667, 0.8118, 1.0 },
@@ -68,6 +76,13 @@ local Skin = {
 	canvases_2d = {
 		basic_2d_canvas = {
 			name = "Basic2DCanvas",
+			shader_modules = {
+				main = "shader/canvas/Basic2DCanvas/main",
+				effect = "shader/canvas/Basic2DCanvas/effect",
+			},
+		},
+		preview_window = {
+			name = "PreviewWindow",
 			shader_modules = {
 				main = "shader/canvas/Basic2DCanvas/main",
 				effect = "shader/canvas/Basic2DCanvas/effect",

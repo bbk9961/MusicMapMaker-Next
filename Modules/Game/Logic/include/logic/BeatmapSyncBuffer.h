@@ -55,6 +55,10 @@ struct RenderSnapshot {
     // 背景原始尺寸
     glm::vec2 bgSize{ 0.0f, 0.0f };
 
+    // 播放状态
+    bool   isPlaying{ false };
+    double currentTime{ 0.0 };
+
     /// @brief 清理当前快照数据（保留内存容量）
     void clear()
     {
@@ -64,7 +68,9 @@ struct RenderSnapshot {
         hitboxes.clear();
         uvMap.clear();
         backgroundPath.clear();
-        bgSize = glm::vec2(0.0f);
+        bgSize      = glm::vec2(0.0f);
+        isPlaying   = false;
+        currentTime = 0.0;
     }
 };
 

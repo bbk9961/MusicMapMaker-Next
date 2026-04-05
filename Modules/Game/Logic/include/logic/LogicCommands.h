@@ -92,11 +92,26 @@ struct CmdUpdateTrackCount {
 };
 
 /**
+ * @brief 跳转时间指令
+ */
+struct CmdSeek {
+    double time;
+};
+
+/**
+ * @brief 设置播放速度指令
+ */
+struct CmdSetPlaybackSpeed {
+    double speed;
+};
+
+/**
  * @brief 所有可能的逻辑指令变体
  */
 using LogicCommand =
     std::variant<CmdUpdateEditorConfig, CmdUpdateViewport, CmdSetPlayState,
                  CmdLoadBeatmap, CmdSetHoveredEntity, CmdSelectEntity,
-                 CmdStartDrag, CmdUpdateDrag, CmdEndDrag, CmdUpdateTrackCount>;
+                 CmdStartDrag, CmdUpdateDrag, CmdEndDrag, CmdUpdateTrackCount,
+                 CmdSeek, CmdSetPlaybackSpeed>;
 
 }  // namespace MMM::Logic

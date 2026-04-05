@@ -13,22 +13,25 @@ struct RenderSnapshot;
 
 namespace MMM::Canvas
 {
-class Basic2DCanvas : public UI::IRenderableView
+/**
+ * @brief 预览画布类，专门用于右侧预览窗口。
+ * 独立于 Basic2DCanvas，具有精简的交互逻辑（仅点击跳转时间）。
+ */
+class PreviewCanvas : public UI::IRenderableView
 {
 public:
-    Basic2DCanvas(const std::string& name, uint32_t w, uint32_t h,
-                  const std::string& cameraId = "");
-    Basic2DCanvas(Basic2DCanvas&&)                 = delete;
-    Basic2DCanvas(const Basic2DCanvas&)            = delete;
-    Basic2DCanvas& operator=(Basic2DCanvas&&)      = delete;
-    Basic2DCanvas& operator=(const Basic2DCanvas&) = delete;
+    PreviewCanvas(const std::string& name, uint32_t w, uint32_t h);
+    PreviewCanvas(PreviewCanvas&&)                 = delete;
+    PreviewCanvas(const PreviewCanvas&)            = delete;
+    PreviewCanvas& operator=(PreviewCanvas&&)      = delete;
+    PreviewCanvas& operator=(const PreviewCanvas&) = delete;
 
-    ~Basic2DCanvas() override = default;
+    ~PreviewCanvas() override = default;
 
     // 接口实现
     void update(UI::UIManager* sourceManager) override;
 
-    ///@brief 是否需要重新记录命令 (比如数据变了)
+    ///@brief 是否需要重新记录命令 (根据快照更新状态)
     bool isDirty() const override;
 
     // --- 改变尺寸后的回调 ---
@@ -36,13 +39,13 @@ public:
                     uint32_t h) const override;
 
     /**
-     * @brief 获取 Shader 源码接口 (在固定时刻需要创建)
+     * @brief 获取 Shader 源码接口
      */
     std::vector<std::string> getShaderSources(
         const std::string& shader_name) override;
 
     /**
-     * @brief 获取 Shader 名称(需要按唯一名称名称储存和销毁)
+     * @brief 获取 Shader 名称
      */
     std::string getShaderName(const std::string& shader_module_name) override;
 
@@ -63,36 +66,33 @@ protected:
                           vk::DescriptorSet  defaultDescriptor) override;
 
 private:
-    /// @brief 画布名称
+    /// @brief 画布名称 (对应翻译和 ID)
     std::string m_canvasName;
 
-    /// @brief 逻辑视口 ID (对应 BeatmapSession 中的 Camera)
-    std::string m_cameraId;
+    /// @brief 逻辑视口 ID (固定为 "Preview")
+    const std::string m_cameraId{ "Preview" };
 
     /// @brief 当前正在使用的渲染快照
     Logic::RenderSnapshot* m_currentSnapshot{ nullptr };
 
-    /// @brief 缓存spv源码，避免重复读盘
+    /// @brief 缓存spv源码
     std::unordered_map<std::string, std::vector<std::string>>
         m_shaderSourceCache;
 
     ///@brief 是否需要重载
     bool m_needReload{ true };
 
-    ///@brief 全局图集
+    ///@brief 全局图集 (预览区也需要绘制 Note)
     std::unique_ptr<Graphic::VKTextureAtlas> m_textureAtlas{ nullptr };
 
-    ///@brief 图集 UV 缓存，用于同步给逻辑线程
+    ///@brief 图集 UV 缓存
     std::unordered_map<uint32_t, glm::vec4> m_atlasUVs;
 
-    // --- Vulkan devices for dynamic loading ---
+    // --- Vulkan devices ---
     vk::PhysicalDevice m_physicalDevice{ nullptr };
     vk::Device         m_logicalDevice{ nullptr };
     vk::CommandPool    m_cmdPool{ nullptr };
     vk::Queue          m_queue{ nullptr };
-
-    std::unique_ptr<Graphic::VKTexture> m_bgTexture{ nullptr };
-    std::string                         m_loadedBgPath{ "" };
 };
 
 }  // namespace MMM::Canvas

@@ -1,0 +1,168 @@
+#include "audio/AudioManager.h"
+#include "log/colorful-log.h"
+
+#include <ice/core/MixBus.hpp>
+#include <ice/core/SourceNode.hpp>
+#include <ice/core/effect/TimeStretcher.hpp>
+#include <ice/manage/AudioPool.hpp>
+#include <ice/out/play/sdl/SDLPlayer.hpp>
+#include <ice/thread/ThreadPool.hpp>
+
+namespace MMM::Audio
+{
+
+AudioManager& AudioManager::instance()
+{
+    static AudioManager inst;
+    return inst;
+}
+
+void AudioManager::init()
+{
+    XINFO("Initializing AudioManager...");
+    ice::SDLPlayer::init_backend();
+
+    m_threadPool = std::make_unique<ice::ThreadPool>(4);
+    m_audioPool  = std::make_unique<ice::AudioPool>();
+    m_player     = std::make_unique<ice::SDLPlayer>();
+
+    m_mixer     = std::make_shared<ice::MixBus>();
+    m_stretcher = std::make_shared<ice::TimeStretcher>();
+
+    m_stretcher->set_inputnode(m_mixer);
+    m_player->set_source(m_stretcher);
+
+    if ( !m_player->open() ) {
+        XERROR("Failed to open SDL audio device.");
+    }
+    m_player->start();
+    XINFO("AudioManager initialized.");
+}
+
+void AudioManager::shutdown()
+{
+    XINFO("Shutting down AudioManager...");
+    if ( m_player ) {
+        m_player->stop();
+        m_player->close();
+    }
+    ice::SDLPlayer::quit_backend();
+
+    m_bgmSource.reset();
+    m_stretcher.reset();
+    m_mixer.reset();
+    m_player.reset();
+    m_audioPool.reset();
+    m_threadPool.reset();
+    XINFO("AudioManager shutdown.");
+}
+
+bool AudioManager::loadBGM(const std::string& filePath)
+{
+    if ( !m_audioPool || !m_threadPool ) return false;
+
+    XINFO("Loading BGM: {}", filePath);
+    auto trackWeak = m_audioPool->get_or_load(*m_threadPool, filePath);
+    auto track     = trackWeak.lock();
+
+    if ( !track ) {
+        XERROR("Failed to load audio track: {}", filePath);
+        return false;
+    }
+
+    stop();
+
+    m_bgmSource = std::make_shared<ice::SourceNode>(track);
+    m_bgmSource->setvolume(m_volume);
+
+    m_mixer->clear();
+    m_mixer->add_source(m_bgmSource);
+
+    XINFO("BGM loaded successfully.");
+    return true;
+}
+
+void AudioManager::play()
+{
+    if ( m_bgmSource ) {
+        m_bgmSource->play();
+        m_status = PlaybackStatus::Playing;
+    }
+}
+
+void AudioManager::pause()
+{
+    if ( m_bgmSource ) {
+        m_bgmSource->pause();
+        m_status = PlaybackStatus::Paused;
+    }
+}
+
+void AudioManager::stop()
+{
+    if ( m_bgmSource ) {
+        m_bgmSource->pause();
+        m_bgmSource->set_playpos(static_cast<size_t>(0));
+        m_status = PlaybackStatus::Stopped;
+    }
+}
+
+void AudioManager::seek(double seconds)
+{
+    if ( m_bgmSource ) {
+        m_bgmSource->set_playpos(std::chrono::duration<double>(seconds));
+    }
+}
+
+PlaybackStatus AudioManager::getStatus() const
+{
+    return m_status;
+}
+
+double AudioManager::getCurrentTime() const
+{
+    if ( !m_bgmSource ) return 0.0;
+
+    auto   pos = m_bgmSource->get_playpos();
+    double samplerate =
+        static_cast<double>(ice::ICEConfig::internal_format.samplerate);
+    if ( samplerate <= 0 ) return 0.0;
+
+    return static_cast<double>(pos) / samplerate;
+}
+
+double AudioManager::getTotalTime() const
+{
+    if ( !m_bgmSource ) return 0.0;
+    return std::chrono::duration_cast<std::chrono::duration<double>>(
+               m_bgmSource->total_time())
+        .count();
+}
+
+void AudioManager::setVolume(float volume)
+{
+    m_volume = std::clamp(volume, 0.0f, 1.0f);
+    if ( m_bgmSource ) {
+        m_bgmSource->setvolume(m_volume);
+    }
+}
+
+float AudioManager::getVolume() const
+{
+    return m_volume;
+}
+
+void AudioManager::setPlaybackSpeed(double speed)
+{
+    m_speed = std::clamp(speed, 0.1, 4.0);
+    if ( m_stretcher ) {
+        m_stretcher->set_playback_ratio(m_speed);
+    }
+}
+
+double AudioManager::getPlaybackSpeed() const
+{
+    return m_speed;
+}
+
+}  // namespace MMM::Audio

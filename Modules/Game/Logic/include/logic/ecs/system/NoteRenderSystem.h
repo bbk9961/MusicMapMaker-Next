@@ -30,12 +30,11 @@ public:
      * @param trackCount 轨道数量
      * @param config 编辑器配置
      */
-    static void generateSnapshot(entt::registry&       registry,
-                                 const entt::registry& timelineRegistry,
-                                 RenderSnapshot* snapshot, double currentTime,
-                                 float viewportWidth, float viewportHeight,
-                                 float judgmentLineY, int32_t trackCount,
-                                 const EditorConfig& config);
+    static void generateSnapshot(
+        entt::registry& registry, const entt::registry& timelineRegistry,
+        RenderSnapshot* snapshot, const std::string& cameraId,
+        double currentTime, float viewportWidth, float viewportHeight,
+        float judgmentLineY, int32_t trackCount, const EditorConfig& config);
 
 private:
     static void renderTrackLayout(Batcher& batcher, float viewportWidth,
@@ -46,10 +45,12 @@ private:
                                   float& trackAreaW, float& singleTrackW);
 
     static void renderNotes(entt::registry& registry, RenderSnapshot* snapshot,
-                            double currentTime, float judgmentLineY,
-                            int32_t trackCount, const EditorConfig& config,
-                            Batcher& batcher, float leftX, float rightX,
-                            float topY, float bottomY, float singleTrackW);
+                            const std::string& cameraId, double currentTime,
+                            float judgmentLineY, int32_t trackCount,
+                            const EditorConfig& config, Batcher& batcher,
+                            float leftX, float rightX, float topY,
+                            float bottomY, float singleTrackW,
+                            float renderScaleY);
 };
 
 }  // namespace MMM::Logic::System

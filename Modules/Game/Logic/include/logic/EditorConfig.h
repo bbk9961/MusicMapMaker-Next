@@ -32,6 +32,22 @@ struct BackgroundConfig {
     float opaque_ratio{ 1.f };
 };
 
+struct PreviewAreaConfig {
+    /// @brief 预览区视口范围相对主画布的倍率
+    /// @note 若主画布的时间范围视口为1000ms,
+    /// 则预览区时间范围视口为1000ms*5.f
+    float areaRatio{ 5.f };
+
+    /// @brief 预览区留白(px)
+    struct AreaMargin {
+        float left{ 4.f };
+        float top{ 4.f };
+        float right{ 4.f };
+        float bottom{ 4.f };
+    };
+    AreaMargin margin;
+};
+
 /// @brief 编辑器配置
 struct EditorConfig {
     /// @brief 轨道布局
@@ -39,6 +55,9 @@ struct EditorConfig {
 
     /// @brief 背景配置
     BackgroundConfig background;
+
+    /// @brief 预览区配置
+    PreviewAreaConfig previewConfig;
 
     /// @brief 轨道布局包围框线宽(px)
     float trackBoxLineWidth{ 2 };

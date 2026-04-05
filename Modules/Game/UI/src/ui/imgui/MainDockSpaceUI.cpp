@@ -230,22 +230,30 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
             } else if ( dir == "right" ) {
                 sidebarDir = ImGuiDir_Right;
             }
-            // 从总空间 (dockspace_id) 中拆出 35% 给左边，剩下的 65%
-            // 会被分给右边 (dock_id_right)
+            // 从总空间 (dockspace_id) 中拆出 Sidebar
+            // 比例给左边，剩下的给右边区域
             dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id,
                                                        sidebarDir,
                                                        sidebarRatio,
                                                        nullptr,
                                                        &dock_id_right);
 
+            // 在右侧区域进一步拆分，分出 20% 给最右侧的预览窗
+            ImGuiID dock_id_center;
+            ImGuiID dock_id_preview;
+            dock_id_preview = ImGui::DockBuilderSplitNode(
+                dock_id_right, ImGuiDir_Right, 0.20f, nullptr, &dock_id_center);
+
             // --- 第四步：把窗口填进拆好的坑位里 ---
 
             // 文件管理器 -> 停靠在左侧坑位
             ImGui::DockBuilderDockWindow("SideBarManager", dock_id_left);
 
-            // 画布 -> 停靠在剩余的右侧（中心）坑位
-            // 不要停靠到 dockspace_id，要停靠到 split 出来的右侧 ID
-            ImGui::DockBuilderDockWindow("Basic2DCanvas", dock_id_right);
+            // 主画布 -> 停靠在中心坑位
+            ImGui::DockBuilderDockWindow("Basic2DCanvas", dock_id_center);
+
+            // 预览窗口 -> 停靠在最右侧
+            ImGui::DockBuilderDockWindow("PreviewWindow", dock_id_preview);
 
             // --- 第五步：完成构建 ---
             ImGui::DockBuilderFinish(dockspace_id);

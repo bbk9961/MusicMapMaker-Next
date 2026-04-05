@@ -97,6 +97,14 @@ private:
                               const std::string& prefix);
 
     /**
+     * @brief 递归解析颜色配置表
+     * @param currentTable 当前处理的 Lua 表
+     * @param prefix 键前缀（用于处理嵌套，如 "preview"）
+     */
+    void parseColorsRecursive(const sol::table&  currentTable,
+                              const std::string& prefix);
+
+    /**
      * @brief 递归解析布局配置表
      * @param currentTable 当前处理的 Lua 表
      * @param prefix 键前缀（用于处理嵌套，如 "side_bar"）

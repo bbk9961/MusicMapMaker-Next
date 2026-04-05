@@ -51,16 +51,9 @@ bool SkinManager::loadSkin(const std::string& luaFilePath)
         skinTable["meta"]["version"].get_or<std::string>("1.0");
 
     // 解析 Colors
-    sol::table colorsTable = skinTable["colors"];
-    for ( const auto& kv : colorsTable ) {
-        std::string        key = kv.first.as<std::string>();
-        std::vector<float> val = kv.second.as<std::vector<float>>();
-
-        if ( val.size() >= 3 ) {
-            m_data.colors[key] = {
-                val[0], val[1], val[2], val.size() > 3 ? val[3] : 1.0f
-            };
-        }
+    sol::optional<sol::table> colorsTableOpt = skinTable["colors"];
+    if ( colorsTableOpt ) {
+        parseColorsRecursive(colorsTableOpt.value(), "");
     }
 
     // 解析 langs
@@ -164,6 +157,43 @@ void SkinManager::parseAssetsRecursive(const sol::table&  currentTable,
         } else if ( value.is<sol::table>() ) {
             // 如果是表，则递归进入下一层
             parseAssetsRecursive(value.as<sol::table>(), fullKey);
+        }
+    }
+}
+
+/**
+ * @brief 递归解析颜色配置表
+ * @param currentTable 当前处理的 Lua 表
+ * @param prefix 键前缀（用于处理嵌套，如 "preview"）
+ */
+void SkinManager::parseColorsRecursive(const sol::table&  currentTable,
+                                       const std::string& prefix)
+{
+    for ( const auto& kv : currentTable ) {
+        // 获取键名
+        std::string key   = kv.first.as<std::string>();
+        sol::object value = kv.second;
+
+        // 构建完整的键名（如 "preview.boundingbox"）
+        std::string fullKey = prefix.empty() ? key : prefix + "." + key;
+
+        if ( value.is<sol::table>() ) {
+            // 尝试直接作为颜色数组解析
+            sol::table valTable = value.as<sol::table>();
+            // 检查表的第一项是否是数字，从而判断这是颜色数组还是嵌套表
+            sol::object firstElem = valTable[1];
+            if ( firstElem.is<float>() || firstElem.is<double>() ) {
+                // 是颜色数组，解析
+                std::vector<float> val = valTable.as<std::vector<float>>();
+                if ( val.size() >= 3 ) {
+                    m_data.colors[fullKey] = {
+                        val[0], val[1], val[2], val.size() > 3 ? val[3] : 1.0f
+                    };
+                }
+            } else {
+                // 是嵌套表，继续递归
+                parseColorsRecursive(valTable, fullKey);
+            }
         }
     }
 }

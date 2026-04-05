@@ -1,5 +1,7 @@
 #include "game/GameLoop.h"
+#include "audio/AudioManager.h"
 #include "canvas/Basic2DCanvas.h"
+#include "canvas/PreviewCanvas.h"
 #include "config/skin/translation/Translation.h"
 #include "game/GlobDefs.h"
 #include "graphic/glfw/window/NativeWindow.h"
@@ -56,6 +58,11 @@ GameLoop::GameLoop() : g_vkContext(Graphic::VKContext::get())
     m_uiManager.registerView(
         "Basic2DCanvas",
         std::make_unique<Canvas::Basic2DCanvas>("Basic2DCanvas", 200, 200));
+
+    // 注册预览窗口 (Preview Window)
+    m_uiManager.registerView(
+        "PreviewWindow",
+        std::make_unique<Canvas::PreviewCanvas>("PreviewWindow", 200, 200));
     // m_uiManager.registerView(
     //     "ImguiTestWindowUI",
     //     std::make_unique<Graphic::UI::ImguiTestWindowUI>("ImguiTestWindowUI"));
@@ -93,6 +100,9 @@ int GameLoop::start(Graphic::NativeWindow& window)
         // 启动独立逻辑线程
         Logic::EditorEngine::instance().start();
 
+        // 初始化音频引擎
+        Audio::AudioManager::instance().init();
+
         // [MVP架构测试] 在主线程创建 Model (BeatMap)，通过指令推送给 ViewModel
         // (ECS)
         // 测试载入谱面
@@ -121,6 +131,9 @@ int GameLoop::start(Graphic::NativeWindow& window)
 
         // 停止逻辑线程
         Logic::EditorEngine::instance().stop();
+
+        // 关闭音频引擎
+        Audio::AudioManager::instance().shutdown();
 
         // 2. 主动清理 UI 管理器里存的所有视图
         // 这样 VKOffScreenRenderer 的析构就会在这里发生，

@@ -18,8 +18,12 @@
 
 namespace MMM::Canvas
 {
-Basic2DCanvas::Basic2DCanvas(const std::string& name, uint32_t w, uint32_t h)
-    : IUIView(name), IRenderableView(name), m_canvasName(name)
+Basic2DCanvas::Basic2DCanvas(const std::string& name, uint32_t w, uint32_t h,
+                             const std::string& cameraId)
+    : IUIView(name)
+    , IRenderableView(name)
+    , m_canvasName(name)
+    , m_cameraId(cameraId.empty() ? name : cameraId)
 {
     m_targetWidth  = w;
     m_targetHeight = h;
@@ -35,10 +39,18 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
         this, m_canvasName.c_str(), m_targetWidth, m_targetHeight);
 
     // 尝试拉取最新的逻辑线程渲染快照 (专属摄像机缓冲)
-    auto syncBuffer =
-        Logic::EditorEngine::instance().getSyncBuffer(m_canvasName);
+    auto syncBuffer = Logic::EditorEngine::instance().getSyncBuffer(m_cameraId);
     if ( syncBuffer ) {
         m_currentSnapshot = syncBuffer->pullLatestSnapshot();
+    }
+
+    // --- 快捷键处理：仅主画布响应空格切换播放/暂停 ---
+    if ( m_currentSnapshot && ImGui::IsKeyPressed(ImGuiKey_Space, false) ) {
+        // 如果 ImGui 没有捕获键盘（即没有在输入框中），则响应
+        // if ( !ImGui::GetIO().WantCaptureKeyboard ) {
+        Logic::EditorEngine::instance().pushCommand(
+            Logic::CmdSetPlayState{ !m_currentSnapshot->isPlaying });
+        // }
     }
 
     if ( m_currentSnapshot &&
@@ -103,7 +115,7 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
 
                 // 如果没在拖拽，则尝试开始拖拽
                 Logic::EditorEngine::instance().pushCommand(
-                    Logic::CmdStartDrag{ hoveredEntity, m_canvasName });
+                    Logic::CmdStartDrag{ hoveredEntity, m_cameraId });
             } else {
                 // 点击空白处，取消所有选择
                 Logic::EditorEngine::instance().pushCommand(
@@ -113,12 +125,12 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
 
         if ( ImGui::IsMouseDragging(0) ) {
             Logic::EditorEngine::instance().pushCommand(Logic::CmdUpdateDrag{
-                m_canvasName, localMousePos.x, localMousePos.y });
+                m_cameraId, localMousePos.x, localMousePos.y });
         }
 
         if ( ImGui::IsMouseReleased(0) ) {
             Logic::EditorEngine::instance().pushCommand(
-                Logic::CmdEndDrag{ m_canvasName });
+                Logic::CmdEndDrag{ m_cameraId });
         }
     }
 }
@@ -128,7 +140,7 @@ void Basic2DCanvas::resizeCall(uint32_t oldW, uint32_t oldH, uint32_t w,
                                uint32_t h) const
 {
     Event::CanvasResizeEvent e;
-    e.canvasName = m_canvasName;
+    e.canvasName = m_cameraId;  // 使用 cameraId 告知逻辑线程哪个视口变了
     e.lastSize   = { oldW, oldH };
     e.newSize    = { w, h };
     Event::EventBus::instance().publish(e);

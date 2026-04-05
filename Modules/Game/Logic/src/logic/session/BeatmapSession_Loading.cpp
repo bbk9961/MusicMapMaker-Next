@@ -1,3 +1,4 @@
+#include "audio/AudioManager.h"
 #include "log/colorful-log.h"
 #include "logic/BeatmapSession.h"
 #include "logic/ecs/components/NoteComponent.h"
@@ -15,7 +16,7 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
     m_noteRegistry.clear();
     m_timelineRegistry.clear();
 
-    m_isPlaying      = true;
+    // m_isPlaying      = true;
     m_currentTime    = 0.0;
     m_currentBeatmap = beatmap;
 
@@ -36,6 +37,14 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
 
     m_trackCount = beatmap->m_baseMapMetadata.track_count;
     if ( m_trackCount <= 0 ) m_trackCount = 12;  // 默认值
+
+    // 加载音频
+    auto audioPath = beatmap->m_baseMapMetadata.map_path.parent_path() /
+                     beatmap->m_baseMapMetadata.main_audio_path;
+    if ( !beatmap->m_baseMapMetadata.main_audio_path.empty() &&
+         std::filesystem::exists(audioPath) ) {
+        Audio::AudioManager::instance().loadBGM(audioPath.string());
+    }
 
     // 清空缓存上下文，以确保重新构建
     if ( auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>() ) {
