@@ -9,6 +9,7 @@ namespace MMM::Logic::System
 {
 
 struct Batcher;
+struct ScrollCache;
 
 /**
  * @brief 音符渲染快照生成系统
@@ -45,6 +46,8 @@ private:
                                   float viewportHeight, float judgmentLineY,
                                   int32_t                     trackCount,
                                   const Config::EditorConfig& config,
+                                  const entt::registry&       timelineRegistry,
+                                  double currentTime, const ScrollCache* cache,
                                   float& leftX, float& rightX, float& topY,
                                   float& bottomY, float& trackAreaW,
                                   float& singleTrackW);

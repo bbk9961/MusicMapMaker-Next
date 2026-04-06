@@ -79,10 +79,13 @@ struct EditorSettings {
     /// @brief 文件选择器样式
     FilePickerStyle filePickerStyle{ FilePickerStyle::Unified };
 
-    // TODO: 后续可在此添加网格吸附(Snap)、自动保存(AutoSave)等配置
+    /// @brief 节拍切分/分拍数 (例如 4 代表四分音符)
+    int beatDivisor{ 4 };
+
+    // TODO: 后续可在此添加自动保存(AutoSave)等配置
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(EditorSettings, syncConfig, sfxConfig,
-                                   filePickerStyle)
+                                   filePickerStyle, beatDivisor)
 };
 
 }  // namespace MMM::Config
