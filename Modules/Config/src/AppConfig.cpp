@@ -84,7 +84,7 @@ bool AppConfig::save(const std::filesystem::path& path) const
         }
 
         file << std::setw(4) << j << std::endl;
-        XINFO("Config saved successfully to: {}", finalPath.string());
+        // XINFO("Config saved successfully to: {}", finalPath.string());
         return true;
     } catch ( const std::exception& e ) {
         XERROR("Failed to save config file: {}. Error: {}",

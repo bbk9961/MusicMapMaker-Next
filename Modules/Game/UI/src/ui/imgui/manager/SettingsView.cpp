@@ -121,6 +121,18 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
             ImGui::EndChild();
         });
 
+    // 中间分割线
+    rootHBox.addElement("SettingsSeparator",
+                        Sizing::Fixed(1.0f),
+                        Sizing::Grow(),
+                        [](Clay_BoundingBox r, bool) {
+                            ImVec2 p = ImGui::GetCursorScreenPos();
+                            ImGui::GetWindowDrawList()->AddLine(
+                                { p.x + 0.0f, p.y },
+                                { p.x + 0.0f, p.y + r.height },
+                                IM_COL32(80, 80, 80, 255));
+                        });
+
     // 右侧内容区
     rootHBox.addElement(
         "SettingsContentArea",
@@ -194,6 +206,7 @@ void SettingsView::reloadTextures(vk::PhysicalDevice& physicalDevice,
 void SettingsView::drawSoftwareSettings()
 {
     auto& settings = Config::AppConfig::instance().getEditorSettings();
+    bool  changed  = false;
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.software.general").data());
 
@@ -205,6 +218,7 @@ void SettingsView::drawSoftwareSettings()
                       langs,
                       IM_ARRAYSIZE(langs)) ) {
         // TODO: 切换语言逻辑
+        changed = true;
     }
 
     // 2. 文件选择器样式
@@ -213,14 +227,14 @@ void SettingsView::drawSoftwareSettings()
              TR_CACHE("ui.settings.software.picker_native").data(),
              pickerStyle == (int)Config::FilePickerStyle::Native) ) {
         settings.filePickerStyle = Config::FilePickerStyle::Native;
-        Config::AppConfig::instance().save();
+        changed                  = true;
     }
     ImGui::SameLine();
     if ( ImGui::RadioButton(
              TR_CACHE("ui.settings.software.picker_unified").data(),
              pickerStyle == (int)Config::FilePickerStyle::Unified) ) {
         settings.filePickerStyle = Config::FilePickerStyle::Unified;
-        Config::AppConfig::instance().save();
+        changed                  = true;
     }
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.software.sync").data());
@@ -232,51 +246,65 @@ void SettingsView::drawSoftwareSettings()
                       syncModes,
                       IM_ARRAYSIZE(syncModes)) ) {
         settings.syncConfig.mode = (Config::SyncMode)syncMode;
-        Config::AppConfig::instance().save();
+        changed                  = true;
     }
 
     if ( settings.syncConfig.mode == Config::SyncMode::Integral ) {
-        ImGui::SliderFloat(TR_CACHE("ui.settings.software.sync_factor").data(),
-                           &settings.syncConfig.integralFactor,
-                           0.0f,
-                           1.0f);
+        changed |= ImGui::SliderFloat(
+            TR_CACHE("ui.settings.software.sync_factor").data(),
+            &settings.syncConfig.integralFactor,
+            0.0f,
+            1.0f);
     } else if ( settings.syncConfig.mode == Config::SyncMode::WaterTank ) {
-        ImGui::SliderFloat(TR_CACHE("ui.settings.software.sync_buffer").data(),
-                           &settings.syncConfig.waterTankBuffer,
-                           0.0f,
-                           0.5f);
+        changed |= ImGui::SliderFloat(
+            TR_CACHE("ui.settings.software.sync_buffer").data(),
+            &settings.syncConfig.waterTankBuffer,
+            0.0f,
+            0.5f);
+    }
+
+    if ( changed ) {
+        Logic::EditorEngine::instance().setEditorConfig(
+            Config::AppConfig::instance().getEditorConfig());
+        Config::AppConfig::instance().save();
     }
 }
 
 void SettingsView::drawVisualSettings()
 {
-    auto& visual = Config::AppConfig::instance().getVisualConfig();
+    auto& visual  = Config::AppConfig::instance().getVisualConfig();
+    bool  changed = false;
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.judgeline").data());
-    ImGui::SliderFloat(TR_CACHE("ui.settings.visual.judgeline_pos").data(),
-                       &visual.judgeline_pos,
-                       0.0f,
-                       1.0f);
-    ImGui::SliderFloat(TR_CACHE("ui.settings.visual.judgeline_width").data(),
-                       &visual.judgelineWidth,
-                       1.0f,
-                       10.0f);
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.judgeline_pos").data(),
+                           &visual.judgeline_pos,
+                           0.0f,
+                           1.0f);
+    changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.visual.judgeline_width").data(),
+        &visual.judgelineWidth,
+        1.0f,
+        10.0f);
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.note").data());
-    ImGui::SliderFloat(TR_CACHE("ui.settings.visual.note_scale_x").data(),
-                       &visual.noteScaleX,
-                       0.5f,
-                       3.0f);
-    ImGui::SliderFloat(TR_CACHE("ui.settings.visual.note_scale_y").data(),
-                       &visual.noteScaleY,
-                       0.5f,
-                       3.0f);
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.note_scale_x").data(),
+                           &visual.noteScaleX,
+                           0.5f,
+                           3.0f);
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.note_scale_y").data(),
+                           &visual.noteScaleY,
+                           0.5f,
+                           3.0f);
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.background").data());
-    ImGui::SliderFloat(TR_CACHE("ui.settings.visual.bg_darken").data(),
-                       &visual.background.darken_ratio,
-                       0.0f,
-                       1.0f);
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.bg_darken").data(),
+                           &visual.background.darken_ratio,
+                           0.0f,
+                           1.0f);
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.offset").data());
     if ( ImGui::DragFloat(TR_CACHE("ui.settings.visual.visual_offset").data(),
@@ -285,6 +313,12 @@ void SettingsView::drawVisualSettings()
                           -0.5f,
                           0.5f,
                           "%.3f s") ) {
+        changed = true;
+    }
+
+    if ( changed ) {
+        Logic::EditorEngine::instance().setEditorConfig(
+            Config::AppConfig::instance().getEditorConfig());
         Config::AppConfig::instance().save();
     }
 }
@@ -321,6 +355,7 @@ void SettingsView::drawProjectSettings()
 void SettingsView::drawEditorSettings()
 {
     auto& settings = Config::AppConfig::instance().getEditorSettings();
+    bool  changed  = false;
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.editor.sfx").data());
 
@@ -334,16 +369,24 @@ void SettingsView::drawEditorSettings()
                       IM_ARRAYSIZE(strategies)) ) {
         settings.sfxConfig.polylineStrategy =
             (Config::PolylineSfxStrategy)strategy;
-        Config::AppConfig::instance().save();
+        changed = true;
     }
 
-    ImGui::Checkbox(TR_CACHE("ui.settings.editor.sfx_flick_scale").data(),
-                    &settings.sfxConfig.enableFlickWidthVolumeScaling);
+    changed |=
+        ImGui::Checkbox(TR_CACHE("ui.settings.editor.sfx_flick_scale").data(),
+                        &settings.sfxConfig.enableFlickWidthVolumeScaling);
     if ( settings.sfxConfig.enableFlickWidthVolumeScaling ) {
-        ImGui::SliderFloat(TR_CACHE("ui.settings.editor.sfx_flick_mul").data(),
-                           &settings.sfxConfig.flickWidthVolumeMultiplier,
-                           0.0f,
-                           1.0f);
+        changed |= ImGui::SliderFloat(
+            TR_CACHE("ui.settings.editor.sfx_flick_mul").data(),
+            &settings.sfxConfig.flickWidthVolumeMultiplier,
+            0.0f,
+            1.0f);
+    }
+
+    if ( changed ) {
+        Logic::EditorEngine::instance().setEditorConfig(
+            Config::AppConfig::instance().getEditorConfig());
+        Config::AppConfig::instance().save();
     }
 }
 
