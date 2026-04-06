@@ -63,6 +63,7 @@ struct RenderSnapshot {
     // 播放状态
     bool   isPlaying{ false };
     double currentTime{ 0.0 };
+    double totalTime{ 0.0 };
 
     // 是否已加载谱面
     bool hasBeatmap{ false };
@@ -79,6 +80,7 @@ struct RenderSnapshot {
         bgSize      = glm::vec2(0.0f);
         isPlaying   = false;
         currentTime = 0.0;
+        totalTime   = 0.0;
         hasBeatmap  = false;
     }
 };

@@ -125,6 +125,7 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
         snapshot->uvMap     = EditorEngine::instance().getAtlasUVMap(cameraId);
         snapshot->isPlaying = m_isPlaying;
         snapshot->currentTime = m_visualTime;  // 快照使用视觉平滑时间
+        snapshot->totalTime   = Audio::AudioManager::instance().getTotalTime();
         snapshot->hasBeatmap  = (m_currentBeatmap != nullptr);
 
         if ( m_currentBeatmap ) {

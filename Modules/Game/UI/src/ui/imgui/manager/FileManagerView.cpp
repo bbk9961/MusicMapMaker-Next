@@ -114,26 +114,6 @@ void FileManagerView::onUpdate(LayoutContext& layoutContext,
 
         rootVBox.render(layoutContext);
     }
-
-    // 处理 ImGuiFileDialog 的显示 (如果是 Unified 模式且已开启)
-    auto& editorSettings = engine.getEditorConfig().settings;
-    if ( editorSettings.filePickerStyle == Config::FilePickerStyle::Unified &&
-         ImGuiFileDialog::Instance()->Display("ProjectFolderPicker",
-                                              ImGuiWindowFlags_NoCollapse,
-                                              { 600, 400 }) ) {
-        if ( ImGuiFileDialog::Instance()->IsOk() ) {
-            std::string folderPath =
-                ImGuiFileDialog::Instance()->GetFilePathName();
-            // 如果选择的是文件夹且没有点击具体项，GetFilePathName 可能为空
-            if ( folderPath.empty() ) {
-                folderPath = ImGuiFileDialog::Instance()->GetCurrentPath();
-            }
-            Event::OpenProjectEvent ev;
-            ev.m_projectPath = folderPath;
-            Event::EventBus::instance().publish(ev);
-        }
-        ImGuiFileDialog::Instance()->Close();
-    }
 }
 
 void FileManagerView::drawDirectoryRecursive(const std::filesystem::path& path)

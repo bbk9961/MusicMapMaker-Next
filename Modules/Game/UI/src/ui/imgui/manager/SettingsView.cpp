@@ -323,7 +323,7 @@ void SettingsView::drawEditorSettings()
             TR_CACHE("ui.settings.editor.sfx_flick_mul").data(),
             &settings.sfxConfig.flickWidthVolumeMultiplier,
             0.0f,
-            1.0f);
+            10.0f);
     }
 
     if ( changed ) {

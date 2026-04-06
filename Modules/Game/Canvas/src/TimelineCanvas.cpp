@@ -24,15 +24,42 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
     ImGui::Begin(windowName.c_str());
 
     ImVec2 size = ImGui::GetContentRegionAvail();
-    if ( size.x > 0 && size.y > 0 ) {
-        setTargetSize(static_cast<uint32_t>(size.x),
-                      static_cast<uint32_t>(size.y));
-    }
 
     auto syncBuffer = Logic::EditorEngine::instance().getSyncBuffer(m_name);
     if ( syncBuffer ) {
         m_currentSnapshot = syncBuffer->pullLatestSnapshot();
         if ( m_currentSnapshot ) {
+            // 在画布左侧绘制一个垂直的全局音频时间滚动条
+            if ( m_currentSnapshot->hasBeatmap &&
+                 m_currentSnapshot->totalTime > 0.0 ) {
+                float time = static_cast<float>(m_currentSnapshot->currentTime);
+                float total = static_cast<float>(m_currentSnapshot->totalTime);
+
+                ImVec2 sliderSize(20.0f, size.y);
+                if ( ImGui::VSliderFloat("##AudioTimeSlider",
+                                         sliderSize,
+                                         &time,
+                                         0.0f,
+                                         total,
+                                         "") ) {
+                    Logic::EditorEngine::instance().pushCommand(
+                        Logic::CmdSeek{ static_cast<double>(time) });
+                }
+
+                if ( ImGui::IsItemActive() || ImGui::IsItemHovered() ) {
+                    ImGui::SetTooltip("%.3f / %.3f s", time, total);
+                }
+
+                ImGui::SameLine();
+            }
+
+            // 扣除掉上面 slider 占据的空间后剩下的空间绘制画布
+            size = ImGui::GetContentRegionAvail();
+            if ( size.x > 0 && size.y > 0 ) {
+                setTargetSize(static_cast<uint32_t>(size.x),
+                              static_cast<uint32_t>(size.y));
+            }
+
             vk::DescriptorSet texID = getDescriptorSet();
             if ( texID != VK_NULL_HANDLE ) {
                 ImGui::Image((ImTextureID)(VkDescriptorSet)texID, size);

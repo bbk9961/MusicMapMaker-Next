@@ -4,9 +4,13 @@
 #include "event/core/EventBus.h"
 #include "event/ui/GLFWNativeEvent.h"
 #include "event/ui/UpdateDragAreaEvent.h"
+#include "event/ui/menu/OpenProjectEvent.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "log/colorful-log.h"
+#include "logic/EditorEngine.h"
+#include <ImGuiFileDialog.h>
+#include <nfd.h>
 #include <utility>
 
 namespace MMM::UI
@@ -281,6 +285,26 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
 
         ImGui::ShowDemoWindow();
     }
+
+    // 处理全局的 ImGuiFileDialog 的显示 (统一文件选择器)
+    auto& engine         = Logic::EditorEngine::instance();
+    auto& editorSettings = engine.getEditorConfig().settings;
+    if ( editorSettings.filePickerStyle == Config::FilePickerStyle::Unified &&
+         ImGuiFileDialog::Instance()->Display("ProjectFolderPicker",
+                                              ImGuiWindowFlags_NoCollapse,
+                                              { 600, 400 }) ) {
+        if ( ImGuiFileDialog::Instance()->IsOk() ) {
+            std::string folderPath =
+                ImGuiFileDialog::Instance()->GetFilePathName();
+            if ( folderPath.empty() ) {
+                folderPath = ImGuiFileDialog::Instance()->GetCurrentPath();
+            }
+            Event::OpenProjectEvent ev;
+            ev.m_projectPath = folderPath;
+            Event::EventBus::instance().publish(ev);
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
 }
 /// @brief 是否需要重载
 bool MainDockSpaceUI::needReload()
@@ -334,6 +358,20 @@ void MainDockSpaceUI::reloadTextures(vk::PhysicalDevice& physicalDevice,
         cmdPool,
         queue,
         { { .83f, .83f, .83f, .83f } });
+
+    // Load icons for the main menu view
+    auto folderPath = Config::SkinManager::instance().getAssetPath(
+        "side_bar.file_explorer_icon");
+    if ( std::filesystem::exists(folderPath) ) {
+        m_mainMenuview.setFolderIcon(
+            loadTextureResource(folderPath,
+                                8,
+                                physicalDevice,
+                                logicalDevice,
+                                cmdPool,
+                                queue,
+                                { { .83f, .83f, .83f, .83f } }));
+    }
 }
 
 };  // namespace MMM::UI

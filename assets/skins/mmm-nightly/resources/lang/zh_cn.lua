@@ -21,7 +21,7 @@ return {
 
 	["canvas.editor"] = "编辑器",
 	["canvas.preview"] = "预览",
-	["canvas.timeline"] = "标尺",
+	["canvas.timeline"] = "时间线",
 
 	["title.file_manager"] = "文件浏览",
 	["title.settings_manager"] = "设置",
