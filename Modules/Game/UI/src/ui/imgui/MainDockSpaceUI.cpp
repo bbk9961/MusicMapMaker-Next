@@ -86,6 +86,21 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
                 return clicked;
             };
 
+            auto DrawFontIconButton = [&](const char* icon,
+                                          float       btnSize,
+                                          ImVec4      hoverColor) -> bool {
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hoverColor);
+
+                bool clicked = ImGui::Button(icon, ImVec2(btnSize, btnSize));
+
+                ImGui::PopStyleColor(2);
+                ImGui::PopStyleVar(1);
+                return clicked;
+            };
+
+
             // ================== 1. Logo 区域 ==================
             ImGui::SetCursorPosX(0.0f);
             DrawIconButton(
@@ -139,26 +154,21 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
             // 按钮组之间不留缝隙
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-            if ( DrawIconButton("##Minimize",
-                                m_minimize_texture,
-                                buttonSize,
-                                ImVec4(1, 1, 1, 0.1f)) ) {
+            if ( DrawFontIconButton(
+                     "\xef\x8b\x91", buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
                     .type = NativeEventType::GLFW_ICONFY_WINDOW });
             }
             ImGui::SameLine();
-            if ( DrawIconButton("##Maximize",
-                                m_maxmize_texture,
-                                buttonSize,
-                                ImVec4(1, 1, 1, 0.1f)) ) {
+            if ( DrawFontIconButton(
+                     "\xef\x8b\x90", buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
                     .type = NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE });
             }
             ImGui::SameLine();
-            if ( DrawIconButton("##Close",
-                                m_close_texture,
-                                buttonSize,
-                                ImVec4(0.9f, 0.1f, 0.1f, 1.0f)) ) {
+            if ( DrawFontIconButton("\xef\x80\x8d",
+                                    buttonSize,
+                                    ImVec4(0.9f, 0.1f, 0.1f, 1.0f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
                     .type = NativeEventType::GLFW_CLOSE_WINDOW });
             }
@@ -326,52 +336,6 @@ void MainDockSpaceUI::reloadTextures(vk::PhysicalDevice& physicalDevice,
         cmdPool,
         queue,
         { { .83f, .83f, .83f, .83f } });
-
-
-    ///@brief 最小化图标纹理
-    m_minimize_texture = loadTextureResource(
-        Config::SkinManager::instance().getAssetPath("menubar.minimize"),
-        24,
-        physicalDevice,
-        logicalDevice,
-        cmdPool,
-        queue,
-        { { .83f, .83f, .83f, .83f } });
-
-    ///@brief 最大化图标纹理
-    m_maxmize_texture = loadTextureResource(
-        Config::SkinManager::instance().getAssetPath("menubar.maximize"),
-        24,
-        physicalDevice,
-        logicalDevice,
-        cmdPool,
-        queue,
-        { { .83f, .83f, .83f, .83f } });
-
-
-    ///@brief 关闭图标纹理
-    m_close_texture = loadTextureResource(
-        Config::SkinManager::instance().getAssetPath("menubar.close"),
-        24,
-        physicalDevice,
-        logicalDevice,
-        cmdPool,
-        queue,
-        { { .83f, .83f, .83f, .83f } });
-
-    // Load icons for the main menu view
-    auto folderPath = Config::SkinManager::instance().getAssetPath(
-        "side_bar.file_explorer_icon");
-    if ( std::filesystem::exists(folderPath) ) {
-        m_mainMenuview.setFolderIcon(
-            loadTextureResource(folderPath,
-                                8,
-                                physicalDevice,
-                                logicalDevice,
-                                cmdPool,
-                                queue,
-                                { { .83f, .83f, .83f, .83f } }));
-    }
 }
 
 };  // namespace MMM::UI

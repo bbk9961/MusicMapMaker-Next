@@ -39,15 +39,6 @@ private:
 
     ///@brief 图标纹理
     std::unique_ptr<Graphic::VKTexture> m_logo_texture;
-
-    ///@brief 最小化图标纹理
-    std::unique_ptr<Graphic::VKTexture> m_minimize_texture;
-
-    ///@brief 最大化图标纹理
-    std::unique_ptr<Graphic::VKTexture> m_maxmize_texture;
-
-    ///@brief 关闭图标纹理
-    std::unique_ptr<Graphic::VKTexture> m_close_texture;
 };
 
 }  // namespace MMM::UI

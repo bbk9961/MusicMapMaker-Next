@@ -52,24 +52,11 @@ void MainMenuView::openFolderPicker()
 
 void MainMenuView::update()
 {
-    auto MenuItemWithIcon = [](const char*         label,
-                               Graphic::VKTexture* tex) -> bool {
-        ImVec2 pos         = ImGui::GetCursorScreenPos();
-        float  line_height = ImGui::GetTextLineHeight();
-
+    auto MenuItemWithFontIcon = [](const char* icon,
+                                   const char* label) -> bool {
         // 添加前导空格为图标留出位置
-        std::string padded_label = std::string("      ") + label;
-        bool        clicked      = ImGui::MenuItem(padded_label.c_str());
-
-        if ( tex ) {
-            float  icon_size = line_height * 1.2f;
-            float  offset_y  = (ImGui::GetItemRectSize().y - icon_size) * 0.5f;
-            ImVec2 p_min     = ImVec2(pos.x + 8.0f, pos.y + offset_y);
-            ImVec2 p_max     = ImVec2(p_min.x + icon_size, p_min.y + icon_size);
-            ImGui::GetWindowDrawList()->AddImage(
-                (ImTextureID)tex->getImTextureID(), p_min, p_max);
-        }
-        return clicked;
+        std::string padded_label = std::string(icon) + "    " + label;
+        return ImGui::MenuItem(padded_label.c_str());
     };
 
     if ( ImGui::BeginMenu(TR("ui.file")) ) {
@@ -79,7 +66,7 @@ void MainMenuView::update()
 
         if ( ImGui::MenuItem(TR("ui.file.open_map")) ) {}
 
-        if ( MenuItemWithIcon(TR("ui.file.open_pro"), m_folderIcon.get()) ) {
+        if ( MenuItemWithFontIcon("\xef\x81\xbc", TR("ui.file.open_pro")) ) {
             openFolderPicker();
         }
 

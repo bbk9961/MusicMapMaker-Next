@@ -60,23 +60,6 @@ local Skin = {
 		btn_play = "image/buttons/play.png",
 		btn_pause = "image/buttons/pause.png",
 		bg_main = "image/backgrounds/main_menu.jpg",
-		menubar = {
-			minimize = "image/icon/menubar/window-minimize.svg",
-			maximize = "image/icon/menubar/window-maximize.svg",
-			close = "image/icon/menubar/window-close.svg",
-		},
-		side_bar = {
-			file_explorer_icon = "image/icon/sidebar/folder.svg",
-			audio_explorer_icon = "image/icon/sidebar/music.svg",
-			beatmap_explorer_icon = "image/icon/sidebar/beatmap.svg",
-			setting_icon = "image/icon/sidebar/setting.svg",
-		},
-		settings = {
-			software = "image/icon/sidebar/setting.svg",
-			visual = "image/icon/setting/visual.svg",
-			project = "image/icon/setting/project.svg",
-			editor = "image/icon/setting/editor.svg",
-		},
 		panel = {
 			track = {
 				background = "image/panel/track.png",
