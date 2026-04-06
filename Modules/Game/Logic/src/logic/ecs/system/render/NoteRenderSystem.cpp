@@ -33,7 +33,7 @@ void NoteRenderSystem::generateSnapshot(
             return;
         }
 
-        // ================== 时间线标尺逻辑 ==================
+        // ================== 时间线逻辑 ==================
         leftX        = 0;
         rightX       = viewportWidth;
         topY         = 0;

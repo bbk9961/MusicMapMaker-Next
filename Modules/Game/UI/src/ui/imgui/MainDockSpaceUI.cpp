@@ -258,7 +258,7 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
             // 假设中心区域约 1000 像素，给它 0.05
             dock_id_timeline = ImGui::DockBuilderSplitNode(dock_id_center_pre,
                                                            ImGuiDir_Left,
-                                                           0.05f,
+                                                           0.20f,
                                                            nullptr,
                                                            &dock_id_center);
 
@@ -268,7 +268,7 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
             ImGui::DockBuilderDockWindow("SideBarManager", dock_id_left);
 
             // 时间线 -> 停靠在中心左侧
-            ImGui::DockBuilderDockWindow("TimelineWindow", dock_id_timeline);
+            ImGui::DockBuilderDockWindow("Timeline", dock_id_timeline);
 
             // 主画布 -> 停靠在中心坑位
             ImGui::DockBuilderDockWindow("Basic2DCanvas", dock_id_center);
@@ -283,7 +283,7 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
         ImGui::End();
         ImGui::PopStyleVar(3);
 
-        ImGui::ShowDemoWindow();
+        // ImGui::ShowDemoWindow();
     }
 
     // 处理全局的 ImGuiFileDialog 的显示 (统一文件选择器)
