@@ -3,6 +3,7 @@
 #include "logic/ecs/system/BackgroundRenderSystem.h"
 #include "logic/ecs/system/ScrollCache.h"
 #include "logic/ecs/system/render/Batcher.h"
+#include <cmath>
 
 namespace MMM::Logic::System
 {
@@ -25,65 +26,96 @@ void NoteRenderSystem::generateSnapshot(
     float   leftX, rightX, topY, bottomY, trackAreaW, singleTrackW;
     float   renderScaleY = 1.0f;
 
-    if ( cameraId == "Preview" ) {
-        // 预览区逻辑：不使用主画布的轨道配置，使用预览区留白配置
-        leftX        = config.visual.previewConfig.margin.left;
-        rightX       = viewportWidth - config.visual.previewConfig.margin.right;
-        topY         = config.visual.previewConfig.margin.top;
-        bottomY      = viewportHeight - config.visual.previewConfig.margin.bottom;
-        trackAreaW   = rightX - leftX;
+    if ( cameraId == "Timeline" ) {
+        // ================== 时间线标尺逻辑 ==================
+        leftX        = 0;
+        rightX       = viewportWidth;
+        topY         = 0;
+        bottomY      = viewportHeight;
+        trackAreaW   = viewportWidth;
+        singleTrackW = viewportWidth;
+
+        batcher.setTexture(TextureID::None);
+        auto& skin    = Config::SkinManager::instance();
+        auto  tickCol = skin.getColor("timeline.tick");
+
+        double currentAbsY = cache->getAbsY(currentTime);
+
+        // 绘制刻度线
+        // 我们从当前视图底部对应的时间开始，向上遍历到顶部对应的时间
+        double startTime =
+            cache->getTime(currentAbsY - (viewportHeight - judgmentLineY));
+        double endTime = cache->getTime(currentAbsY + judgmentLineY);
+
+        for ( const auto& seg : cache->getSegments() ) {
+            if ( seg.time < startTime || seg.time > endTime ) continue;
+
+            // 计算在视口中的 Y (基于判定线位置)
+            float y =
+                judgmentLineY - static_cast<float>(seg.absY - currentAbsY);
+
+            // 绘制横向刻度线 (BPM/Scroll 变化点)
+            batcher.pushQuad(0,
+                             y + 1.0f,
+                             viewportWidth,
+                             2.0f,
+                             { tickCol.r, tickCol.g, tickCol.b, 0.8f });
+        }
+
+        // 绘制当前时间指示线 (亮红)
+        batcher.pushQuad(0,
+                         judgmentLineY + 1.0f,
+                         viewportWidth,
+                         2.0f,
+                         { 1.0f, 0.2f, 0.2f, 1.0f });
+
+    } else if ( cameraId == "Preview" ) {
+        // ================== 预览区逻辑 ==================
+        leftX      = config.visual.previewConfig.margin.left;
+        rightX     = viewportWidth - config.visual.previewConfig.margin.right;
+        topY       = config.visual.previewConfig.margin.top;
+        bottomY    = viewportHeight - config.visual.previewConfig.margin.bottom;
+        trackAreaW = rightX - leftX;
         singleTrackW = trackAreaW / static_cast<float>(trackCount);
 
-        // --- 修正预览区缩放比例 (renderScaleY) ---
-        // 1. 计算主画布可见的逻辑像素高度 (effective scroll height)
         float mainEffectiveH =
             (config.visual.trackLayout.bottom - config.visual.trackLayout.top) *
             mainViewportHeight;
-        // 2. 计算预览区可用的绘图区高度
         float previewDrawH = bottomY - topY;
-        // 3. 计算 renderScaleY 使其满足 areaRatio 的定义 (显示 5 倍范围)
-        renderScaleY =
-            previewDrawH / (mainEffectiveH * config.visual.previewConfig.areaRatio);
+        renderScaleY = previewDrawH /
+                       (mainEffectiveH * config.visual.previewConfig.areaRatio);
 
-        // 预览区通常不绘制背景图 (保持透明或由 UI 层处理)
-        // 绘制主画布范围包围框和判定线
         auto& skin    = Config::SkinManager::instance();
         auto  boxCol  = skin.getColor("preview.boundingbox");
         auto  lineCol = skin.getColor("preview.judgeline");
 
-        // 计算主画布判定线在预览区中的高度位置
         float mainJudgelineInPreviewY = judgmentLineY;
-
-        // 包围框的高度在预览区中的显示大小
-        float boxDrawH = mainEffectiveH * renderScaleY;
-        // 包围框相对于判定线的位置
-        float boxTop = mainJudgelineInPreviewY -
-                       (config.visual.judgeline_pos - config.visual.trackLayout.top) *
-                           mainViewportHeight * renderScaleY;
+        float boxDrawH                = mainEffectiveH * renderScaleY;
+        float boxTop =
+            mainJudgelineInPreviewY -
+            (config.visual.judgeline_pos - config.visual.trackLayout.top) *
+                mainViewportHeight * renderScaleY;
 
         batcher.setTexture(TextureID::None);
-        // 绘制半透明背景包围框
         batcher.pushQuad(leftX,
                          boxTop + boxDrawH,
                          trackAreaW,
                          boxDrawH,
                          { boxCol.r, boxCol.g, boxCol.b, boxCol.a });
-        // 绘制包围框轮廓 (不透明)
         batcher.pushStrokeRect(leftX,
                                boxTop,
                                rightX,
                                boxTop + boxDrawH,
                                2.0f,
                                { boxCol.r, boxCol.g, boxCol.b, 1.0f });
-        // 绘制判定线
-        batcher.pushQuad(leftX,
-                         mainJudgelineInPreviewY + config.visual.judgelineWidth * 0.5f,
-                         trackAreaW,
-                         config.visual.judgelineWidth,
-                         { lineCol.r, lineCol.g, lineCol.b, lineCol.a });
+        batcher.pushQuad(
+            leftX,
+            mainJudgelineInPreviewY + config.visual.judgelineWidth * 0.5f,
+            trackAreaW,
+            config.visual.judgelineWidth,
+            { lineCol.r, lineCol.g, lineCol.b, lineCol.a });
     } else {
-        // 主画布逻辑
-        // 绘制背景
+        // ================== 主画布逻辑 ==================
         BackgroundRenderSystem::render(
             batcher, viewportWidth, viewportHeight, config, snapshot);
 
@@ -101,6 +133,7 @@ void NoteRenderSystem::generateSnapshot(
                           singleTrackW);
     }
 
+    // 统一绘制音符
     renderNotes(registry,
                 snapshot,
                 cameraId,

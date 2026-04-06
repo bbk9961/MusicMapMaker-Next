@@ -96,11 +96,14 @@ struct VisualConfig {
     /// @brief 时间线缩放倍率 (1.0 代表原始比例)
     float timelineZoom{ 1.0f };
 
+    /// @brief 是否启用线性流速映射 (忽略变速事件，以匀速显示)
+    bool enableLinearScrollMapping{ false };
+
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(VisualConfig, trackLayout, background,
                                    previewConfig, trackBoxLineWidth,
                                    judgeline_pos, judgelineWidth, noteScaleX,
                                    noteScaleY, noteFillMode, visualOffset,
-                                   timelineZoom)
+                                   timelineZoom, enableLinearScrollMapping)
 };
 
 }  // namespace MMM::Config

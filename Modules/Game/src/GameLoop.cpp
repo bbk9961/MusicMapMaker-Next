@@ -2,6 +2,7 @@
 #include "audio/AudioManager.h"
 #include "canvas/Basic2DCanvas.h"
 #include "canvas/PreviewCanvas.h"
+#include "canvas/TimelineCanvas.h"
 #include "common/LogicCommands.h"
 #include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
@@ -74,6 +75,11 @@ GameLoop::GameLoop() : g_vkContext(Graphic::VKContext::get())
     m_uiManager.registerView(
         "PreviewWindow",
         std::make_unique<Canvas::PreviewCanvas>("PreviewWindow", 200, 200));
+
+    // 注册时间线标尺 (Timeline Window)
+    m_uiManager.registerView(
+        "TimelineWindow",
+        std::make_unique<Canvas::TimelineCanvas>("Timeline", 60, 200));
     // m_uiManager.registerView(
     //     "ImguiTestWindowUI",
     //     std::make_unique<Graphic::UI::ImguiTestWindowUI>("ImguiTestWindowUI"));

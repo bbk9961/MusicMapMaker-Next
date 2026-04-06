@@ -239,15 +239,32 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
                                                        &dock_id_right);
 
             // 在右侧区域进一步拆分，分出 20% 给最右侧的预览窗
-            ImGuiID dock_id_center;
+            ImGuiID dock_id_center_pre;
             ImGuiID dock_id_preview;
-            dock_id_preview = ImGui::DockBuilderSplitNode(
-                dock_id_right, ImGuiDir_Right, 0.20f, nullptr, &dock_id_center);
+            dock_id_preview = ImGui::DockBuilderSplitNode(dock_id_right,
+                                                          ImGuiDir_Right,
+                                                          0.20f,
+                                                          nullptr,
+                                                          &dock_id_center_pre);
+
+            // 在中心区域进一步拆分，分出 60 像素给左侧的时间线
+            ImGuiID dock_id_center;
+            ImGuiID dock_id_timeline;
+            // 由于比例是 0.0 到 1.0，我们需要估算 60 像素占中心区域的比例
+            // 假设中心区域约 1000 像素，给它 0.05
+            dock_id_timeline = ImGui::DockBuilderSplitNode(dock_id_center_pre,
+                                                           ImGuiDir_Left,
+                                                           0.05f,
+                                                           nullptr,
+                                                           &dock_id_center);
 
             // --- 第四步：把窗口填进拆好的坑位里 ---
 
             // 文件管理器 -> 停靠在左侧坑位
             ImGui::DockBuilderDockWindow("SideBarManager", dock_id_left);
+
+            // 时间线 -> 停靠在中心左侧
+            ImGui::DockBuilderDockWindow("TimelineWindow", dock_id_timeline);
 
             // 主画布 -> 停靠在中心坑位
             ImGui::DockBuilderDockWindow("Basic2DCanvas", dock_id_center);

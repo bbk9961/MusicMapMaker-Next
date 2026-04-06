@@ -11,8 +11,10 @@ void ScrollCache::rebuild(const entt::registry& timelineRegistry)
 {
     m_segments.clear();
     const double BASE_SPEED = 500.0;  // 基准流速
-    const double globalMultiplier =
-        EditorEngine::instance().getEditorConfig().visual.timelineZoom;
+    const auto&  visualConfig =
+        EditorEngine::instance().getEditorConfig().visual;
+    const double globalMultiplier = visualConfig.timelineZoom;
+    const bool   isLinearMapping  = visualConfig.enableLinearScrollMapping;
 
     // 获取并排序时间线点
     std::vector<const TimelineComponent*> timings;
@@ -58,6 +60,9 @@ void ScrollCache::rebuild(const entt::registry& timelineRegistry)
     double currentAbsY = 0.0;
 
     auto calcSpeed = [&](double bpm, double sm) {
+        if ( isLinearMapping ) {
+            return BASE_SPEED * globalMultiplier;
+        }
         if ( std::abs(refBPM) < 1e-6 ) return 0.0;
         return (bpm / refBPM) * sm * BASE_SPEED * globalMultiplier;
     };
@@ -120,11 +125,11 @@ double ScrollCache::getTime(double absY) const
         500.0 * EditorEngine::instance().getEditorConfig().visual.timelineZoom;
     if ( m_segments.empty() ) return absY / DEFAULT_SPEED;
 
-    auto it = std::upper_bound(
+    auto it = std::lower_bound(
         m_segments.begin(),
         m_segments.end(),
         absY,
-        [](double val, const ScrollSegment& seg) { return val < seg.absY; });
+        [](const ScrollSegment& seg, double val) { return seg.absY < val; });
 
     if ( it == m_segments.begin() ) {
         if ( std::abs(m_segments[0].speed) < 1e-6 ) return m_segments[0].time;
@@ -134,6 +139,20 @@ double ScrollCache::getTime(double absY) const
     --it;
     if ( std::abs(it->speed) < 1e-6 ) return it->time;
     return it->time + (absY - it->absY) / it->speed;
+}
+
+double ScrollCache::getSpeedAt(double t) const
+{
+    if ( m_segments.empty() ) return 1.0;
+    auto it = std::upper_bound(
+        m_segments.begin(),
+        m_segments.end(),
+        t,
+        [](double val, const ScrollSegment& seg) { return val < seg.time; });
+
+    if ( it == m_segments.begin() ) return m_segments[0].speed;
+    --it;
+    return it->speed;
 }
 
 }  // namespace MMM::Logic::System

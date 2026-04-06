@@ -12,6 +12,10 @@ return {
 	-- 带格式化参数的文本 (TR_FMT)
 	-- 大括号 {} 的位置和数量须和代码里的逻辑一致
 	-- ["title.fps: {}"] = "FPS: {}",
+	["canvas.editor"] = "Editor",
+	["canvas.preview"] = "Preview",
+	["canvas.timeline"] = "Timeline",
+
 	["title.file_manager"] = "File Browser",
 	["ui.file_manager.initial_hint"] = "No project opened",
 	["ui.file_manager.open_directory"] = "Open Folder",
@@ -33,6 +37,7 @@ return {
 	["ui.settings.visual.background"] = "Background & Canvas",
 	["ui.settings.visual.bg_darken"] = "Background Darken Ratio",
 	["ui.settings.visual.timeline_zoom"] = "Timeline Zoom",
+	["ui.settings.visual.linear_scroll"] = "Linear Scroll Mapping",
 	["ui.settings.visual.offset"] = "Visual Offset",
 	["ui.settings.visual.visual_offset"] = "Global Render Offset (s)",
 

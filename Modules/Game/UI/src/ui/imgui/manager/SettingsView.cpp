@@ -313,6 +313,10 @@ void SettingsView::drawVisualSettings()
                            5.0f,
                            "%.2fx");
 
+    changed |=
+        ImGui::Checkbox(TR_CACHE("ui.settings.visual.linear_scroll").data(),
+                        &visual.enableLinearScrollMapping);
+
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.offset").data());
     if ( ImGui::DragFloat(TR_CACHE("ui.settings.visual.visual_offset").data(),
                           &visual.visualOffset,

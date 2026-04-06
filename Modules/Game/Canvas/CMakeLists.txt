@@ -3,6 +3,7 @@
 add_library(Canvas STATIC
     src/Basic2DCanvas.cpp
     src/PreviewCanvas.cpp
+    src/TimelineCanvas.cpp
 )
 
 target_link_libraries(Canvas PUBLIC Log Common Config UI Graphic Logic 3rd_glm 3rd_entt)

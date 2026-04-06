@@ -35,6 +35,12 @@ public:
     /// @brief 获取给定绝对 Y 坐标对应的时间戳 (反向映射)
     double getTime(double absY) const;
 
+    /// @brief 获取给定时间戳对应的流速倍率
+    double getSpeedAt(double t) const;
+
+    /// @brief 获取所有分段信息 (只读)
+    const std::vector<ScrollSegment>& getSegments() const { return m_segments; }
+
     /// @brief 脏标记，用于触发延迟重建
     bool isDirty{ true };
 
