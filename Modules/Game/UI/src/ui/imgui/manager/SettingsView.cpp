@@ -10,17 +10,8 @@ namespace MMM::UI
 {
 
 SettingsView::SettingsView(const std::string& subViewName)
-    : IUIView(subViewName), ISubView(subViewName), ITextureLoader(subViewName)
+    : ISubView(subViewName)
 {
-}
-
-void SettingsView::update(UIManager* sourceManager)
-{
-    // SettingsView 作为 SubView 时由 FloatingManagerUI 调用 onUpdate，
-    // 这里作为 IUIView 实现 update 仅为满足非抽象类要求。
-    // 如果将其作为独立 IUIView 注册，可以开启下方代码。
-    // LayoutContext ctx{ m_layoutCtx, getSubViewName() };
-    // onUpdate(ctx, sourceManager);
 }
 
 void SettingsView::onUpdate(LayoutContext& layoutContext,
@@ -50,12 +41,10 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
-            auto DrawCategoryIcon = [&](SettingsTab tab, const char* tooltip) {
+            auto DrawCategoryIcon = [&](SettingsTab tab,
+                                        const char* iconStr,
+                                        const char* tooltip) {
                 bool isActive = (m_currentTab == tab);
-
-                // 获取纹理
-                Graphic::VKTexture* tex = nullptr;
-                if ( m_tabIcons.count(tab) ) tex = m_tabIcons[tab].get();
 
                 if ( isActive ) {
                     // 激活态：深灰色背景（VS Code 风格，与 SideBarUI 一致）
@@ -74,29 +63,15 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
                                           ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
                 }
 
-                std::string btnId = "##setting_tab_" + std::to_string((int)tab);
+                ImU32 tint =
+                    isActive ? IM_COL32_WHITE : IM_COL32(200, 200, 200, 255);
+                ImGui::PushStyleColor(ImGuiCol_Text, tint);
+
+                std::string btnId = std::string(iconStr) + "##setting_tab_" +
+                                    std::to_string((int)tab);
                 if ( ImGui::Button(btnId.c_str(),
                                    { sidebarWidth, sidebarWidth }) ) {
                     m_currentTab = tab;
-                }
-
-                if ( tex ) {
-                    ImTextureID imTexId = (ImTextureID)tex->getImTextureID();
-                    ImVec2      p_min   = ImGui::GetItemRectMin();
-                    ImVec2      p_max   = ImGui::GetItemRectMax();
-
-                    float  iconSize = sidebarIconSize;
-                    ImVec2 img_p1   = {
-                        p_min.x + (sidebarWidth - iconSize) * 0.5f,
-                        p_min.y + (sidebarWidth - iconSize) * 0.5f
-                    };
-                    ImVec2 img_p2 = { img_p1.x + iconSize,
-                                      img_p1.y + iconSize };
-
-                    ImU32 tint = isActive ? IM_COL32_WHITE
-                                          : IM_COL32(200, 200, 200, 255);
-                    ImGui::GetWindowDrawList()->AddImage(
-                        imTexId, img_p1, img_p2, { 0, 0 }, { 1, 1 }, tint);
                 }
 
                 if ( ImGui::IsItemHovered() ) {
@@ -105,16 +80,20 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
                     ImGui::EndTooltip();
                 }
 
-                ImGui::PopStyleColor(3);
+                ImGui::PopStyleColor(4);
             };
 
             DrawCategoryIcon(SettingsTab::Software,
+                             "\xef\x84\x88",  // \uf108 desktop
                              TR_CACHE("ui.settings.software").data());
             DrawCategoryIcon(SettingsTab::Visual,
+                             "\xef\x81\xae",  // \uf06e eye
                              TR_CACHE("ui.settings.visual").data());
             DrawCategoryIcon(SettingsTab::Project,
+                             "\xef\x81\xbb",  // \uf07b folder
                              TR_CACHE("ui.settings.project").data());
             DrawCategoryIcon(SettingsTab::Editor,
+                             "\xef\x8c\x84",  // \uf304 pen
                              TR_CACHE("ui.settings.editor").data());
 
             ImGui::PopStyleVar(4);
@@ -154,53 +133,6 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
         });
 
     rootHBox.render(layoutContext);
-}
-
-void SettingsView::reloadTextures(vk::PhysicalDevice& physicalDevice,
-                                  vk::Device&         logicalDevice,
-                                  vk::CommandPool& cmdPool, vk::Queue& queue)
-{
-    auto&          skin     = Config::SkinManager::instance();
-    const uint32_t iconSize = 48;
-
-    m_tabIcons[SettingsTab::Software] =
-        loadTextureResource(skin.getAssetPath("settings.software"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    m_tabIcons[SettingsTab::Visual] =
-        loadTextureResource(skin.getAssetPath("settings.visual"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    m_tabIcons[SettingsTab::Project] =
-        loadTextureResource(skin.getAssetPath("settings.project"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    m_tabIcons[SettingsTab::Editor] =
-        loadTextureResource(skin.getAssetPath("settings.editor"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    XINFO("SettingsView textures reloaded.");
-    m_needReload = false;
 }
 
 void SettingsView::drawSoftwareSettings()

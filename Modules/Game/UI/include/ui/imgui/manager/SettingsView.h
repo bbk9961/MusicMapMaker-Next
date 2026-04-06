@@ -18,7 +18,7 @@ enum class SettingsTab {
     Editor     // 编辑器配置
 };
 
-class SettingsView : public ISubView, public ITextureLoader
+class SettingsView : public ISubView
 {
 public:
     SettingsView(const std::string& subViewName);
@@ -31,22 +31,8 @@ public:
     void onUpdate(LayoutContext& layoutContext,
                   UIManager*     sourceManager) override;
 
-    void update(UIManager* sourceManager) override;
-
-    /// @brief 是否需要重载
-    bool needReload() override { return m_needReload; }
-
-    /// @brief 重载纹理
-    void reloadTextures(vk::PhysicalDevice& physicalDevice,
-                        vk::Device& logicalDevice, vk::CommandPool& cmdPool,
-                        vk::Queue& queue) override;
-
 private:
     SettingsTab m_currentTab = SettingsTab::Software;
-    bool        m_needReload = true;
-
-    std::unordered_map<SettingsTab, std::unique_ptr<Graphic::VKTexture>>
-        m_tabIcons;
 
     void drawSoftwareSettings();
     void drawVisualSettings();

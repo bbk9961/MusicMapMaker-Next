@@ -4,22 +4,15 @@
 #include "event/ui/UISubViewToggleEvent.h"
 #include "imgui.h"
 #include "log/colorful-log.h"
-#include "ui/ITextureLoader.h"
 #include "ui/layout/box/CLayBox.h"
 #include <lunasvg.h>
 
 namespace MMM::UI
 {
 
-SideBarUI::SideBarUI(const std::string& name)
-    : IUIView(name), ITextureLoader(name)
-{
-}
+SideBarUI::SideBarUI(const std::string& name) : IUIView(name) {}
 
-SideBarUI::~SideBarUI()
-{
-    m_tabIcons.clear();
-}
+SideBarUI::~SideBarUI() {}
 
 void SideBarUI::update(UIManager* sourceManager)
 {
@@ -59,98 +52,65 @@ void SideBarUI::update(UIManager* sourceManager)
     // --- 样式锁定：全局无圆角、无边框 ---
 
     // lambda：绘制互斥按钮
-    auto DrawSidebarButton =
-        [&](const char* label, SideBarTab tab, Clay_BoundingBox rect) {
-            bool isActive = (m_activeTab == tab);
-            // 获取纹理
-            Graphic::VKTexture* tex = nullptr;
-            if ( m_tabIcons.count(tab) ) tex = m_tabIcons[tab].get();
+    auto DrawSidebarButton = [&](const char*      iconStr,
+                                 SideBarTab       tab,
+                                 Clay_BoundingBox rect) {
+        bool isActive = (m_activeTab == tab);
 
-            // --- 样式处理 ---
-            if ( isActive ) {
-                // 激活态：深灰色背景（VS Code 风格）
-                ImGui::PushStyleColor(ImGuiCol_Button,
-                                      ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                      ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                      ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
-            } else {
-                // 非激活态：全透明，仅悬停时有微弱反馈
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                      ImVec4(1.0f, 1.0f, 1.0f, 0.05f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                      ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
+        // --- 样式处理 ---
+        if ( isActive ) {
+            // 激活态：深灰色背景（VS Code 风格）
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                  ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                                  ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+        } else {
+            // 非激活态：全透明，仅悬停时有微弱反馈
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                  ImVec4(1.0f, 1.0f, 1.0f, 0.05f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                                  ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
+        }
+
+        // 使用不同的文字颜色（未激活时稍显灰色）
+        ImU32 tint = isActive ? IM_COL32_WHITE : IM_COL32(200, 200, 200, 255);
+        ImGui::PushStyleColor(ImGuiCol_Text, tint);
+
+        // 绘制按钮
+        std::string btnId =
+            std::string(iconStr) + "##tab_" + std::to_string((int)tab);
+        if ( ImGui::Button(btnId.c_str(), { rect.width, rect.height }) ) {
+            m_activeTab = (m_activeTab == tab) ? SideBarTab::None : tab;
+            // 2. 发布事件通知 FloatingManagerUI
+            using namespace MMM::Event;
+
+            UISubViewToggleEvent evt;
+            // 填充基类 UIEvent 信息
+            evt.sourceUiName = m_name;
+            evt.uiManager    = sourceManager;
+
+            // 填充切换信息
+            // 与注册 FloatingManagerUI
+            // 时使用的名字一致
+            evt.targetFloatManagerName = "SideBarManager";
+            evt.subViewId              = TabToSubViewId(tab);
+
+            if ( m_activeTab != SideBarTab::None ) {
+                evt.showSubView = true;
             }
 
-            // 绘制透明按钮捕捉点击
-            std::string btnId = "##tab_" + std::to_string((int)tab);
-            if ( ImGui::Button(btnId.c_str(), { rect.width, rect.height }) ) {
-                m_activeTab = (m_activeTab == tab) ? SideBarTab::None : tab;
-                // 2. 发布事件通知 FloatingManagerUI
-                using namespace MMM::Event;
+            // 核心：发布到总线
+            EventBus::instance().publish(evt);
 
-                UISubViewToggleEvent evt;
-                // 填充基类 UIEvent 信息
-                evt.sourceUiName = m_name;
-                evt.uiManager    = sourceManager;
+            XINFO("SideBarUI: Published ToggleEvent for {}", evt.subViewId);
+        }
 
-                // 填充切换信息
-                // 与注册 FloatingManagerUI
-                // 时使用的名字一致
-                evt.targetFloatManagerName = "SideBarManager";
-                evt.subViewId              = TabToSubViewId(tab);
-
-                if ( m_activeTab != SideBarTab::None ) {
-                    evt.showSubView = true;
-                }
-
-                // 核心：发布到总线
-                EventBus::instance().publish(evt);
-
-                XINFO("SideBarUI: Published ToggleEvent for {}", evt.subViewId);
-            }
-
-            // --- 核心：绘制图标 ---
-            if ( tex ) {
-                // 1. 触发自动注册并获取 ID
-                ImTextureID imTexId = (ImTextureID)tex->getImTextureID();
-
-                // 2. 计算居中位置
-                float iconSize =
-                    sidebarIconSize;  // 图标在 32px 按钮里的实际显示大小
-                ImVec2 p_min = ImGui::GetItemRectMin();
-                ImVec2 p_max = ImGui::GetItemRectMax();
-
-                float offsetX = (rect.width - iconSize) * 0.5f;
-                float offsetY = (rect.height - iconSize) * 0.5f;
-
-                ImVec2 img_p1 = { p_min.x + offsetX, p_min.y + offsetY };
-                ImVec2 img_p2 = { img_p1.x + iconSize, img_p1.y + iconSize };
-
-                // 3. 绘制图标
-                // 使用不同的着色（未激活时稍显灰色）
-                ImU32 tint =
-                    isActive ? IM_COL32_WHITE : IM_COL32(200, 200, 200, 255);
-
-                ImGui::GetWindowDrawList()->AddImage(
-                    imTexId, img_p1, img_p2, { 0, 0 }, { 1, 1 }, tint);
-            }
-
-            // 如果是激活状态，在左侧画一个蓝色的指示条（可选，VS Code 风格）
-            // if ( isActive ) {
-            //     ImVec2 p_min = ImGui::GetItemRectMin();
-            //     ImVec2 p_max = ImGui::GetItemRectMax();
-            //     ImGui::GetWindowDrawList()->AddRectFilled(
-            //         p_min,
-            //         ImVec2(p_min.x + 3.0f, p_max.y),
-            //         IM_COL32(0, 120, 215, 255));
-            // }
-
-            // --- 清理状态栈 ---
-            ImGui::PopStyleColor(3);  // 弹出 Button 和 ButtonHovered
-        };
+        // --- 清理状态栈 ---
+        ImGui::PopStyleColor(4);  // 弹出 Button, Hovered, Active, Text
+    };
 
     CLayVBox vbox;
     vbox.setPadding(0, 0, 0, 0)
@@ -159,89 +119,40 @@ void SideBarUI::update(UIManager* sourceManager)
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
-                        DrawSidebarButton(
-                            "File", SideBarTab::FileExplorer, rect);
+                        DrawSidebarButton("\xef\x85\x9b",
+                                          SideBarTab::FileExplorer,
+                                          rect);  // \uf15b file
                     })
         .addElement("AudioExplorerButton",
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
-                        DrawSidebarButton(
-                            "Audio", SideBarTab::AudioExplorer, rect);
+                        DrawSidebarButton("\xef\x80\x81",
+                                          SideBarTab::AudioExplorer,
+                                          rect);  // \uf001 music
                     })
         .addElement("BeatMapExplorerButton",
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
                         DrawSidebarButton(
-                            "BeatMap", SideBarTab::BeatMapExplorer, rect);
+                            "\xef\x81\xbc",
+                            SideBarTab::BeatMapExplorer,
+                            rect);  // \uf07c folder-open (打开文件)
                     })
         .addSpring()
         .addElement("SettingsButton",
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
-                        DrawSidebarButton(
-                            "Settings", SideBarTab::Settings, rect);
+                        DrawSidebarButton("\xef\x80\x93",
+                                          SideBarTab::Settings,
+                                          rect);  // \uf013 cog
                     });
     vbox.render(ctx);
 
     // --- 弹出样式变量 ---
     ImGui::PopStyleVar(6);
-}
-
-/// @brief 是否需要重载
-bool SideBarUI::needReload()
-{
-    return std::exchange(m_needReload, false);
-}
-
-/// @brief 重载纹理
-void SideBarUI::reloadTextures(vk::PhysicalDevice& physicalDevice,
-                               vk::Device&         logicalDevice,
-                               vk::CommandPool& cmdPool, vk::Queue& queue)
-{
-    auto&          skin     = Config::SkinManager::instance();
-    const uint32_t iconSize = 32;
-
-    // 直接调用基类生产接口，只需要给路径
-    m_tabIcons[SideBarTab::FileExplorer] =
-        loadTextureResource(skin.getAssetPath("side_bar.file_explorer_icon"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    m_tabIcons[SideBarTab::AudioExplorer] =
-        loadTextureResource(skin.getAssetPath("side_bar.audio_explorer_icon"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    m_tabIcons[SideBarTab::BeatMapExplorer] =
-        loadTextureResource(skin.getAssetPath("side_bar.beatmap_explorer_icon"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    m_tabIcons[SideBarTab::Settings] =
-        loadTextureResource(skin.getAssetPath("side_bar.setting_icon"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    XINFO("SideBar textures reloaded.");
 }
 
 }  // namespace MMM::UI

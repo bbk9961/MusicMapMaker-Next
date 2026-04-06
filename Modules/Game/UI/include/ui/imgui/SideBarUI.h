@@ -2,7 +2,7 @@
 
 #include "config/skin/SkinConfig.h"
 #include "graphic/imguivk/VKTexture.h"
-#include "ui/ITextureLoader.h"
+#include "ui/IUIView.h"
 #include <memory>
 #include <unordered_map>
 
@@ -29,7 +29,7 @@ static std::string TabToSubViewId(SideBarTab tab)
     }
 }
 
-class SideBarUI : public ITextureLoader, virtual public IUIView
+class SideBarUI : virtual public IUIView
 {
 public:
     SideBarUI(const std::string& name);
@@ -42,24 +42,9 @@ public:
 
     void update(UIManager* sourceManager) override;
 
-    /// @brief 是否需要重载
-    bool needReload() override;
-
-    /// @brief 重载纹理
-    void reloadTextures(vk::PhysicalDevice& physicalDevice,
-                        vk::Device& logicalDevice, vk::CommandPool& cmdPool,
-                        vk::Queue& queue) override;
-
 private:
-    ///@brief 是否需要重载
-    bool m_needReload{ true };
-
     ///@brief 激活的tab,默认选中第一个
     SideBarTab m_activeTab = SideBarTab::FileExplorer;
-
-    ///@brief 存储图标纹理对象
-    std::unordered_map<SideBarTab, std::unique_ptr<Graphic::VKTexture>>
-        m_tabIcons;
 };
 
 }  // namespace MMM::UI
