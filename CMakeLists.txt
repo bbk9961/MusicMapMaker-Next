@@ -4,7 +4,9 @@ project(MusicMapMaker-Next)
 
 if(MSVC)
 	# 设置msvc需要的 VCPKG_ROOT
-	set(VCPKG_ROOT "C:/msys64/home/xiang/projects/vcpkg")
+	set(VCPKG_ROOT "C:/coding/vcpkg")
+	# 强制 MSVC 使用静态运行时 (/MT)
+	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

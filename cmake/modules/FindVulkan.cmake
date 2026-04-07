@@ -50,8 +50,10 @@ else()
 			# 调用系统内置的标准 FindVulkan
 			# =============================================================================
 			# CMAKE_ROOT 是 CMake 安装路径，这就相当于调用了 #include <FindVulkan.cmake>
-			set(VULKAN_SDK_ROOT "C:/VulkanSDK/1.4.341.1")
-			set(Vulkan_INCLUDE_DIR "${VULKAN_SDK_ROOT}/Include")
+			if(MSVC)
+				set(VULKAN_SDK_ROOT "C:/VulkanSDK/1.4.341.1")
+				set(Vulkan_INCLUDE_DIR "${VULKAN_SDK_ROOT}/Include")
+			endif()
 			include("${CMAKE_ROOT}/Modules/FindVulkan.cmake")
 		endif()
 	else()

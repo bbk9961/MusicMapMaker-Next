@@ -9,6 +9,11 @@ if(WIN32)
 		# Windows 非Debug模式下添加WIN32标识不显示控制台
 		add_executable(MusicMapMaker-Next WIN32 src/main.cpp)
 	endif()
+	if(MSVC)
+		set_target_properties(MusicMapMaker-Next
+			PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup"
+		)
+	endif()
 else()
 	# Linux/Macos 可执行文件编译配置
 	# 编译MusicMapMaker-Next可执行文件

@@ -329,37 +329,39 @@ void Basic2DCanvas::reloadTextures(vk::PhysicalDevice& physicalDevice,
 
     // 2. 注册资源纹理
     m_textureAtlas->addTexture(static_cast<uint32_t>(Logic::TextureID::Note),
-                               skin.getAssetPath("note.note"));
+                               skin.getAssetPath("note.note").generic_string());
     m_textureAtlas->addTexture(static_cast<uint32_t>(Logic::TextureID::Node),
-                               skin.getAssetPath("note.node"));
-    m_textureAtlas->addTexture(static_cast<uint32_t>(Logic::TextureID::HoldEnd),
-                               skin.getAssetPath("note.holdend"));
+                               skin.getAssetPath("note.node").generic_string());
+    m_textureAtlas->addTexture(
+        static_cast<uint32_t>(Logic::TextureID::HoldEnd),
+        skin.getAssetPath("note.holdend").generic_string());
     m_textureAtlas->addTexture(
         static_cast<uint32_t>(Logic::TextureID::HoldBodyVertical),
-        skin.getAssetPath("note.holdbodyvertical"));
+        skin.getAssetPath("note.holdbodyvertical").generic_string());
     m_textureAtlas->addTexture(
         static_cast<uint32_t>(Logic::TextureID::HoldBodyHorizontal),
-        skin.getAssetPath("note.holdbodyhorizontal"));
+        skin.getAssetPath("note.holdbodyhorizontal").generic_string());
     m_textureAtlas->addTexture(
         static_cast<uint32_t>(Logic::TextureID::FlickArrowLeft),
-        skin.getAssetPath("note.arrowleft"));
+        skin.getAssetPath("note.arrowleft").generic_string());
     m_textureAtlas->addTexture(
         static_cast<uint32_t>(Logic::TextureID::FlickArrowRight),
-        skin.getAssetPath("note.arrowright"));
+        skin.getAssetPath("note.arrowright").generic_string());
 
-    m_textureAtlas->addTexture(static_cast<uint32_t>(Logic::TextureID::Track),
-                               skin.getAssetPath("panel.track.background"));
+    m_textureAtlas->addTexture(
+        static_cast<uint32_t>(Logic::TextureID::Track),
+        skin.getAssetPath("panel.track.background").generic_string());
     m_textureAtlas->addTexture(
         static_cast<uint32_t>(Logic::TextureID::JudgeArea),
-        skin.getAssetPath("panel.track.judgearea"));
+        skin.getAssetPath("panel.track.judgearea").generic_string());
     m_textureAtlas->addTexture(static_cast<uint32_t>(Logic::TextureID::Logo),
-                               skin.getAssetPath("logo"));
+                               skin.getAssetPath("logo").generic_string());
 
     // 自动加载所有序列帧资源，并使用 SkinManager 分配好的 ID
     for ( const auto& [key, seq] : skin.getData().effectSequences ) {
         uint32_t currentId = seq.startId;
         for ( const auto& frame : seq.frames ) {
-            m_textureAtlas->addTexture(currentId++, frame);
+            m_textureAtlas->addTexture(currentId++, frame.generic_string());
         }
     }
 
