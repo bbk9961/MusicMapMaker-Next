@@ -2,6 +2,8 @@
 #include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
+#include "event/core/EventBus.h"
+#include "event/logic/LogicCommandEvent.h"
 #include "imgui.h"
 #include "logic/EditorEngine.h"
 #include "ui/layout/box/CLayBox.h"
@@ -196,8 +198,9 @@ void SettingsView::drawSoftwareSettings()
     }
 
     if ( changed ) {
-        Logic::EditorEngine::instance().setEditorConfig(
-            Config::AppConfig::instance().getEditorConfig());
+        Event::EventBus::instance().publish(
+            Event::LogicCommandEvent(Logic::CmdUpdateEditorConfig{
+                Config::AppConfig::instance().getEditorConfig() }));
         Config::AppConfig::instance().save();
     }
 }
@@ -260,8 +263,9 @@ void SettingsView::drawVisualSettings()
     }
 
     if ( changed ) {
-        Logic::EditorEngine::instance().setEditorConfig(
-            Config::AppConfig::instance().getEditorConfig());
+        Event::EventBus::instance().publish(
+            Event::LogicCommandEvent(Logic::CmdUpdateEditorConfig{
+                Config::AppConfig::instance().getEditorConfig() }));
         Config::AppConfig::instance().save();
     }
 }
@@ -327,8 +331,9 @@ void SettingsView::drawEditorSettings()
     }
 
     if ( changed ) {
-        Logic::EditorEngine::instance().setEditorConfig(
-            Config::AppConfig::instance().getEditorConfig());
+        Event::EventBus::instance().publish(
+            Event::LogicCommandEvent(Logic::CmdUpdateEditorConfig{
+                Config::AppConfig::instance().getEditorConfig() }));
         Config::AppConfig::instance().save();
     }
 }

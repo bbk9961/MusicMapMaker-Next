@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphic/imguivk/VKTextureAtlas.h"
+#include "logic/BeatmapSyncBuffer.h"
 #include "ui/IRenderableView.h"
 #include <glm/glm.hpp>
 #include <memory>
@@ -17,7 +18,8 @@ class Basic2DCanvas : public UI::IRenderableView
 {
 public:
     Basic2DCanvas(const std::string& name, uint32_t w, uint32_t h,
-                  const std::string& cameraId = "");
+                  std::shared_ptr<Logic::BeatmapSyncBuffer> syncBuffer,
+                  const std::string&                        cameraId = "");
     Basic2DCanvas(Basic2DCanvas&&)                 = delete;
     Basic2DCanvas(const Basic2DCanvas&)            = delete;
     Basic2DCanvas& operator=(Basic2DCanvas&&)      = delete;
@@ -68,6 +70,9 @@ private:
 
     /// @brief 逻辑视口 ID (对应 BeatmapSession 中的 Camera)
     std::string m_cameraId;
+
+    /// @brief 同步缓冲区
+    std::shared_ptr<Logic::BeatmapSyncBuffer> m_syncBuffer;
 
     /// @brief 当前正在使用的渲染快照
     Logic::RenderSnapshot* m_currentSnapshot{ nullptr };

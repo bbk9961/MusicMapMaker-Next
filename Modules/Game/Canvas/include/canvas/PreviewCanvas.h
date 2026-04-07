@@ -1,6 +1,7 @@
 #pragma once
 
 #include "graphic/imguivk/VKTextureAtlas.h"
+#include "logic/BeatmapSyncBuffer.h"
 #include "ui/IRenderableView.h"
 #include <glm/glm.hpp>
 #include <memory>
@@ -20,7 +21,8 @@ namespace MMM::Canvas
 class PreviewCanvas : public UI::IRenderableView
 {
 public:
-    PreviewCanvas(const std::string& name, uint32_t w, uint32_t h);
+    PreviewCanvas(const std::string& name, uint32_t w, uint32_t h,
+                  std::shared_ptr<Logic::BeatmapSyncBuffer> syncBuffer);
     PreviewCanvas(PreviewCanvas&&)                 = delete;
     PreviewCanvas(const PreviewCanvas&)            = delete;
     PreviewCanvas& operator=(PreviewCanvas&&)      = delete;
@@ -71,6 +73,9 @@ private:
 
     /// @brief 逻辑视口 ID (固定为 "Preview")
     const std::string m_cameraId{ "Preview" };
+
+    /// @brief 同步缓冲区
+    std::shared_ptr<Logic::BeatmapSyncBuffer> m_syncBuffer;
 
     /// @brief 当前正在使用的渲染快照
     Logic::RenderSnapshot* m_currentSnapshot{ nullptr };

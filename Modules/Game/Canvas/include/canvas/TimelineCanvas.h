@@ -1,5 +1,6 @@
 #pragma once
 
+#include "logic/BeatmapSyncBuffer.h"
 #include "ui/IRenderableView.h"
 #include <glm/glm.hpp>
 #include <memory>
@@ -23,7 +24,8 @@ namespace MMM::Canvas
 class TimelineCanvas : public UI::IRenderableView
 {
 public:
-    TimelineCanvas(const std::string& name, uint32_t w, uint32_t h);
+    TimelineCanvas(const std::string& name, uint32_t w, uint32_t h,
+                   std::shared_ptr<Logic::BeatmapSyncBuffer> syncBuffer);
     ~TimelineCanvas() override = default;
 
     // IUIView 接口
@@ -62,9 +64,10 @@ private:
     void drawCurrentTimeIndicator(float width, float height, double visualTime,
                                   double currentTime, float zoom);
 
-    std::string            m_canvasName;
-    bool                   m_needReload{ true };
-    Logic::RenderSnapshot* m_currentSnapshot{ nullptr };
+    std::string                               m_canvasName;
+    bool                                      m_needReload{ true };
+    std::shared_ptr<Logic::BeatmapSyncBuffer> m_syncBuffer;
+    Logic::RenderSnapshot*                    m_currentSnapshot{ nullptr };
 
     // 缓存 Shader 源码
     std::unordered_map<std::string, std::vector<std::string>>

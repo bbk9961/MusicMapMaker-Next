@@ -3,6 +3,7 @@
 #include "config/skin/SkinConfig.h"
 #include "event/canvas/interactive/ResizeEvent.h"
 #include "event/core/EventBus.h"
+#include "event/logic/LogicCommandEvent.h"
 #include "graphic/imguivk/VKOffScreenRenderer.h"
 #include "graphic/imguivk/VKShader.h"
 #include "imgui.h"
@@ -18,12 +19,15 @@
 
 namespace MMM::Canvas
 {
-Basic2DCanvas::Basic2DCanvas(const std::string& name, uint32_t w, uint32_t h,
-                             const std::string& cameraId)
+Basic2DCanvas::Basic2DCanvas(
+    const std::string& name, uint32_t w, uint32_t h,
+    std::shared_ptr<Logic::BeatmapSyncBuffer> syncBuffer,
+    const std::string&                        cameraId)
     : IUIView(name)
     , IRenderableView(name)
     , m_canvasName(name)
     , m_cameraId(cameraId.empty() ? name : cameraId)
+    , m_syncBuffer(std::move(syncBuffer))
 {
     m_targetWidth  = w;
     m_targetHeight = h;
@@ -39,17 +43,16 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
         this, m_canvasName.c_str(), m_targetWidth, m_targetHeight);
 
     // 尝试拉取最新的逻辑线程渲染快照 (专属摄像机缓冲)
-    auto syncBuffer = Logic::EditorEngine::instance().getSyncBuffer(m_cameraId);
-    if ( syncBuffer ) {
-        m_currentSnapshot = syncBuffer->pullLatestSnapshot();
+    if ( m_syncBuffer ) {
+        m_currentSnapshot = m_syncBuffer->pullLatestSnapshot();
     }
 
     // --- 快捷键处理：仅主画布响应空格切换播放/暂停 ---
     if ( m_currentSnapshot && ImGui::IsKeyPressed(ImGuiKey_Space, false) ) {
         // 如果 ImGui 没有捕获键盘（即没有在输入框中），则响应
         // if ( !ImGui::GetIO().WantCaptureKeyboard ) {
-        Logic::EditorEngine::instance().pushCommand(
-            Logic::CmdSetPlayState{ !m_currentSnapshot->isPlaying });
+        Event::EventBus::instance().publish(Event::LogicCommandEvent(
+            Logic::CmdSetPlayState{ !m_currentSnapshot->isPlaying }));
         // }
     }
 
@@ -102,35 +105,36 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
         }
 
         // 推送悬停指令到逻辑线程
-        Logic::EditorEngine::instance().pushCommand(
-            Logic::CmdSetHoveredEntity{ hoveredEntity });
+        Event::EventBus::instance().publish(Event::LogicCommandEvent(
+            Logic::CmdSetHoveredEntity{ hoveredEntity }));
 
         // --- 交互：点击选择与拖拽 ---
         if ( ImGui::IsMouseClicked(0) ) {
             if ( hoveredEntity != entt::null ) {
                 // 点击了实体，发送选择指令
-                Logic::EditorEngine::instance().pushCommand(
-                    Logic::CmdSelectEntity{ hoveredEntity,
-                                            !ImGui::GetIO().KeyCtrl });
+                Event::EventBus::instance().publish(
+                    Event::LogicCommandEvent(Logic::CmdSelectEntity{
+                        hoveredEntity, !ImGui::GetIO().KeyCtrl }));
 
                 // 如果没在拖拽，则尝试开始拖拽
-                Logic::EditorEngine::instance().pushCommand(
-                    Logic::CmdStartDrag{ hoveredEntity, m_cameraId });
+                Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                    Logic::CmdStartDrag{ hoveredEntity, m_cameraId }));
             } else {
                 // 点击空白处，取消所有选择
-                Logic::EditorEngine::instance().pushCommand(
-                    Logic::CmdSelectEntity{ entt::null, true });
+                Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                    Logic::CmdSelectEntity{ entt::null, true }));
             }
         }
 
         if ( ImGui::IsMouseDragging(0) ) {
-            Logic::EditorEngine::instance().pushCommand(Logic::CmdUpdateDrag{
-                m_cameraId, localMousePos.x, localMousePos.y });
+            Event::EventBus::instance().publish(
+                Event::LogicCommandEvent(Logic::CmdUpdateDrag{
+                    m_cameraId, localMousePos.x, localMousePos.y }));
         }
 
         if ( ImGui::IsMouseReleased(0) ) {
-            Logic::EditorEngine::instance().pushCommand(
-                Logic::CmdEndDrag{ m_cameraId });
+            Event::EventBus::instance().publish(
+                Event::LogicCommandEvent(Logic::CmdEndDrag{ m_cameraId }));
         }
     }
 }

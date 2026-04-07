@@ -103,13 +103,7 @@ public:
     /**
      * @brief 设置编辑器配置 (同时分发指令给 Session)
      */
-    void setEditorConfig(const Config::EditorConfig& config)
-    {
-        m_editorConfig = config;
-        // 同步回全局 AppConfig 实例
-        Config::AppConfig::instance().getEditorConfig() = config;
-        pushCommand(CmdUpdateEditorConfig{ config });
-    }
+    void setEditorConfig(const Config::EditorConfig& config);
 
 private:
     /**

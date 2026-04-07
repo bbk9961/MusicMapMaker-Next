@@ -2,6 +2,8 @@
 #include "config/AppConfig.h"
 #include "event/canvas/interactive/ResizeEvent.h"
 #include "event/core/EventBus.h"
+#include "event/logic/EditorConfigChangedEvent.h"
+#include "event/logic/LogicCommandEvent.h"
 #include "event/ui/menu/OpenProjectEvent.h"
 #include "event/ui/menu/ProjectLoadedEvent.h"
 #include "log/colorful-log.h"
@@ -37,6 +39,17 @@ EditorEngine::EditorEngine()
     Event::EventBus::instance().subscribe<Event::OpenProjectEvent>(
         [this](const Event::OpenProjectEvent& e) {
             openProject(e.m_projectPath);
+        });
+
+    // 订阅逻辑指令事件
+    Event::EventBus::instance().subscribe<Event::LogicCommandEvent>(
+        [this](const Event::LogicCommandEvent& e) {
+            if ( std::holds_alternative<CmdUpdateEditorConfig>(e.command) ) {
+                setEditorConfig(
+                    std::get<CmdUpdateEditorConfig>(e.command).config);
+            } else {
+                pushCommand(MMM::Logic::LogicCommand(e.command));
+            }
         });
 }
 
@@ -192,6 +205,18 @@ std::shared_ptr<BeatmapSyncBuffer> EditorEngine::getSyncBuffer(
         m_syncBuffers[cameraId] = std::make_shared<BeatmapSyncBuffer>();
     }
     return m_syncBuffers[cameraId];
+}
+
+void EditorEngine::setEditorConfig(const Config::EditorConfig& config)
+{
+    m_editorConfig = config;
+    // 同步回全局 AppConfig 实例
+    Config::AppConfig::instance().getEditorConfig() = config;
+    pushCommand(CmdUpdateEditorConfig{ config });
+
+    // 发布配置更新事件，供 UI 层订阅
+    Event::EventBus::instance().publish(
+        Event::EditorConfigChangedEvent{ config });
 }
 
 void EditorEngine::loop()

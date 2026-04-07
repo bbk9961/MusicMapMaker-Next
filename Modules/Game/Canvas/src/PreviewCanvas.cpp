@@ -3,6 +3,7 @@
 #include "config/skin/SkinConfig.h"
 #include "event/canvas/interactive/ResizeEvent.h"
 #include "event/core/EventBus.h"
+#include "event/logic/LogicCommandEvent.h"
 #include "graphic/imguivk/VKOffScreenRenderer.h"
 #include "graphic/imguivk/VKShader.h"
 #include "imgui.h"
@@ -18,8 +19,13 @@
 
 namespace MMM::Canvas
 {
-PreviewCanvas::PreviewCanvas(const std::string& name, uint32_t w, uint32_t h)
-    : IUIView(name), IRenderableView(name), m_canvasName(name)
+PreviewCanvas::PreviewCanvas(
+    const std::string& name, uint32_t w, uint32_t h,
+    std::shared_ptr<Logic::BeatmapSyncBuffer> syncBuffer)
+    : IUIView(name)
+    , IRenderableView(name)
+    , m_canvasName(name)
+    , m_syncBuffer(std::move(syncBuffer))
 {
     m_targetWidth  = w;
     m_targetHeight = h;
@@ -35,9 +41,8 @@ void PreviewCanvas::update(UI::UIManager* sourceManager)
     RenderContext rctx(this, windowName.c_str(), m_targetWidth, m_targetHeight);
 
     // 拉取预览视口的快照
-    auto syncBuffer = Logic::EditorEngine::instance().getSyncBuffer(m_cameraId);
-    if ( syncBuffer ) {
-        m_currentSnapshot = syncBuffer->pullLatestSnapshot();
+    if ( m_syncBuffer ) {
+        m_currentSnapshot = m_syncBuffer->pullLatestSnapshot();
     }
 
     // --- 简单的点击跳转时间逻辑 ---
@@ -48,10 +53,11 @@ void PreviewCanvas::update(UI::UIManager* sourceManager)
         ImVec2 localPos  = { mousePos.x - windowPos.x,
                              mousePos.y - windowPos.y };
 
-        Logic::EditorEngine::instance().pushCommand(
-            Logic::CmdUpdateDrag{ m_cameraId, localPos.x, localPos.y });
-        Logic::EditorEngine::instance().pushCommand(
-            Logic::CmdEndDrag{ m_cameraId });
+        Logic::CmdUpdateDrag dragCmd{ m_cameraId, localPos.x, localPos.y };
+        Event::EventBus::instance().publish(
+            Event::LogicCommandEvent(std::move(dragCmd)));
+        Event::EventBus::instance().publish(
+            Event::LogicCommandEvent(Logic::CmdEndDrag{ m_cameraId }));
     }
 }
 

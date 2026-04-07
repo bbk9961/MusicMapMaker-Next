@@ -1,4 +1,6 @@
 #include "canvas/TimelineCanvas.h"
+#include "event/core/EventBus.h"
+#include "event/logic/LogicCommandEvent.h"
 #include "graphic/imguivk/VKShader.h"
 #include "imgui.h"
 #include "log/colorful-log.h"
@@ -10,8 +12,13 @@
 namespace MMM::Canvas
 {
 
-TimelineCanvas::TimelineCanvas(const std::string& name, uint32_t w, uint32_t h)
-    : UI::IUIView(name), UI::IRenderableView(name), m_canvasName(name)
+TimelineCanvas::TimelineCanvas(
+    const std::string& name, uint32_t w, uint32_t h,
+    std::shared_ptr<Logic::BeatmapSyncBuffer> syncBuffer)
+    : UI::IUIView(name)
+    , UI::IRenderableView(name)
+    , m_canvasName(name)
+    , m_syncBuffer(std::move(syncBuffer))
 {
     m_targetWidth  = w;
     m_targetHeight = h;
@@ -26,9 +33,8 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
 
     ImVec2 size = ImGui::GetContentRegionAvail();
 
-    auto syncBuffer = Logic::EditorEngine::instance().getSyncBuffer(m_name);
-    if ( syncBuffer ) {
-        m_currentSnapshot = syncBuffer->pullLatestSnapshot();
+    if ( m_syncBuffer ) {
+        m_currentSnapshot = m_syncBuffer->pullLatestSnapshot();
         if ( m_currentSnapshot ) {
             // 在画布左侧绘制一个垂直的全局音频时间滚动条
             if ( m_currentSnapshot->hasBeatmap &&
@@ -43,8 +49,9 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
                                          0.0f,
                                          total,
                                          "") ) {
-                    Logic::EditorEngine::instance().pushCommand(
-                        Logic::CmdSeek{ static_cast<double>(time) });
+                    Event::EventBus::instance().publish(
+                        Event::LogicCommandEvent(
+                            Logic::CmdSeek{ static_cast<double>(time) }));
                 }
 
                 if ( ImGui::IsItemActive() || ImGui::IsItemHovered() ) {

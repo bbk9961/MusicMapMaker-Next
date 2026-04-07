@@ -67,19 +67,24 @@ GameLoop::GameLoop() : g_vkContext(Graphic::VKContext::get())
     // 初始化时默认激活第一个 Tab（文件管理器）
     sidebar_manager->toggleSubView(TR("title.file_manager"));
 
+    auto& engine = Logic::EditorEngine::instance();
+
     m_uiManager.registerView(
         "Basic2DCanvas",
-        std::make_unique<Canvas::Basic2DCanvas>("Basic2DCanvas", 200, 200));
+        std::make_unique<Canvas::Basic2DCanvas>(
+            "Basic2DCanvas", 200, 200, engine.getSyncBuffer("Basic2DCanvas")));
 
     // 注册预览窗口 (Preview Window)
     m_uiManager.registerView(
         "PreviewWindow",
-        std::make_unique<Canvas::PreviewCanvas>("PreviewWindow", 200, 200));
+        std::make_unique<Canvas::PreviewCanvas>(
+            "PreviewWindow", 200, 200, engine.getSyncBuffer("Preview")));
 
     // 注册时间线标尺 (Timeline Window)
     m_uiManager.registerView(
         "TimelineWindow",
-        std::make_unique<Canvas::TimelineCanvas>("Timeline", 60, 200));
+        std::make_unique<Canvas::TimelineCanvas>(
+            "Timeline", 60, 200, engine.getSyncBuffer("Timeline")));
     // m_uiManager.registerView(
     //     "ImguiTestWindowUI",
     //     std::make_unique<Graphic::UI::ImguiTestWindowUI>("ImguiTestWindowUI"));
