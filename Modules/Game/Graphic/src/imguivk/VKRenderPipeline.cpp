@@ -21,7 +21,8 @@ namespace MMM::Graphic
 VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
                                    VKRenderPass& renderPass,
                                    VKSwapchain& swapchain, bool is2DCanvas,
-                                   int w, int h, bool additiveBlend)
+                                   int w, int h, bool additiveBlend,
+                                   bool blendEnable)
     : m_logicalDevice(logicalDevice)
 {
     // 2:创建Descriptor Set布局
@@ -172,7 +173,7 @@ VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
     vk::PipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo;
     // 4.9.1:颜色附件配置
     vk::PipelineColorBlendAttachmentState pipelineColorBlendAttachmentState;
-    pipelineColorBlendAttachmentState.setBlendEnable(true);
+    pipelineColorBlendAttachmentState.setBlendEnable(blendEnable);
 
     if ( additiveBlend ) {
         pipelineColorBlendAttachmentState

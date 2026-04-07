@@ -123,6 +123,8 @@ bool SkinManager::loadSkin(const std::string& luaFilePath)
         sol::optional<sol::table> glowOpt      = effectsTable["glow"];
         if ( glowOpt ) {
             m_data.effects.glow.passes = glowOpt.value()["passes"].get_or(8);
+            m_data.effects.glow.intensity =
+                glowOpt.value()["intensity"].get_or(1.0f);
         }
     }
 

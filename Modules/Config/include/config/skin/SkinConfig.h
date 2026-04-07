@@ -60,7 +60,8 @@ struct SkinData {
 
     struct EffectsConfig {
         struct Glow {
-            int passes{ 8 };
+            int   passes    = 8;
+            float intensity = 1.0f;
         } glow;
     } effects;
 
@@ -116,7 +117,8 @@ public:
         const std::string& canvasName);
 
     ///@brief 获取发光特效的渲染轮次
-    int getGlowPasses() const { return m_data.effects.glow.passes; }
+    int   getGlowPasses() const { return m_data.effects.glow.passes; }
+    float getGlowIntensity() const { return m_data.effects.glow.intensity; }
 
     ///@brief 获取布局配置
     std::string getLayoutConfig(const std::string& key);

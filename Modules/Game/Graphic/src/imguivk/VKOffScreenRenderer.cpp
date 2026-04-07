@@ -191,8 +191,8 @@ void VKOffScreenRenderer::recordCmds(vk::CommandBuffer& cmdBuf)
                         glm::vec4 dirAndPasses;
                         glm::vec4 pad1, pad2, pad3;
                     } pc;
-                    pc.dirAndPasses = glm::vec4(ping ? 3.0f / m_width : 0.0f,
-                                                ping ? 0.0f : 3.0f / m_height,
+                    pc.dirAndPasses = glm::vec4(ping ? 1.0f / m_width : 0.0f,
+                                                ping ? 0.0f : 1.0f / m_height,
                                                 0.0f,
                                                 0.0f);
 
@@ -241,7 +241,9 @@ void VKOffScreenRenderer::recordCmds(vk::CommandBuffer& cmdBuf)
                     glm::vec4 dirAndPasses;
                     glm::vec4 pad1, pad2, pad3;
                 } pc;
-                pc.dirAndPasses = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+                float intensity =
+                    MMM::Config::SkinManager::instance().getGlowIntensity();
+                pc.dirAndPasses = glm::vec4(0.0f, 0.0f, 0.0f, intensity);
 
                 cmdBuf.pushConstants(
                     m_compositeRenderPipeline->m_graphicsPipelineLayout,

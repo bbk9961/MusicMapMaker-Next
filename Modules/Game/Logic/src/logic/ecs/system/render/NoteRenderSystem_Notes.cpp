@@ -111,7 +111,7 @@ void NoteRenderSystem::renderNotes(
 
         glm::vec4 hoverTint = { 1.0f, 1.0f, 1.0f, 1.0f };
         if ( isHovered ) {
-            hoverTint = { 1.0f, 0.5f, 0.0f, 1.0f };
+            // 移除临时占位的橙色调，悬停现在完全依靠发光特效表现
             hoveredEntities.push_back(entity);
         }
 
@@ -189,6 +189,7 @@ void NoteRenderSystem::renderNotes(
             float  screenY  = judgmentLineY - (minY * renderScaleY);
             float  trackX   = leftX + note.m_trackIndex * singleTrackW;
 
+            // 渲染到发光遮罩层：直接使用物件原始颜色，不再应用选中橙色调
             if ( note.m_type == ::MMM::NoteType::NOTE ) {
                 NoteRenderSystem::renderTap(
                     glowBatcher,

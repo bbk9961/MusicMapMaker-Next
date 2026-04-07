@@ -185,7 +185,10 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
                                            *m_vkShaders[getShaderName("main")],
                                            *m_offScreenRenderPass,
                                            swapchain,
-                                           true);
+                                           true,
+                                           0,
+                                           0,
+                                           true);  // 使用加法混合渲染发光遮罩层
 
     if ( m_vkShaders.count(getShaderName("effect")) ) {
         m_blurRenderPipeline = std::make_unique<VKRenderPipeline>(
@@ -193,7 +196,11 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
             *m_vkShaders[getShaderName("effect")],
             *m_offScreenRenderPass,
             swapchain,
-            true);
+            true,
+            0,
+            0,
+            false,
+            false);  // Blur pass: additiveBlend=false, blendEnable=false
 
         m_compositeRenderPipeline = std::make_unique<VKRenderPipeline>(
             logicalDevice,
@@ -203,7 +210,8 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
             true,
             0,
             0,
-            true);  // additive blend
+            true,
+            true);  // Composite pass: additive blend = true
     }
 
     // 再重建
