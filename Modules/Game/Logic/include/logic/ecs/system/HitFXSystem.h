@@ -57,6 +57,12 @@ public:
                           int32_t trackCount, float judgmentLineY, float leftX,
                           float singleTrackW);
 
+    /**
+     * @brief 清空当前所有正在播放的特效
+     * 通常在时间跳转（Seek）时调用，防止历史特效残留在未来或过去的时间点。
+     */
+    void clearActiveEffects() { m_trackActiveEffects.clear(); }
+
 private:
     struct ActiveEffect {
         double      startTime{ 0.0 };

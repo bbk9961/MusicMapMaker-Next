@@ -45,7 +45,6 @@ void BeatmapSession::update(double dt, const Config::EditorConfig& config)
     // 处理来自 UI 的指令
     processCommands();
 
-    double prevTime       = m_currentTime;
     double prevVisualTime = m_visualTime;
 
     // 更新播放时间
@@ -72,15 +71,13 @@ void BeatmapSession::update(double dt, const Config::EditorConfig& config)
         // --- 打击音效与特效触发逻辑 ---
         std::vector<System::HitFXSystem::HitEvent> triggeredEvents;
 
-        // 检测时间跳跃（无论是往前跳还是往回跳）
-        if ( std::abs(m_visualTime - prevVisualTime) > 0.2 ) {
-            // 发生了时间跳转（比如用户拖拽进度条或点击跳转），不发出这一大段的音效
-            auto it =
-                std::lower_bound(m_hitEvents.begin(),
-                                 m_hitEvents.end(),
-                                 System::HitFXSystem::HitEvent{
-                                     m_visualTime, ::MMM::NoteType::NOTE });
-            m_nextHitIndex = std::distance(m_hitEvents.begin(), it);
+        // 检测时间跳跃（往前大跳、往回跳、或者刚刚从暂停状态恢复）
+        bool isJump = (std::abs(m_visualTime - prevVisualTime) > 0.2) ||
+                      (m_visualTime < prevVisualTime);
+
+        if ( isJump ) {
+            m_hitFXSystem.clearActiveEffects();
+            syncHitIndex();
         } else {
             // 正常的帧推进
             while ( m_nextHitIndex < m_hitEvents.size() &&
@@ -97,10 +94,25 @@ void BeatmapSession::update(double dt, const Config::EditorConfig& config)
     } else {
         m_visualTime = m_currentTime + config.visual.visualOffset;
         m_syncTimer  = 0.0;
+
+        // 暂停状态下虽然不播放音效，但如果用户在拖拽进度条，我们需要实时同步
+        // m_nextHitIndex，这样在重新播放的一瞬间索引就是正确的。
+        if ( std::abs(m_visualTime - prevVisualTime) > 0.0001 ) {
+            syncHitIndex();
+        }
     }
 
     // 执行逻辑计算和生成渲染快照
     updateECSAndRender(config);
+}
+
+void BeatmapSession::syncHitIndex()
+{
+    auto it = std::lower_bound(
+        m_hitEvents.begin(),
+        m_hitEvents.end(),
+        System::HitFXSystem::HitEvent{ m_visualTime, ::MMM::NoteType::NOTE });
+    m_nextHitIndex = std::distance(m_hitEvents.begin(), it);
 }
 
 void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)

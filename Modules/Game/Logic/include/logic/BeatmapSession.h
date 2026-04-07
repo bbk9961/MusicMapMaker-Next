@@ -76,6 +76,12 @@ private:
      */
     void updateECSAndRender(const Config::EditorConfig& config);
 
+    /**
+     * @brief 根据当前视觉时间同步打击事件索引
+     * 通常在 Seek 或开始播放时调用。
+     */
+    void syncHitIndex();
+
     /// @brief ECS 注册表：音符
     entt::registry m_noteRegistry;
 

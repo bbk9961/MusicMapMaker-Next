@@ -41,6 +41,9 @@ void BeatmapSession::processCommands()
                     if ( m_isPlaying ) {
                         Audio::AudioManager::instance().play();
                         m_syncClock.reset(m_currentTime);
+                        // 开始播放时，确保索引同步并清理可能的残留特效
+                        syncHitIndex();
+                        m_hitFXSystem.clearActiveEffects();
                     } else {
                         Audio::AudioManager::instance().pause();
                         // 当且仅当暂停播放时，从音频引擎读取一次时间，令 ECS
@@ -163,6 +166,9 @@ void BeatmapSession::processCommands()
                     m_currentTime = arg.time;
                     m_syncClock.reset(arg.time);
                     Audio::AudioManager::instance().seek(arg.time);
+                    // Seek 时同步索引并清理残留特效
+                    syncHitIndex();
+                    m_hitFXSystem.clearActiveEffects();
                 } else if constexpr ( std::is_same_v<T, CmdSetPlaybackSpeed> ) {
                     Audio::AudioManager::instance().setPlaybackSpeed(arg.speed);
                 }
