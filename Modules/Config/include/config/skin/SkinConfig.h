@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
+struct ImFont;
+
 namespace MMM
 {
 namespace Config
@@ -35,6 +37,9 @@ struct SkinData {
 
     // 字体表
     std::unordered_map<std::string, std::filesystem::path> fontPaths;
+
+    // 运行时字体对象表 (Key: 字体配置ID, Value: ImFont*)
+    std::unordered_map<std::string, ImFont*> runtimeFonts;
 
     // 资产路径表 (Key: 资产ID, Value: 文件路径)
     std::unordered_map<std::string, std::filesystem::path> assetPaths;
@@ -109,6 +114,12 @@ public:
 
     ///@brief 获取颜色配置
     Color getColor(const std::string& key);
+
+    ///@brief 获取运行时字体
+    ImFont* getFont(const std::string& key);
+
+    ///@brief 设置运行时字体 (供渲染层初始化时调用)
+    void setFont(const std::string& key, ImFont* font);
 
 private:
     ///@brief 皮肤数据

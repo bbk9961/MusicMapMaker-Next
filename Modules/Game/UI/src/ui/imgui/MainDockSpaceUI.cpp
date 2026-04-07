@@ -9,6 +9,7 @@
 #include "imgui_internal.h"
 #include "log/colorful-log.h"
 #include "logic/EditorEngine.h"
+#include "ui/Icons.h"
 #include <ImGuiFileDialog.h>
 #include <nfd.h>
 #include <utility>
@@ -93,9 +94,15 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
                 ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hoverColor);
 
+                // 应用图标颜色
+                Config::Color iconColor = skinCfg.getColor("icon");
+                ImGui::PushStyleColor(
+                    ImGuiCol_Text,
+                    ImVec4(iconColor.r, iconColor.g, iconColor.b, iconColor.a));
+
                 bool clicked = ImGui::Button(icon, ImVec2(btnSize, btnSize));
 
-                ImGui::PopStyleColor(2);
+                ImGui::PopStyleColor(3);
                 ImGui::PopStyleVar(1);
                 return clicked;
             };
@@ -112,7 +119,13 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
                                 ImVec2(10.0f, defaultFramePadding.y));
             ImGui::SetCursorPosX(buttonSize + 4.0f);
 
+            // 应用菜单字体
+            ImFont* menuFont = skinCfg.getFont("menu");
+            if ( menuFont ) ImGui::PushFont(menuFont);
+
             m_mainMenuview.update();
+
+            if ( menuFont ) ImGui::PopFont();
 
             ImGui::PopStyleVar(1);  // 弹出菜单专用 Padding
 
@@ -155,18 +168,18 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
             if ( DrawFontIconButton(
-                     "\xef\x8b\x91", buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
+                     ICON_MMM_MINIMIZE, buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
                     .type = NativeEventType::GLFW_ICONFY_WINDOW });
             }
             ImGui::SameLine();
             if ( DrawFontIconButton(
-                     "\xef\x8b\x90", buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
+                     ICON_MMM_MAXIMIZE, buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
                     .type = NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE });
             }
             ImGui::SameLine();
-            if ( DrawFontIconButton("\xef\x80\x8d",
+            if ( DrawFontIconButton(ICON_MMM_CLOSE,
                                     buttonSize,
                                     ImVec4(0.9f, 0.1f, 0.1f, 1.0f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
@@ -207,6 +220,10 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
         ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
+        // 为 DockSpace 推入标题字体，确保停靠窗口的 Tab 标签使用大字体
+        ImFont* titleFont = skinCfg.getFont("title");
+        if ( titleFont ) ImGui::PushFont(titleFont);
+
         ImGui::Begin("RightDockHost", nullptr, dock_flags);
 
         // 1. 声明并建立 DockSpace (必须在 Builder 逻辑之前或同一层级)
@@ -214,6 +231,8 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
         // 注意：这个 DockSpace 必须每帧都调用
         ImGui::DockSpace(
             dockspace_id, ImVec2(0, 0), ImGuiDockNodeFlags_PassthruCentralNode);
+
+        if ( titleFont ) ImGui::PopFont();
 
         static bool is_first_time = true;
         if ( is_first_time ) {

@@ -42,14 +42,18 @@ public:
             : m_view(view), m_width(width), m_height(height)
         {
             // 1. 在 Begin 之前设置窗口大小
-            // ImGuiCond_FirstUseEver: 只在第一次运行且没有 .ini
-            // 配置文件记录时生效 ImGuiCond_Always:
-            // 强制每一帧都固定这个大小（用户无法拖拽改变大小） ImGuiCond_Once:
-            // 每轮启动只设置一次
             ImGui::SetNextWindowSize(ImVec2((float)m_width, (float)m_height),
                                      ImGuiCond_FirstUseEver);
 
+            // 应用窗口标题字体
+            auto&   skinMgr   = Config::SkinManager::instance();
+            ImFont* titleFont = skinMgr.getFont("title");
+            if ( titleFont ) ImGui::PushFont(titleFont);
+
             ImGui::Begin(window_title);
+
+            // Begin 后立即弹出，确保后续内容使用默认字体
+            if ( titleFont ) ImGui::PopFont();
 
 
             // 1. 获取 ImGui 窗口分配给内容的实际大小

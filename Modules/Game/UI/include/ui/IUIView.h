@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/skin/SkinConfig.h"
 #include "log/colorful-log.h"
 #include "ui/layout/CLayDefs.h"
 #include "ui/layout/CLayWrapperCore.h"
@@ -18,13 +19,11 @@ public:
     IUIView(const std::string& name) : m_name(name)
     {
         // 创建独立的布局上下文
-        m_layoutCtx =
-            CLayWrapperCore::instance().createWindowContext();
+        m_layoutCtx = CLayWrapperCore::instance().createWindowContext();
     }
     virtual ~IUIView()
     {
-        CLayWrapperCore::instance().destroyWindowContext(
-            m_layoutCtx);
+        CLayWrapperCore::instance().destroyWindowContext(m_layoutCtx);
     }
 
     /// @brief 更新ui
@@ -44,12 +43,17 @@ class LayoutContext final
 
 public:
     LayoutContext(CLayWrapperCore::WindowContext& clayout_ctx,
-                  const std::string&                           iwindow_name,
-                  bool             custom_window_flags = false,
+                  const std::string&              iwindow_name,
+                  bool                            custom_window_flags = false,
                   ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoTitleBar)
     {
-        CLayWrapperCore::instance().makeCurrent(
-            clayout_ctx.context);
+        CLayWrapperCore::instance().makeCurrent(clayout_ctx.context);
+
+        // 应用窗口标题字体
+        auto&   skinMgr   = Config::SkinManager::instance();
+        ImFont* titleFont = skinMgr.getFont("title");
+        if ( titleFont ) ImGui::PushFont(titleFont);
+
         // 在 Begin 之前，推入样式变量，将窗口内边距设为 0
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
 
@@ -58,6 +62,10 @@ public:
         } else {
             ImGui::Begin(iwindow_name.c_str());
         }
+
+        // 核心修复：Begin 后立即弹出标题字体，使内容使用默认（content）字体
+        if ( titleFont ) ImGui::PopFont();
+
         // 1. 获取 ImGui 的绘图起始点（绝对坐标）
         m_startPos = ImGui::GetCursorScreenPos();
         m_avail    = ImGui::GetContentRegionAvail();

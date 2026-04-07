@@ -1,4 +1,5 @@
 #include "ui/imgui/manager/AudioManagerView.h"
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
 #include "imgui.h"
@@ -14,6 +15,10 @@ void AudioManagerView::onUpdate(LayoutContext& layoutContext,
 {
     auto& engine  = Logic::EditorEngine::instance();
     auto* project = engine.getCurrentProject();
+    auto& skinCfg = Config::SkinManager::instance();
+
+    ImFont* fileManagerFont = skinCfg.getFont("filemanager");
+    if ( fileManagerFont ) ImGui::PushFont(fileManagerFont);
 
     CLayVBox rootVBox;
 
@@ -41,6 +46,8 @@ void AudioManagerView::onUpdate(LayoutContext& layoutContext,
                 "labelHBox", labelHBox, Sizing::Grow(), Sizing::Fixed(40));
         rootVBox.addSpring();
         rootVBox.render(layoutContext);
+
+        if ( fileManagerFont ) ImGui::PopFont();
         return;
     }
 
@@ -179,5 +186,7 @@ void AudioManagerView::onUpdate(LayoutContext& layoutContext,
         .addLayout("offsetHBox", offsetHBox, Sizing::Grow(), Sizing::Fixed(200))
         .addSpring();
     rootVBox.render(layoutContext);
+
+    if ( fileManagerFont ) ImGui::PopFont();
 }
 }  // namespace MMM::UI

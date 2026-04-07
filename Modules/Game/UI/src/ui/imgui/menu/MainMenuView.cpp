@@ -4,6 +4,7 @@
 #include "event/core/EventBus.h"
 #include "event/ui/menu/OpenProjectEvent.h"
 #include "log/colorful-log.h"
+#include "ui/Icons.h"
 #include <ImGuiFileDialog.h>
 #include <imgui.h>
 #include <nfd.h>
@@ -52,12 +53,28 @@ void MainMenuView::openFolderPicker()
 
 void MainMenuView::update()
 {
-    auto MenuItemWithFontIcon = [](const char* icon,
-                                   const char* label) -> bool {
+    Config::SkinManager& skinCfg = Config::SkinManager::instance();
+
+    auto MenuItemWithFontIcon = [&skinCfg](const char* icon,
+                                           const char* label) -> bool {
+        // 应用图标颜色
+        Config::Color iconColor = skinCfg.getColor("icon");
+        ImGui::PushStyleColor(
+            ImGuiCol_Text,
+            ImVec4(iconColor.r, iconColor.g, iconColor.b, iconColor.a));
+
         // 添加前导空格为图标留出位置
         std::string padded_label = std::string(icon) + "    " + label;
-        return ImGui::MenuItem(padded_label.c_str());
+        bool        clicked      = ImGui::MenuItem(padded_label.c_str());
+
+        ImGui::PopStyleColor();
+        return clicked;
     };
+
+    // 应用菜单字体 (由 MainDockSpaceUI
+    // 统一推送，但这里也确保一下安全，或者在具体内容处推送)
+    ImFont* menuFont = skinCfg.getFont("menu");
+    if ( menuFont ) ImGui::PushFont(menuFont);
 
     if ( ImGui::BeginMenu(TR("ui.file")) ) {
         if ( ImGui::MenuItem(TR("ui.file.new_map")) ) {}
@@ -66,7 +83,8 @@ void MainMenuView::update()
 
         if ( ImGui::MenuItem(TR("ui.file.open_map")) ) {}
 
-        if ( MenuItemWithFontIcon("\xef\x81\xbc", TR("ui.file.open_pro")) ) {
+        if ( MenuItemWithFontIcon(ICON_MMM_FOLDER_OPEN,
+                                  TR("ui.file.open_pro")) ) {
             openFolderPicker();
         }
 
@@ -85,6 +103,7 @@ void MainMenuView::update()
     ImGuiIO& io = ImGui::GetIO();
     ImGui::Text(
         "%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+    if ( menuFont ) ImGui::PopFont();
 }
 
 }  // namespace MMM::UI

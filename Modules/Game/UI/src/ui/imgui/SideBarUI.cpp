@@ -4,6 +4,7 @@
 #include "event/ui/UISubViewToggleEvent.h"
 #include "imgui.h"
 #include "log/colorful-log.h"
+#include "ui/Icons.h"
 #include "ui/layout/box/CLayBox.h"
 #include <lunasvg.h>
 
@@ -19,8 +20,6 @@ void SideBarUI::update(UIManager* sourceManager)
     Config::SkinManager& skinCfg = Config::SkinManager::instance();
     static float         sidebarWidth =
         std::stof(skinCfg.getLayoutConfig("side_bar.width"));
-    static float sidebarIconSize =
-        std::stof(skinCfg.getLayoutConfig("side_bar.icon_size"));
     const ImGuiViewport* viewport      = ImGui::GetMainViewport();
     float                menuBarHeight = ImGui::GetFrameHeight();
 
@@ -52,65 +51,73 @@ void SideBarUI::update(UIManager* sourceManager)
     // --- 样式锁定：全局无圆角、无边框 ---
 
     // lambda：绘制互斥按钮
-    auto DrawSidebarButton = [&](const char*      iconStr,
-                                 SideBarTab       tab,
-                                 Clay_BoundingBox rect) {
-        bool isActive = (m_activeTab == tab);
+    auto DrawSidebarButton =
+        [&](const char* iconStr, SideBarTab tab, Clay_BoundingBox rect) {
+            bool isActive = (m_activeTab == tab);
 
-        // --- 样式处理 ---
-        if ( isActive ) {
-            // 激活态：深灰色背景（VS Code 风格）
-            ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                  ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                  ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
-        } else {
-            // 非激活态：全透明，仅悬停时有微弱反馈
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                  ImVec4(1.0f, 1.0f, 1.0f, 0.05f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                  ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
-        }
-
-        // 使用不同的文字颜色（未激活时稍显灰色）
-        ImU32 tint = isActive ? IM_COL32_WHITE : IM_COL32(200, 200, 200, 255);
-        ImGui::PushStyleColor(ImGuiCol_Text, tint);
-
-        // 绘制按钮
-        std::string btnId =
-            std::string(iconStr) + "##tab_" + std::to_string((int)tab);
-        if ( ImGui::Button(btnId.c_str(), { rect.width, rect.height }) ) {
-            m_activeTab = (m_activeTab == tab) ? SideBarTab::None : tab;
-            // 2. 发布事件通知 FloatingManagerUI
-            using namespace MMM::Event;
-
-            UISubViewToggleEvent evt;
-            // 填充基类 UIEvent 信息
-            evt.sourceUiName = m_name;
-            evt.uiManager    = sourceManager;
-
-            // 填充切换信息
-            // 与注册 FloatingManagerUI
-            // 时使用的名字一致
-            evt.targetFloatManagerName = "SideBarManager";
-            evt.subViewId              = TabToSubViewId(tab);
-
-            if ( m_activeTab != SideBarTab::None ) {
-                evt.showSubView = true;
+            // --- 样式处理 ---
+            if ( isActive ) {
+                // 激活态：深灰色背景（VS Code 风格）
+                ImGui::PushStyleColor(ImGuiCol_Button,
+                                      ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                      ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                                      ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+            } else {
+                // 非激活态：全透明，仅悬停时有微弱反馈
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                      ImVec4(1.0f, 1.0f, 1.0f, 0.05f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                                      ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
             }
 
-            // 核心：发布到总线
-            EventBus::instance().publish(evt);
+            // 使用不同的文字颜色（未激活时稍显灰色）
+            Config::Color iconColor = skinCfg.getColor("icon");
+            ImVec4 iconVec4(iconColor.r, iconColor.g, iconColor.b, iconColor.a);
+            if ( !isActive ) {
+                iconVec4.w *= 0.7f;  // 非激活状态稍微透明点
+            }
+            ImGui::PushStyleColor(ImGuiCol_Text, iconVec4);
 
-            XINFO("SideBarUI: Published ToggleEvent for {}", evt.subViewId);
-        }
+            // 应用侧边栏专用字体大小
+            ImFont* sideBarFont = skinCfg.getFont("side_bar");
+            if ( sideBarFont ) ImGui::PushFont(sideBarFont);
 
-        // --- 清理状态栈 ---
-        ImGui::PopStyleColor(4);  // 弹出 Button, Hovered, Active, Text
-    };
+            // 绘制按钮
+            std::string btnId =
+                std::string(iconStr) + "##tab_" + std::to_string((int)tab);
+            if ( ImGui::Button(btnId.c_str(), { rect.width, rect.height }) ) {
+                m_activeTab = (m_activeTab == tab) ? SideBarTab::None : tab;
+                // 2. 发布事件通知 FloatingManagerUI
+                using namespace MMM::Event;
+
+                UISubViewToggleEvent evt;
+                // 填充基类 UIEvent 信息
+                evt.sourceUiName = m_name;
+                evt.uiManager    = sourceManager;
+
+                // 填充切换信息
+                // 与注册 FloatingManagerUI
+                // 时使用的名字一致
+                evt.targetFloatManagerName = "SideBarManager";
+                evt.subViewId              = TabToSubViewId(tab);
+
+                if ( m_activeTab != SideBarTab::None ) {
+                    evt.showSubView = true;
+                }
+
+                // 核心：发布到总线
+                EventBus::instance().publish(evt);
+
+                XINFO("SideBarUI: Published ToggleEvent for {}", evt.subViewId);
+            }
+
+            // --- 清理状态栈 ---
+            if ( sideBarFont ) ImGui::PopFont();
+            ImGui::PopStyleColor(4);  // 弹出 Button, Hovered, Active, Text
+        };
 
     CLayVBox vbox;
     vbox.setPadding(0, 0, 0, 0)
@@ -119,7 +126,7 @@ void SideBarUI::update(UIManager* sourceManager)
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
-                        DrawSidebarButton("\xef\x85\x9b",
+                        DrawSidebarButton(ICON_MMM_FOLDER_OPEN,
                                           SideBarTab::FileExplorer,
                                           rect);  // \uf15b file
                     })
@@ -127,7 +134,7 @@ void SideBarUI::update(UIManager* sourceManager)
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
-                        DrawSidebarButton("\xef\x80\x81",
+                        DrawSidebarButton(ICON_MMM_MUSIC,
                                           SideBarTab::AudioExplorer,
                                           rect);  // \uf001 music
                     })
@@ -136,7 +143,7 @@ void SideBarUI::update(UIManager* sourceManager)
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
                         DrawSidebarButton(
-                            "\xef\x81\xbc",
+                            ICON_MMM_FILE,
                             SideBarTab::BeatMapExplorer,
                             rect);  // \uf07c folder-open (打开文件)
                     })
@@ -145,7 +152,7 @@ void SideBarUI::update(UIManager* sourceManager)
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
-                        DrawSidebarButton("\xef\x80\x93",
+                        DrawSidebarButton(ICON_MMM_COG,
                                           SideBarTab::Settings,
                                           rect);  // \uf013 cog
                     });

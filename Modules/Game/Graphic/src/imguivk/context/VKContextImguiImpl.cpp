@@ -120,31 +120,59 @@ void VKContext::imguiVulkanInit(GLFWwindow* window_handle)
     // io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf");
     // IM_ASSERT(font != nullptr);
 
-    auto asciiFontPath = Config::SkinManager::instance().getFontPath("ascii");
+    auto& skinMgr         = Config::SkinManager::instance();
+    auto  asciiFontPath   = skinMgr.getFontPath("ascii");
+    auto  chineseFontPath = skinMgr.getFontPath("cjk");
     XINFO("asciiFontPath: {}", asciiFontPath.generic_string());
 
+    // 辅助 Lambda: 加载并合并 CJK 字体
+    auto loadFontWithSize = [&](const std::string& key, float size) {
+        ImFontConfig config;
+        config.OversampleH = 2;
+        config.OversampleV = 2;
 
-    ImFont* font = io.Fonts->AddFontFromFileTTF(
-        asciiFontPath.generic_string().c_str(), 20.f);
+        // 加载基础 ASCII 字体
+        ImFont* font = io.Fonts->AddFontFromFileTTF(
+            asciiFontPath.generic_string().c_str(), size, &config);
 
-    // 2. 配置合并参数
-    ImFontConfig config;
-    config.MergeMode  = true;  // 关键：开启合并模式
-    config.PixelSnapH = true;  // 字符对齐，让字体更清晰
+        if ( font ) {
+            // 配置合并参数加载 CJK 字体
+            ImFontConfig mergeConfig;
+            mergeConfig.MergeMode  = true;
+            mergeConfig.PixelSnapH = true;
+            const ImWchar* ranges  = io.Fonts->GetGlyphRangesChineseFull();
 
-    // 3. 获取中文范围 (ImGui 内置了常用中文字符范围)
-    // 注意：这个指针必须在整个程序运行期间有效，GetGlyphRangesChineseFull
-    // 是静态的，所以没问题
-    const ImWchar* ranges = io.Fonts->GetGlyphRangesChineseFull();
+            io.Fonts->AddFontFromFileTTF(
+                chineseFontPath.generic_string().c_str(),
+                size,
+                &mergeConfig,
+                ranges);
 
-    // 4. 加载中文字体并合并到上一个字体中
-    auto chineseFontPath = Config::SkinManager::instance().getFontPath("cjk");
-    io.Fonts->AddFontFromFileTTF(chineseFontPath.generic_string().c_str(),
-                                 20.f,     // 保持跟基础字体大小一致
-                                 &config,  // 传入合并配置
-                                 ranges    // 传入要支持的字符范围
-    );
+            skinMgr.setFont(key, font);
+        }
+        return font;
+    };
 
+    // 从皮肤配置中读取各个场景的字体大小
+    auto getFontSize = [&](const std::string& key, float defaultSize) {
+        std::string val = skinMgr.getLayoutConfig("fontsize." + key);
+        return val.empty() ? defaultSize : std::stof(val);
+    };
+
+    // 1. 加载默认字体 (也是 content 字体)
+    float contentSize = getFontSize("content", 14.0f);
+    loadFontWithSize("content", contentSize);
+
+    // 2. 加载其他范围的字体
+    float titleFontSize = getFontSize("title", 20.0f);
+    XINFO("Loading title font with size: {}", titleFontSize);
+    loadFontWithSize("title", titleFontSize);
+
+    loadFontWithSize("menu", getFontSize("menu", 16.0f));
+    loadFontWithSize("filemanager", getFontSize("filemanager", 14.0f));
+    loadFontWithSize("side_bar", getFontSize("side_bar", 16.0f));
+    loadFontWithSize("setting_internel",
+                     getFontSize("setting_internel", 14.0f));
 
     XINFO("ImGui Vulkan backend initialized.");
 }

@@ -16,6 +16,10 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
 {
     auto& engine  = Logic::EditorEngine::instance();
     auto* project = engine.getCurrentProject();
+    auto& skinCfg = Config::SkinManager::instance();
+
+    ImFont* fileManagerFont = skinCfg.getFont("filemanager");
+    if ( fileManagerFont ) ImGui::PushFont(fileManagerFont);
 
     CLayVBox rootVBox;
 
@@ -43,6 +47,8 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
                 "labelHBox", labelHBox, Sizing::Grow(), Sizing::Fixed(40));
         rootVBox.addSpring();
         rootVBox.render(layoutContext);
+
+        if ( fileManagerFont ) ImGui::PopFont();
         return;
     }
 
@@ -85,6 +91,8 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
 
     rootVBox.addSpring();
     rootVBox.render(layoutContext);
+
+    if ( fileManagerFont ) ImGui::PopFont();
 }
 
 }  // namespace MMM::UI

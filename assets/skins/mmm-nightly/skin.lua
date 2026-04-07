@@ -12,10 +12,8 @@ local Skin = {
 
 	-- 颜色配置 (R, G, B, A)
 	colors = {
-		background = { 0.1, 0.1, 0.1, 1.0 },
-		primary = { 0.0, 0.8, 0.8, 1.0 },
-		text = { 1.0, 1.0, 1.0, 1.0 },
-		alert = { 1.0, 0.2, 0.2, 1.0 },
+		-- 图标的颜色
+		icon = { 0.9, 0.9, 0.9, 1.0 },
 
 		-- 预览区配色
 		preview = {
@@ -32,6 +30,7 @@ local Skin = {
 		note_flick_arrow = { 0.9922, 0.9255, 0.5608, 1.0 },
 	},
 
+	-- 音频配置
 	audios = {
 		hiteffect = {
 			note = "audio/note.wav",
@@ -45,10 +44,28 @@ local Skin = {
 		zh_cn = "lang/zh_cn.lua",
 	},
 
-	-- 字体配置
+	-- 字体文件配置
 	fonts = {
 		ascii = "font/ComicShannsMonoNerdFontPropo-Regular.otf",
 		cjk = "font/NotoSansMonoCJKsc-Regular.otf",
+	},
+
+	-- 字体尺寸配置
+	fontsize = {
+		-- 标题字体大小/主要是imgui的窗口标题
+		title = 20,
+		-- 菜单字体大小/主要是菜单栏的和内部菜单项的字体大小
+		menu = 18,
+		-- 文件管理器字体大小/主要是资源管理器音频管理器谱面管理器等里面浏览的文件的字体大小
+		filemanager = 16,
+		-- 内容字体大小/主要是设置项，文本编辑器等字体的大小
+		content = 14,
+
+		-- 侧边栏字体图标的尺寸
+		side_bar = 24,
+
+		-- 设置内部的字体图标的尺寸
+		setting_internel = 14,
 	},
 
 	-- 资产文件映射
@@ -104,7 +121,6 @@ local Skin = {
 		-- 侧边栏配置
 		side_bar = {
 			width = 32,
-			icon_size = 20,
 		},
 		-- 悬浮窗初始配置
 		floating_windows = {

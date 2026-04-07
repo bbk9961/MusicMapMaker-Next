@@ -29,6 +29,10 @@ void FileManagerView::onUpdate(LayoutContext& layoutContext,
 {
     auto& engine  = Logic::EditorEngine::instance();
     auto* project = engine.getCurrentProject();
+    auto& skinCfg = Config::SkinManager::instance();
+
+    ImFont* fileManagerFont = skinCfg.getFont("filemanager");
+    if ( fileManagerFont ) ImGui::PushFont(fileManagerFont);
 
     CLayVBox rootVBox;
 
@@ -114,6 +118,8 @@ void FileManagerView::onUpdate(LayoutContext& layoutContext,
 
         rootVBox.render(layoutContext);
     }
+
+    if ( fileManagerFont ) ImGui::PopFont();
 }
 
 void FileManagerView::drawDirectoryRecursive(const std::filesystem::path& path)
@@ -155,7 +161,6 @@ void FileManagerView::openFolderPicker()
               : "Unified");
 
     if ( config.filePickerStyle == Config::FilePickerStyle::Native ) {
-        XINFO("原生文件选择器");
         // --- 使用 nativefiledialog-extended (系统原生) ---
         nfdu8char_t* outPath = nullptr;
         nfdresult_t  result  = NFD_PickFolder(&outPath, nullptr);
@@ -171,7 +176,6 @@ void FileManagerView::openFolderPicker()
             XERROR("NFD Error: {}", NFD_GetError());
         }
     } else {
-        XINFO("统一文件选择器 (模态)");
         // --- 使用 ImGuiFileDialog (统一风格) ---
         IGFD::FileDialogConfig fdConfig;
         fdConfig.path              = ".";

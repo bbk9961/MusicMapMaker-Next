@@ -6,6 +6,7 @@
 #include "event/logic/LogicCommandEvent.h"
 #include "imgui.h"
 #include "logic/EditorEngine.h"
+#include "ui/Icons.h"
 #include "ui/layout/box/CLayBox.h"
 
 namespace MMM::UI
@@ -32,8 +33,8 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
         "SettingsCategoryList",
         Sizing::Fixed(sidebarWidth),
         Sizing::Grow(),
-        [this, sidebarWidth, sidebarIconSize](Clay_BoundingBox r,
-                                              bool             isHovered) {
+        [this, sidebarWidth, sidebarIconSize, &skinCfg](Clay_BoundingBox r,
+                                                        bool isHovered) {
             ImGui::BeginChild(
                 "SettingsCategories", { r.width, r.height }, false);
 
@@ -65,9 +66,18 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
                                           ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
                 }
 
-                ImU32 tint =
-                    isActive ? IM_COL32_WHITE : IM_COL32(200, 200, 200, 255);
-                ImGui::PushStyleColor(ImGuiCol_Text, tint);
+                // 应用皮肤配置的图标颜色
+                Config::Color iconColor = skinCfg.getColor("icon");
+                ImVec4        iconVec4(
+                    iconColor.r, iconColor.g, iconColor.b, iconColor.a);
+                if ( !isActive ) {
+                    iconVec4.w *= 0.7f;
+                }
+                ImGui::PushStyleColor(ImGuiCol_Text, iconVec4);
+
+                // 应用设置面板内部的字体图标尺寸
+                ImFont* settingIconFont = skinCfg.getFont("setting_internel");
+                if ( settingIconFont ) ImGui::PushFont(settingIconFont);
 
                 std::string btnId = std::string(iconStr) + "##setting_tab_" +
                                     std::to_string((int)tab);
@@ -75,6 +85,8 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
                                    { sidebarWidth, sidebarWidth }) ) {
                     m_currentTab = tab;
                 }
+
+                if ( settingIconFont ) ImGui::PopFont();
 
                 if ( ImGui::IsItemHovered() ) {
                     ImGui::BeginTooltip();
@@ -86,16 +98,16 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
             };
 
             DrawCategoryIcon(SettingsTab::Software,
-                             "\xef\x84\x88",  // \uf108 desktop
+                             ICON_MMM_DESKTOP,
                              TR_CACHE("ui.settings.software").data());
             DrawCategoryIcon(SettingsTab::Visual,
-                             "\xef\x81\xae",  // \uf06e eye
+                             ICON_MMM_EYE,
                              TR_CACHE("ui.settings.visual").data());
             DrawCategoryIcon(SettingsTab::Project,
-                             "\xef\x81\xbb",  // \uf07b folder
+                             ICON_MMM_FOLDER,
                              TR_CACHE("ui.settings.project").data());
             DrawCategoryIcon(SettingsTab::Editor,
-                             "\xef\x8c\x84",  // \uf304 pen
+                             ICON_MMM_PEN,
                              TR_CACHE("ui.settings.editor").data());
 
             ImGui::PopStyleVar(4);
@@ -119,9 +131,13 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
         "SettingsContentArea",
         Sizing::Grow(),
         Sizing::Grow(),
-        [this](Clay_BoundingBox r, bool isHovered) {
+        [this, &skinCfg](Clay_BoundingBox r, bool isHovered) {
             ImGui::BeginChild("SettingsContent", { r.width, r.height }, false);
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 10));
+
+            // 应用设置内容字体
+            ImFont* contentFont = skinCfg.getFont("content");
+            if ( contentFont ) ImGui::PushFont(contentFont);
 
             switch ( m_currentTab ) {
             case SettingsTab::Software: drawSoftwareSettings(); break;
@@ -129,6 +145,8 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
             case SettingsTab::Project: drawProjectSettings(); break;
             case SettingsTab::Editor: drawEditorSettings(); break;
             }
+
+            if ( contentFont ) ImGui::PopFont();
 
             ImGui::PopStyleVar();
             ImGui::EndChild();

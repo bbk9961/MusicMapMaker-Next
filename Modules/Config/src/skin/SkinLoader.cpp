@@ -157,6 +157,12 @@ bool SkinManager::loadSkin(const std::string& luaFilePath)
         parseLayoutRecursive(layoutTable, "");
     }
 
+    // 解析 fontsize
+    sol::optional<sol::table> fontsizeTableOpt = skinTable["fontsize"];
+    if ( fontsizeTableOpt ) {
+        parseLayoutRecursive(fontsizeTableOpt.value(), "fontsize");
+    }
+
     XINFO("Skin loaded: " + m_data.themeName);
     return true;
 }
@@ -379,6 +385,20 @@ Color SkinManager::getColor(const std::string& key)
     }
     // 默认返回紫色以示错误
     return { 1.0f, 0.0f, 1.0f, 1.0f };
+}
+
+ImFont* SkinManager::getFont(const std::string& key)
+{
+    if ( auto it = m_data.runtimeFonts.find(key);
+         it != m_data.runtimeFonts.end() ) {
+        return it->second;
+    }
+    return nullptr;
+}
+
+void SkinManager::setFont(const std::string& key, ImFont* font)
+{
+    m_data.runtimeFonts[key] = font;
 }
 
 }  // namespace Config

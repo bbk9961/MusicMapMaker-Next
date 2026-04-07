@@ -7,6 +7,7 @@
 #include "logic/BeatmapSyncBuffer.h"
 #include "logic/EditorEngine.h"
 #include "logic/ecs/system/ScrollCache.h"
+#include "ui/Icons.h"
 #include <filesystem>
 
 namespace MMM::Canvas
@@ -29,7 +30,7 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
     std::string windowName =
         fmt::format("{}###{}", TR("canvas.timeline"), m_name);
 
-    ImGui::Begin(windowName.c_str());
+    UI::LayoutContext lctx(m_layoutCtx, windowName, true, 0);
 
     ImVec2 size = ImGui::GetContentRegionAvail();
 
@@ -100,7 +101,7 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
                                 ImGuiCol_Text, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
                             std::string id = fmt::format("BPM_{}", el.time);
                             if ( ImGui::Button(
-                                     (std::string("\xef\x80\x93##") + id)
+                                     (std::string(UI::ICON_MMM_COG) + "##" + id)
                                          .c_str(),
                                      ImVec2(iconSize, iconSize)) ) {
                                 XINFO("BPM gear clicked at time: {}", el.time);
@@ -125,7 +126,7 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
                                 ImGuiCol_Text, ImVec4(0.2f, 1.0f, 0.2f, 1.0f));
                             std::string id = fmt::format("SCROLL_{}", el.time);
                             if ( ImGui::Button(
-                                     (std::string("\xef\x80\x93##") + id)
+                                     (std::string(UI::ICON_MMM_COG) + "##" + id)
                                          .c_str(),
                                      ImVec2(iconSize, iconSize)) ) {
                                 XINFO("Scroll gear clicked at time: {}",
@@ -146,8 +147,6 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
             }
         }
     }
-
-    ImGui::End();
 }
 
 const std::vector<Graphic::Vertex::VKBasicVertex>&
