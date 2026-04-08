@@ -11,7 +11,7 @@ target_link_libraries(Audio
 		Log
 		3rd_rubberband
 )
-if(MSVC)
+if(WIN32)
 	target_link_libraries(Audio
 		PUBLIC
 			3rd_rubberband

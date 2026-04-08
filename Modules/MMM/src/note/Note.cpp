@@ -1,4 +1,5 @@
 #include "mmm/note/Note.h"
+#include <algorithm>
 #include <cmath>
 
 namespace MMM
