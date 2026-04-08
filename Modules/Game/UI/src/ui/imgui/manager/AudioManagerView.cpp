@@ -59,7 +59,9 @@ void AudioManagerView::onUpdate(LayoutContext& layoutContext,
         "AudioTracksHeader",
         Sizing::Grow(),
         Sizing::Fixed(24),
-        [](Clay_BoundingBox r, bool isHovered) {
+        [this](Clay_BoundingBox r, bool isHovered) {
+            float indent = ImGui::CalcTextSize("AA").x;
+            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, indent);
             ImGui::SeparatorText(TR("ui.audio_manager.audio_tracks").data());
         });
 
@@ -68,6 +70,7 @@ void AudioManagerView::onUpdate(LayoutContext& layoutContext,
                             Sizing::Grow(),
                             Sizing::Fixed(28),
                             [&audio](Clay_BoundingBox r, bool isHovered) {
+                                ImGui::Indent();
                                 ImGui::Selectable(audio.m_id.c_str());
                                 if ( ImGui::IsItemHovered() ) {
                                     ImGui::SetTooltip(
@@ -77,115 +80,17 @@ void AudioManagerView::onUpdate(LayoutContext& layoutContext,
                                             ? "Main"
                                             : "Effect");
                                 }
+                                ImGui::Unindent();
                             });
     }
-
-    CLayHBox offsetHBox;
-    offsetHBox.setPadding(8, 8, 8, 8)
-        .addElement(
-            "AudioConfigSettings",
-            Sizing::Grow(),
-            Sizing::Grow(),
-            [this, &engine](Clay_BoundingBox r, bool isHovered) {
-                auto config = engine.getEditorConfig();
-
-                bool changed = false;
-
-                // Visual Offset
-                float offsetMs = config.visual.visualOffset * 1000.0f;
-                ImGui::SetNextItemWidth(r.width * 0.6f);
-                if ( ImGui::SliderFloat("###Visual Offset",
-                                        &offsetMs,
-                                        -500.0f,
-                                        500.0f,
-                                        "%.0f ms") ) {
-                    config.visual.visualOffset = offsetMs / 1000.0f;
-                    changed                    = true;
-                }
-
-                if ( ImGui::IsItemHovered() ) {
-                    ImGui::SetTooltip(
-                        "%s",
-                        TR("ui.audio_manager.visual_offset_tooltip").data());
-                }
-
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-
-                // Polyline SFX Strategy
-                int currentStrategy = static_cast<int>(
-                    config.settings.sfxConfig.polylineStrategy);
-                const char* strategyNames[] = { "Exact",
-                                                "InternalAsNormal",
-                                                "OnlyTailExact",
-                                                "AllAsNormal" };
-                ImGui::SetNextItemWidth(r.width * 0.6f);
-                if ( ImGui::Combo("Polyline SFX Strategy",
-                                  &currentStrategy,
-                                  strategyNames,
-                                  4) ) {
-                    config.settings.sfxConfig.polylineStrategy =
-                        static_cast<Config::PolylineSfxStrategy>(
-                            currentStrategy);
-                    changed = true;
-                }
-
-                ImGui::Spacing();
-
-                // Flick Width Volume Scaling
-                bool scaling =
-                    config.settings.sfxConfig.enableFlickWidthVolumeScaling;
-                if ( ImGui::Checkbox("Flick Width Volume Scaling", &scaling) ) {
-                    config.settings.sfxConfig.enableFlickWidthVolumeScaling =
-                        scaling;
-                    changed = true;
-                }
-
-                if ( scaling ) {
-                    float mult =
-                        config.settings.sfxConfig.flickWidthVolumeMultiplier;
-                    ImGui::SetNextItemWidth(r.width * 0.6f);
-                    if ( ImGui::SliderFloat("Per-Track Vol Multiplier",
-                                            &mult,
-                                            0.0f,
-                                            1.0f,
-                                            "%.2f") ) {
-                        config.settings.sfxConfig.flickWidthVolumeMultiplier =
-                            mult;
-                        changed = true;
-                    }
-                }
-
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-
-                // File Picker Style
-                int currentStyle =
-                    static_cast<int>(config.settings.filePickerStyle);
-                const char* styleNames[] = { "Native (NFD)",
-                                             "Unified (ImGuiFileDialog)" };
-                ImGui::SetNextItemWidth(r.width * 0.6f);
-                if ( ImGui::Combo(
-                         "File Picker Style", &currentStyle, styleNames, 2) ) {
-                    config.settings.filePickerStyle =
-                        static_cast<Config::FilePickerStyle>(currentStyle);
-                    changed = true;
-                }
-
-                if ( changed ) {
-                    engine.setEditorConfig(config);
-                    Config::AppConfig::instance().save();
-                }
-            });
 
     rootVBox.setPadding(12, 12, 12, 12)
         .setSpacing(12)
         .addLayout("listVBox", listVBox, Sizing::Grow(), Sizing::Grow())
-        .addLayout("offsetHBox", offsetHBox, Sizing::Grow(), Sizing::Fixed(200))
         .addSpring();
     rootVBox.render(layoutContext);
+
+    ImGui::PopStyleVar();
 
     if ( fileManagerFont ) ImGui::PopFont();
 }

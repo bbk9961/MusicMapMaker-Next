@@ -106,7 +106,11 @@ void FileManagerView::onUpdate(LayoutContext& layoutContext,
                         Sizing::Grow(),
                         [this](Clay_BoundingBox r, bool isHovered) {
                             ImGui::BeginChild("FileTreeChild");
+                            float indent = ImGui::CalcTextSize("AA").x;
+                            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing,
+                                                indent);
                             this->drawDirectoryRecursive(m_currentRoot);
+                            ImGui::PopStyleVar();
                             ImGui::EndChild();
                         });
 

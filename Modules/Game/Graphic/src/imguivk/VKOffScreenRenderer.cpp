@@ -153,6 +153,9 @@ void VKOffScreenRenderer::recordCmds(vk::CommandBuffer& cmdBuf)
         // --- 7.2. Ping-Pong 模糊渲染 ---
         int passes = MMM::Config::SkinManager::instance().getGlowPasses();
         if ( passes > 0 ) {
+            // 设置模糊专用的 RenderPass (不 Clear)
+            rpBegin.setRenderPass(m_blurRenderPass->getRenderPass());
+
             bool ping = true;
             for ( int i = 0; i < passes; ++i ) {
                 vk::Framebuffer currentFb =

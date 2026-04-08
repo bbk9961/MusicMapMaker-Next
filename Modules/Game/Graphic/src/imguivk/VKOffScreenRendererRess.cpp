@@ -169,6 +169,13 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
                                        vk::ImageLayout::eShaderReadOnlyOptimal,
                                        false);
 
+    // 创建模糊用的 RenderPass，不执行 Clear (因为是全屏绘制)
+    m_blurRenderPass =
+        std::make_unique<VKRenderPass>(logicalDevice,
+                                       swapchain,
+                                       vk::ImageLayout::eShaderReadOnlyOptimal,
+                                       false);
+
     // 创建所有着色器模块
     createShaderModules();
 
@@ -180,21 +187,22 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
                                            swapchain,
                                            true);
 
-    m_glowBrushRenderPipeline =
-        std::make_unique<VKRenderPipeline>(logicalDevice,
-                                           *m_vkShaders[getShaderName("main")],
-                                           *m_offScreenRenderPass,
-                                           swapchain,
-                                           true,
-                                           0,
-                                           0,
-                                           true);  // 使用加法混合渲染发光遮罩层
+    m_glowBrushRenderPipeline = std::make_unique<VKRenderPipeline>(
+        logicalDevice,
+        *m_vkShaders[getShaderName("main")],
+        *m_offScreenRenderPass,
+        swapchain,
+        true,
+        0,
+        0,
+        false,  // 使用标准混合渲染发光遮罩层，保持外观一致
+        true);
 
     if ( m_vkShaders.count(getShaderName("effect")) ) {
         m_blurRenderPipeline = std::make_unique<VKRenderPipeline>(
             logicalDevice,
             *m_vkShaders[getShaderName("effect")],
-            *m_offScreenRenderPass,
+            *m_blurRenderPass,  // 使用不 Clear 的 RenderPass
             swapchain,
             true,
             0,
@@ -205,7 +213,7 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
         m_compositeRenderPipeline = std::make_unique<VKRenderPipeline>(
             logicalDevice,
             *m_vkShaders[getShaderName("effect")],
-            *m_offScreenRenderPass,
+            *m_compositeRenderPass,
             swapchain,
             true,
             0,
@@ -368,6 +376,11 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
         (VkImageView)m_imageView,
         VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL  // ImGui读取时，期望它处于的布局状态
     );
+
+    m_imguiGlowDescriptor = (vk::DescriptorSet)ImGui_ImplVulkan_AddTexture(
+        (VkSampler)m_glowSampler,
+        (VkImageView)m_glowImageView,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     // ==========================================
     // 6. 创建顶点缓冲区和uniform缓冲区
@@ -642,6 +655,10 @@ void VKOffScreenRenderer::releaseResources()
         ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)m_imguiDescriptor);
         m_imguiDescriptor = nullptr;
     }
+    if ( m_imguiGlowDescriptor ) {
+        ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)m_imguiGlowDescriptor);
+        m_imguiGlowDescriptor = nullptr;
+    }
 
     // 释放 Vulkan 原生资源
     if ( m_device ) {
@@ -687,6 +704,8 @@ void VKOffScreenRenderer::releaseResources()
         m_blurRenderPipeline.reset();
         m_compositeRenderPipeline.reset();
         m_offScreenRenderPass.reset();
+        m_blurRenderPass.reset();
+        m_compositeRenderPass.reset();
 
         m_vertexBuffer.reset();
         m_indexBuffer.reset();

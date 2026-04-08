@@ -41,8 +41,8 @@ local Skin = {
 	-- 效果配置
 	effects = {
 		glow = {
-			passes = 16,
-			intensity = 0.4
+			passes = 4,
+			intensity = 1.0 
 		}
 	},
 

@@ -60,7 +60,9 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
         "BeatmapsHeader",
         Sizing::Grow(),
         Sizing::Fixed(24),
-        [](Clay_BoundingBox r, bool isHovered) {
+        [this](Clay_BoundingBox r, bool isHovered) {
+            float indent = ImGui::CalcTextSize("AA").x;
+            ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, indent);
             ImGui::SeparatorText(TR("ui.beatmap_manager.beatmaps").data());
         });
 
@@ -70,6 +72,7 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
             Sizing::Grow(),
             Sizing::Fixed(28),
             [&beatmap, &engine, project](Clay_BoundingBox r, bool isHovered) {
+                ImGui::Indent();
                 if ( ImGui::Selectable(beatmap.m_name.c_str()) ) {
                     XINFO("Request to load beatmap: {}", beatmap.m_name);
                     auto fullPath = project->m_projectRoot / beatmap.m_filePath;
@@ -82,6 +85,7 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
                                       beatmap.m_filePath.c_str(),
                                       beatmap.m_audioTrackId.c_str());
                 }
+                ImGui::Unindent();
             });
     }
 
@@ -91,6 +95,8 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
 
     rootVBox.addSpring();
     rootVBox.render(layoutContext);
+
+    ImGui::PopStyleVar();
 
     if ( fileManagerFont ) ImGui::PopFont();
 }

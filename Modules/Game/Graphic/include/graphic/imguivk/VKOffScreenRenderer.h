@@ -30,6 +30,12 @@ public:
     /// @brief 获取imgui图像描述符集用于贴窗口
     vk::DescriptorSet getDescriptorSet() const { return m_imguiDescriptor; }
 
+    /// @brief 获取发光层遮罩描述符集
+    vk::DescriptorSet getGlowDescriptorSet() const
+    {
+        return m_imguiGlowDescriptor;
+    }
+
     /// @brief 录制gpu指令
     void recordCmds(vk::CommandBuffer& cmdBuf);
 
@@ -163,6 +169,7 @@ private:
         m_glowDescriptorSet{ VK_NULL_HANDLE };
 
     std::unique_ptr<VKRenderPass>     m_glowRenderPass{ nullptr };
+    std::unique_ptr<VKRenderPass>     m_blurRenderPass{ nullptr };
     std::unique_ptr<VKRenderPass>     m_compositeRenderPass{ nullptr };
     std::unique_ptr<VKRenderPipeline> m_glowBrushRenderPipeline{ nullptr };
     std::unique_ptr<VKRenderPipeline> m_blurRenderPipeline{ nullptr };
@@ -214,6 +221,9 @@ private:
 
     // --- 3. UI 集成句柄 (独占) ---
     vk::DescriptorSet m_imguiDescriptor{ VK_NULL_HANDLE };  // ImGui 用的贴图 ID
+    vk::DescriptorSet m_imguiGlowDescriptor{
+        VK_NULL_HANDLE
+    };  // ImGui 用的发光贴图 ID
 
     // --- 4. 引用/外部注入 (非所有权) ---
     // 逻辑设备引用
