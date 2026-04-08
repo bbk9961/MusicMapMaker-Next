@@ -13,8 +13,12 @@ return {
 
 	["ui.file.exit"] = "退出",
 	["ui.edit"] = "编辑",
+	["ui.edit.undo"] = "撤销",
+	["ui.edit.redo"] = "重做",
+	["ui.edit.cut"] = "剪切",
 	["ui.edit.copy"] = "复制",
 	["ui.edit.paste"] = "粘贴",
+	["ui.edit.play_pause"] = "播放/暂停",
 	-- ["ui.view"] = "视图",
 	-- ["ui.settings"] = "设置",
 	-- ["ui.exit"] = "退出",

@@ -24,6 +24,13 @@ constexpr const char* ICON_MMM_FILE   = "\xef\x85\x9b";  ///< \uf15b file
 constexpr const char* ICON_MMM_MUSIC  = "\xef\x80\x81";  ///< \uf001 music
 constexpr const char* ICON_MMM_COG    = "\xef\x80\x93";  ///< \uf013 cog
 constexpr const char* ICON_MMM_SEARCH = "\xef\x80\x82";  ///< \uf002 search
+constexpr const char* ICON_MMM_SAVE   = "\xef\x83\x87";  ///< \uf0c7 floppy-disk
+constexpr const char* ICON_MMM_FILE_ADD =
+    "\xef\x8c\x99";  ///< \uf319 file-circle-plus
+
+// --- Playback Icons ---
+constexpr const char* ICON_MMM_PLAY  = "\xef\x81\x8b";  ///< \uf04b play
+constexpr const char* ICON_MMM_PAUSE = "\xef\x81\x8c";  ///< \uf04c pause
 
 // --- Edit Tool Icons ---
 constexpr const char* ICON_MMM_MOUSE_POINTER =
@@ -34,6 +41,11 @@ constexpr const char* ICON_MMM_SQUARE_SELECT =
     "\xef\x83\x88";  ///< \uf0c8 square (Marquee Tool)
 constexpr const char* ICON_MMM_SCISSORS =
     "\xef\x83\x84";  ///< \uf0c4 scissors (Cut Tool)
+constexpr const char* ICON_MMM_UNDO = "\xef\x8b\xaa";  ///< \uf2ea rotate-left
+constexpr const char* ICON_MMM_REDO = "\xef\x8b\xb9";  ///< \uf2f9 rotate-right
+constexpr const char* ICON_MMM_COPY = "\xef\x83\x85";  ///< \uf0c5 copy
+constexpr const char* ICON_MMM_PASTE =
+    "\xef\x8c\xa8";  ///< \uf328 clipboard / paste
 
 // --- Window Control Icons ---
 constexpr const char* ICON_MMM_MINIMIZE =

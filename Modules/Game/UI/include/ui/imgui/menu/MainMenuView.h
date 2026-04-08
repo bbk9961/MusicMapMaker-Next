@@ -1,5 +1,7 @@
 #pragma once
 
+#include "common/LogicCommands.h"
+
 namespace MMM::UI
 {
 
@@ -14,9 +16,11 @@ public:
     ~MainMenuView();
 
     void update();
+    void handleHotkeys();
 
 private:
     void openFolderPicker();
+    void dispatchCommand(const Logic::LogicCommand& cmd);
 };
 
 }  // namespace MMM::UI

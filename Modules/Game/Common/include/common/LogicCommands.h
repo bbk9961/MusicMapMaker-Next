@@ -133,6 +133,42 @@ struct CmdChangeTool {
 };
 
 /**
+ * @brief 撤销指令
+ */
+struct CmdUndo {
+};
+
+/**
+ * @brief 重做指令
+ */
+struct CmdRedo {
+};
+
+/**
+ * @brief 复制指令
+ */
+struct CmdCopy {
+};
+
+/**
+ * @brief 粘贴指令
+ */
+struct CmdPaste {
+};
+
+/**
+ * @brief 剪切指令
+ */
+struct CmdCut {
+};
+
+/**
+ * @brief 保存谱面指令
+ */
+struct CmdSaveBeatmap {
+};
+
+/**
  * @brief 所有可能的逻辑指令变体
  */
 using LogicCommand =
@@ -140,6 +176,7 @@ using LogicCommand =
                  CmdLoadBeatmap, CmdSetHoveredEntity, CmdSelectEntity,
                  CmdStartDrag, CmdUpdateDrag, CmdEndDrag, CmdUpdateTrackCount,
                  CmdSeek, CmdSetPlaybackSpeed, CmdChangeTool,
-                 CmdSetMousePosition>;
+                 CmdSetMousePosition, CmdUndo, CmdRedo, CmdCopy, CmdPaste,
+                 CmdCut, CmdSaveBeatmap>;
 
 }  // namespace MMM::Logic

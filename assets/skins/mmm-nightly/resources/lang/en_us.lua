@@ -6,8 +6,12 @@ return {
 	["ui.file.open"] = "Open",
 	["ui.file.exit"] = "Exit",
 	["ui.edit"] = "Edit",
+	["ui.edit.undo"] = "Undo",
+	["ui.edit.redo"] = "Redo",
+	["ui.edit.cut"] = "Cut",
 	["ui.edit.copy"] = "Copy",
 	["ui.edit.paste"] = "Paste",
+	["ui.edit.play_pause"] = "Play/Pause",
 
 	-- 带格式化参数的文本 (TR_FMT)
 	-- 大括号 {} 的位置和数量须和代码里的逻辑一致
