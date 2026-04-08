@@ -4,6 +4,9 @@ return {
 	-- 普通文本
 	["ui.file"] = "File",
 	["ui.file.open"] = "Open",
+	["ui.file.open_recent"] = "Open Recent",
+	["ui.file.no_recent"] = "No Recent Items",
+	["ui.file.save"] = "Save",
 	["ui.file.exit"] = "Exit",
 	["ui.edit"] = "Edit",
 	["ui.edit.undo"] = "Undo",

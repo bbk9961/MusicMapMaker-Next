@@ -160,6 +160,9 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
           loadedEv.m_projectTitle,
           loadedEv.m_beatmapCount);
 
+    // 记录到最近打开列表
+    Config::AppConfig::instance().addRecentProject(projectPath.string());
+
     // 新加载项目时，清空当前 Session 的所有谱面数据
     pushCommand(CmdLoadBeatmap{ nullptr });
 }

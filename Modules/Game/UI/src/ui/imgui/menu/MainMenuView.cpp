@@ -137,7 +137,24 @@ void MainMenuView::update()
             openFolderPicker();
         }
 
-        if ( MenuItemWithFontIcon(nullptr, TR("ui.file.open_recent")) ) {}
+        if ( ImGui::BeginMenu(TR("ui.file.open_recent")) ) {
+            const auto& recent =
+                Config::AppConfig::instance().getEditorConfig().recentProjects;
+            if ( recent.empty() ) {
+                ImGui::MenuItem(TR("ui.file.no_recent"), nullptr, false, false);
+            } else {
+                for ( const auto& path : recent ) {
+                    std::filesystem::path p(path);
+                    std::string           name = p.filename().string();
+                    if ( ImGui::MenuItem(name.c_str(), path.c_str()) ) {
+                        Event::OpenProjectEvent ev;
+                        ev.m_projectPath = path;
+                        Event::EventBus::instance().publish(ev);
+                    }
+                }
+            }
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
 
         if ( MenuItemWithFontIcon(

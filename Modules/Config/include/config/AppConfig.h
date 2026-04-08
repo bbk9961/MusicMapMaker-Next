@@ -42,6 +42,10 @@ public:
     /// @brief 重置为默认配置
     void reset();
 
+    /// @brief 添加最近打开的项目
+    /// @param path 项目文件夹路径
+    void addRecentProject(const std::string& path);
+
 private:
     AppConfig();
     ~AppConfig() = default;

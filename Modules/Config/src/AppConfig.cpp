@@ -1,5 +1,6 @@
 #include "config/AppConfig.h"
 #include "log/colorful-log.h"
+#include <algorithm>
 #include <fstream>
 #include <iomanip>
 
@@ -92,6 +93,28 @@ bool AppConfig::save(const std::filesystem::path& path) const
                e.what());
         return false;
     }
+}
+
+void AppConfig::addRecentProject(const std::string& path)
+{
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        auto&                       list = m_editorConfig.recentProjects;
+
+        // 1. 移除已存在的相同路径 (去重)
+        list.erase(std::remove(list.begin(), list.end(), path), list.end());
+
+        // 2. 插入到最前面
+        list.insert(list.begin(), path);
+
+        // 3. 限制数量 (例如最多 10 个)
+        if ( list.size() > 10 ) {
+            list.resize(10);
+        }
+    }
+
+    // 4. 自动保存
+    save();
 }
 
 std::filesystem::path AppConfig::getDefaultConfigPath() const

@@ -3,6 +3,9 @@
 #include "EditorSettings.h"
 #include "VisualConfig.h"
 
+#include <string>
+#include <vector>
+
 namespace MMM::Config
 {
 
@@ -15,7 +18,11 @@ struct EditorConfig {
     /// @brief 编辑逻辑、同步与音效策略相关的设置
     EditorSettings settings;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(EditorConfig, visual, settings)
+    /// @brief 最近打开的项目路径列表
+    std::vector<std::string> recentProjects;
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(EditorConfig, visual, settings,
+                                   recentProjects)
 };
 
 }  // namespace MMM::Config

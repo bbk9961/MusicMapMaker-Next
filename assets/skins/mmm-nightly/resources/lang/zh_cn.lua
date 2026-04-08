@@ -7,7 +7,8 @@ return {
 	["ui.file.new_pro"] = "新建项目",
 	["ui.file.open_map"] = "打开谱面",
 	["ui.file.open_pro"] = "打开项目",
-	["ui.file.open_recent"] = "打开最近",
+	["ui.file.open_recent"] = "最近打开",
+	["ui.file.no_recent"] = "无最近记录",
 	["ui.file.save"] = "保存",
 	["ui.file.save_as"] = "另存为...",
 
