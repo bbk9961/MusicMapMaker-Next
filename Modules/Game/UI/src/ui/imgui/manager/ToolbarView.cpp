@@ -29,8 +29,8 @@ void ToolbarView::update(UIManager* sourceManager)
 
     float btnSize  = fontSize + 8.0f;
     float paddingX = 4.0f;
-    // 强制固定宽度为 26.0f (更紧凑)
-    float fixedW = 26.0f;
+    // 强制固定宽度为 32.0f (略微放宽以适配内容)
+    float fixedW = 32.0f;
 
     // 2. 锁定窗口尺寸约束
     ImGui::SetNextWindowSizeConstraints(ImVec2(fixedW, -1), ImVec2(fixedW, -1));
@@ -63,26 +63,30 @@ void ToolbarView::update(UIManager* sourceManager)
 
         if ( toolFont ) ImGui::PushFont(toolFont);
 
-        // 使用固定宽度 26px 绘制按钮
-        float drawW = fixedW;
+        // 获取实际可用的内容宽度作为按钮宽度，确保填满
+        float drawW = ImGui::GetContentRegionAvail().x;
 
         // 1. 移动工具 (使用四向箭头图标 \uf047)
+        ImGui::SetCursorPosX(0);
         drawToolButton(ICON_MMM_MOVE_ARROWS,
                        Logic::EditTool::Move,
                        TR("ui.toolbar.move"),
                        drawW);
 
         // 2. 矩形选取工具
+        ImGui::SetCursorPosX(0);
         drawToolButton(ICON_MMM_SQUARE_SELECT,
                        Logic::EditTool::Marquee,
                        TR("ui.toolbar.marquee"),
                        drawW);
 
         // 3. 绘制工具 (铅笔)
+        ImGui::SetCursorPosX(0);
         drawToolButton(
             ICON_MMM_PEN, Logic::EditTool::Draw, TR("ui.toolbar.draw"), drawW);
 
         // 4. 裁剪工具 (剪刀)
+        ImGui::SetCursorPosX(0);
         drawToolButton(ICON_MMM_SCISSORS,
                        Logic::EditTool::Cut,
                        TR("ui.toolbar.cut"),
@@ -109,6 +113,7 @@ void ToolbarView::update(UIManager* sourceManager)
                                   ImVec4(1.0f, 1.0f, 1.0f, 0.15f));
         }
 
+        ImGui::SetCursorPosX(0);
         if ( ImGui::Button(ICON_MMM_ARROWS_UP_DOWN, ImVec2(drawW, drawW)) ) {
             auto newConfig                   = editorCfg;
             newConfig.settings.reverseScroll = !isReverse;
@@ -140,6 +145,7 @@ void ToolbarView::update(UIManager* sourceManager)
                                   ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
         }
 
+        ImGui::SetCursorPosX(0);
         if ( ImGui::Button(ICON_MMM_MAGNET, ImVec2(drawW, drawW)) ) {
             auto newConfig                = editorCfg;
             newConfig.settings.scrollSnap = !isScrollSnap;
@@ -173,6 +179,7 @@ void ToolbarView::update(UIManager* sourceManager)
                                   ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
         }
 
+        ImGui::SetCursorPosX(0);
         if ( ImGui::Button(ICON_MMM_EYE, ImVec2(drawW, drawW)) ) {
             auto newConfig = editorCfg;
             newConfig.visual.enableLinearScrollMapping =
@@ -216,6 +223,7 @@ void ToolbarView::update(UIManager* sourceManager)
         char divisorBuf[16];
         snprintf(divisorBuf, sizeof(divisorBuf), "%d", currentDivisor);
 
+        ImGui::SetCursorPosX(0);
         if ( ImGui::Button(divisorBuf, ImVec2(drawW, drawW)) ) {
             m_showDivisorPopup = !m_showDivisorPopup;
         }
