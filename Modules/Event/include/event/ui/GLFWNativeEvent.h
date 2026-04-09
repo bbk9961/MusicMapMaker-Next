@@ -3,17 +3,21 @@
 #include "event/EventDef.h"
 #include "event/core/BaseEvent.h"
 
+namespace MMM::Event
+{
+
 enum class NativeEventType {
     GLFW_CLOSE_WINDOW,
     GLFW_ICONFY_WINDOW,
     GLFW_TOGGLE_WINDOW_MAXIMIZE,
 };
 
-namespace MMM::Event
-{
-
 struct GLFWNativeEvent : public BaseEvent {
     NativeEventType type;
+
+    // 状态数据 (主要用于系统触发的回调同步)
+    bool hasStateChange = false;
+    bool isMaximized    = false;
 };
 
 }  // namespace MMM::Event

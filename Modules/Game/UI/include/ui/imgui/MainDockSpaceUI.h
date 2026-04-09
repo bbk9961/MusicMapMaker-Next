@@ -3,6 +3,8 @@
 #include "ui/ITextureLoader.h"
 #include "ui/imgui/manager/ToolbarView.h"
 #include "ui/imgui/menu/MainMenuView.h"
+#include "event/core/EventBus.h"
+#include "event/ui/GLFWNativeEvent.h"
 #include <memory>
 
 
@@ -14,6 +16,14 @@ public:
     MainDockSpaceUI(const std::string& name)
         : IUIView(name), ITextureLoader(name)
     {
+        // 订阅原生事件以同步窗口最大化状态
+        Event::EventBus::instance().subscribe<Event::GLFWNativeEvent>(
+            [&](Event::GLFWNativeEvent e) {
+                if ( e.hasStateChange &&
+                     e.type == Event::NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE ) {
+                    m_isMaximized = e.isMaximized;
+                }
+            });
     }
     MainDockSpaceUI(MainDockSpaceUI&&)                 = delete;
     MainDockSpaceUI(const MainDockSpaceUI&)            = delete;
@@ -44,6 +54,12 @@ private:
 
     ///@brief 图标纹理
     std::unique_ptr<Graphic::VKTexture> m_logo_texture;
+
+    /// @brief 窗口是否最大化 (通过事件同步)
+    bool m_isMaximized{ false };
+
+    /// @brief 是否已初始化窗口状态
+    bool m_initializedWindow{ false };
 };
 
 }  // namespace MMM::UI

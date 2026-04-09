@@ -11,6 +11,7 @@
 #include "log/colorful-log.h"
 #include "logic/EditorEngine.h"
 #include "ui/Icons.h"
+#include <GLFW/glfw3.h>
 #include <ImGuiFileDialog.h>
 #include <nfd.h>
 #include <utility>
@@ -22,17 +23,31 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
 {
     Config::SkinManager& skinCfg  = Config::SkinManager::instance();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    static float         sidebarWidth =
+
+    // 首次运行初始化窗口状态
+    if ( !m_initializedWindow && viewport->PlatformHandle ) {
+        if ( GLFWwindow* nativeWin = (GLFWwindow*)viewport->PlatformHandle ) {
+            m_isMaximized       = glfwGetWindowAttrib(nativeWin, GLFW_MAXIMIZED);
+            m_initializedWindow = true;
+        }
+    }
+
+    static float sidebarWidth =
         std::stof(skinCfg.getLayoutConfig("side_bar.width"));
 
     // 工具栏固定宽度计算 (按钮尺寸 + Padding)
     // 这里我们先预设一个值，后续可以从配置读取
-    float toolbarWidth = 26.0f;
+    float toolbarWidth = 28.0f;
 
 
 
-    // 1. 获取菜单栏标准高度
-    float menuBarHeight = ImGui::GetFrameHeight();
+    // 1. 计算加高后的菜单栏高度
+    // 我们手动增加垂直方向的 FramePadding 来撑开菜单项和背景
+    float       extraPaddingY = 4.0f;
+    ImGuiStyle& style         = ImGui::GetStyle();
+    float       menuBarHeight =
+        ImGui::GetFontSize() + (style.FramePadding.y + extraPaddingY) * 2.0f;
+
     // ================== A. 顶部菜单栏窗口 ==================
     {
         ImGui::SetNextWindowPos(viewport->WorkPos);
@@ -44,16 +59,18 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
             ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollbar |
             ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoBackground;
 
-        // --- [1] 窗口级样式（Push 2 次） ---
+        // --- [1] 窗口级样式 ---
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        // 关键：在这里推入加大的 FramePadding，它会影响 BeginMenuBar 的高度计算
+        ImGui::PushStyleVar(
+            ImGuiStyleVar_FramePadding,
+            ImVec2(style.FramePadding.x, style.FramePadding.y + extraPaddingY));
 
         ImGui::Begin("TopMenuBarHost", nullptr, menu_flags);
 
-        float buttonSize = ImGui::GetFrameHeight();
-
         if ( ImGui::BeginMenuBar() ) {
-            float  buttonSize          = ImGui::GetFrameHeight();
+            float  buttonSize          = menuBarHeight;
             ImVec2 defaultFramePadding = ImGui::GetStyle().FramePadding;
 
             // --- 【核心修复：统一推入扁平化变量】 ---
@@ -167,31 +184,52 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
             if ( ImGui::IsItemHovered() &&
                  ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
-                    .type = NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE });
+                    .type = Event::NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE });
             }
             ImGui::SetCursorPosX(dragEndX);
 
             // 按钮组之间不留缝隙
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
+            // 获取通用内容字体用于 Tooltip
+            ImFont* contentFont = skinCfg.getFont("content");
+
+            // 1. 最小化
             if ( DrawFontIconButton(
                      ICON_MMM_MINIMIZE, buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
-                    .type = NativeEventType::GLFW_ICONFY_WINDOW });
+                    .type = Event::NativeEventType::GLFW_ICONFY_WINDOW });
             }
+            if ( contentFont ) ImGui::PushFont(contentFont);
+            ImGui::SetItemTooltip("%s", TR("ui.window.minimize").data());
+            if ( contentFont ) ImGui::PopFont();
+
             ImGui::SameLine();
-            if ( DrawFontIconButton(
-                     ICON_MMM_MAXIMIZE, buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
+
+            // 2. 最大化/还原
+            const char* maxIcon = m_isMaximized ? ICON_MMM_RESTORE : ICON_MMM_MAXIMIZE;
+            const char* maxTip  = m_isMaximized ? TR("ui.window.restore").data() : TR("ui.window.maximize").data();
+
+            if ( DrawFontIconButton(maxIcon, buttonSize, ImVec4(1, 1, 1, 0.1f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
-                    .type = NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE });
+                    .type = Event::NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE });
             }
+            if ( contentFont ) ImGui::PushFont(contentFont);
+            ImGui::SetItemTooltip("%s", maxTip);
+            if ( contentFont ) ImGui::PopFont();
+
             ImGui::SameLine();
+
+            // 3. 关闭
             if ( DrawFontIconButton(ICON_MMM_CLOSE,
                                     buttonSize,
                                     ImVec4(0.9f, 0.1f, 0.1f, 1.0f)) ) {
                 Event::EventBus::instance().publish(Event::GLFWNativeEvent{
-                    .type = NativeEventType::GLFW_CLOSE_WINDOW });
+                    .type = Event::NativeEventType::GLFW_CLOSE_WINDOW });
             }
+            if ( contentFont ) ImGui::PushFont(contentFont);
+            ImGui::SetItemTooltip("%s", TR("ui.window.close").data());
+            if ( contentFont ) ImGui::PopFont();
 
             ImGui::PopStyleVar(1);  // 弹出 ItemSpacing
 
@@ -202,8 +240,8 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
         }
         ImGui::End();
 
-        // --- [4] 弹出窗口级样式（Pop 2 次） ---
-        ImGui::PopStyleVar(2);
+        // --- [4] 弹出窗口级样式（Pop 3 次，包括加大的 FramePadding） ---
+        ImGui::PopStyleVar(3);
     }
 
     // ================== B. 右侧停靠空间窗口 ==================

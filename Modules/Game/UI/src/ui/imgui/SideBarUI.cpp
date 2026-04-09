@@ -21,7 +21,7 @@ void SideBarUI::update(UIManager* sourceManager)
     static float         sidebarWidth =
         std::stof(skinCfg.getLayoutConfig("side_bar.width"));
     const ImGuiViewport* viewport      = ImGui::GetMainViewport();
-    float                menuBarHeight = ImGui::GetFrameHeight();
+    float                menuBarHeight = ImGui::GetFrameHeight() + 8.0f;
 
     // ================== C. 左侧侧边栏窗口 ==================
     // 位置：X=0, Y=菜单高度
@@ -113,6 +113,13 @@ void SideBarUI::update(UIManager* sourceManager)
 
                 XINFO("SideBarUI: Published ToggleEvent for {}", evt.subViewId);
             }
+
+            // --- 悬停提示 ---
+            // 推入内容字体以保持 Tooltip 文字尺寸一致
+            ImFont* contentFont = skinCfg.getFont("content");
+            if ( contentFont ) ImGui::PushFont(contentFont);
+            ImGui::SetItemTooltip("%s", TabToTooltip(tab).c_str());
+            if ( contentFont ) ImGui::PopFont();
 
             // --- 清理状态栈 ---
             if ( sideBarFont ) ImGui::PopFont();

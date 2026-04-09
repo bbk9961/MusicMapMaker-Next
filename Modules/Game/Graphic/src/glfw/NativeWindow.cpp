@@ -25,10 +25,22 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
     }
     // 隐藏系统标题栏
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
 
     // 不再需要初始化 ImGui 的辅助窗口
     m_windowHandle = glfwCreateWindow(w, h, wtitle, nullptr, nullptr);
+
+    // 窗口启动时居中
+    if ( m_windowHandle ) {
+        GLFWmonitor*       monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
+        if ( monitor && mode ) {
+            int xPos = ( mode->width - w ) / 2;
+            int yPos = ( mode->height - h ) / 2;
+            glfwSetWindowPos(m_windowHandle, xPos, yPos);
+        }
+    }
 
     // 在 glfwCreateWindow 之后调用
 #ifdef _WIN32
@@ -44,6 +56,16 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
     glfwSetFramebufferSizeCallback(m_windowHandle,
                                    &NativeWindow::framebufferResizeCallback);
     glfwSetKeyCallback(m_windowHandle, GLFW_KeyCallback);
+
+    // 窗口最大化/还原回调 (处理系统级别的状态变更)
+    glfwSetWindowMaximizeCallback(
+        m_windowHandle, [](GLFWwindow* w, int maximized) {
+            Event::EventBus::instance().publish(Event::GLFWNativeEvent{
+                .type           = Event::NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE,
+                .hasStateChange = true,
+                .isMaximized    = ( maximized == GLFW_TRUE ) });
+        });
+
     // 1. 鼠标点击事件封装
     glfwSetMouseButtonCallback(
         m_windowHandle, [](GLFWwindow* w, int button, int action, int mods) {
@@ -102,8 +124,10 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
 
     Event::EventBus::instance().subscribe<Event::GLFWNativeEvent>(
         [&](Event::GLFWNativeEvent e) {
+            if ( e.hasStateChange ) return;  // 忽略仅用于状态通知的事件
+
             switch ( e.type ) {
-            case NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE: {
+            case Event::NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE: {
                 // 获取当前最大化状态
                 int maximized =
                     glfwGetWindowAttrib(m_windowHandle, GLFW_MAXIMIZED);
@@ -116,13 +140,13 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
                 }
                 break;
             }
-            case NativeEventType::GLFW_ICONFY_WINDOW: {
+            case Event::NativeEventType::GLFW_ICONFY_WINDOW: {
                 // 最小化窗口
                 glfwIconifyWindow(m_windowHandle);
                 XINFO("Window iconified.");
                 break;
             }
-            case NativeEventType::GLFW_CLOSE_WINDOW: {
+            case Event::NativeEventType::GLFW_CLOSE_WINDOW: {
                 glfwSetWindowShouldClose(m_windowHandle, GLFW_TRUE);
                 break;
             }

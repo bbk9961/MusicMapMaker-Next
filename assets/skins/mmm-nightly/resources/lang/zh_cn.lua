@@ -86,6 +86,19 @@ return {
 	["ui.beatmap_manager.initial_hint"] = "暂未打开项目, 无谱面资源",
 	["ui.beatmap_manager.beatmaps"] = "谱面列表",
 
+	-- 窗口控制 tooltips
+	["ui.window.minimize"] = "最小化",
+	["ui.window.maximize"] = "最大化",
+	["ui.window.restore"] = "还原",
+	["ui.window.close"] = "关闭",
+
+	-- 侧边栏 tooltips
+	["ui.sidebar.search"] = "搜索",
+	["ui.sidebar.file_explorer"] = "文件资源管理器",
+	["ui.sidebar.audio_explorer"] = "音频资源管理器",
+	["ui.sidebar.beatmap_explorer"] = "谱面资源管理器",
+	["ui.sidebar.settings"] = "设置",
+
 	-- 工具栏 tooltips
 	["ui.toolbar.move"] = "移动工具 (V/E)",
 	["ui.toolbar.marquee"] = "选取工具 (M/Q)",

@@ -116,7 +116,10 @@ void ToolbarView::update(UIManager* sourceManager)
         }
 
         if ( ImGui::IsItemHovered() ) {
+            ImFont* contentFont = skinCfg.getFont("content");
+            if ( contentFont ) ImGui::PushFont(contentFont);
             ImGui::SetTooltip("%s", TR("ui.toolbar.reverse_scroll").data());
+            if ( contentFont ) ImGui::PopFont();
         }
         ImGui::PopStyleColor(3);
 
@@ -144,7 +147,10 @@ void ToolbarView::update(UIManager* sourceManager)
         }
 
         if ( ImGui::IsItemHovered() ) {
+            ImFont* contentFont = skinCfg.getFont("content");
+            if ( contentFont ) ImGui::PushFont(contentFont);
             ImGui::SetTooltip("%s", TR("ui.toolbar.scroll_snap").data());
+            if ( contentFont ) ImGui::PopFont();
         }
         ImGui::PopStyleColor(3);
 
@@ -175,8 +181,11 @@ void ToolbarView::update(UIManager* sourceManager)
         }
 
         if ( ImGui::IsItemHovered() ) {
+            ImFont* contentFont = skinCfg.getFont("content");
+            if ( contentFont ) ImGui::PushFont(contentFont);
             ImGui::SetTooltip("%s",
                               TR("ui.toolbar.scroll_timing_mapping").data());
+            if ( contentFont ) ImGui::PopFont();
         }
         ImGui::PopStyleColor(3);
 
@@ -206,7 +215,10 @@ void ToolbarView::update(UIManager* sourceManager)
         m_lastBtnY = ImGui::GetItemRectMin().y;
 
         if ( ImGui::IsItemHovered() ) {
+            ImFont* contentFont = skinCfg.getFont("content");
+            if ( contentFont ) ImGui::PushFont(contentFont);
             ImGui::SetTooltip("%s", TR("ui.toolbar.beat_divisor").data());
+            if ( contentFont ) ImGui::PopFont();
         }
         ImGui::PopStyleColor(3);
 
@@ -313,7 +325,10 @@ void ToolbarView::drawToolButton(const char* icon, Logic::EditTool tool,
     }
 
     if ( ImGui::IsItemHovered() ) {
+        ImFont* contentFont = skinCfg.getFont("content");
+        if ( contentFont ) ImGui::PushFont(contentFont);
         ImGui::SetTooltip("%s", tooltip);
+        if ( contentFont ) ImGui::PopFont();
     }
 
     ImGui::PopStyleColor(4);

@@ -227,6 +227,8 @@ void MainMenuView::update()
     }
 
     ImGuiIO& io = ImGui::GetIO();
+
+    ImGui::Text("MusicMapMaker(Gamma)");
     ImGui::Text(
         "%.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 

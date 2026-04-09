@@ -31,6 +31,18 @@ static std::string TabToSubViewId(SideBarTab tab)
     }
 }
 
+static std::string TabToTooltip(SideBarTab tab)
+{
+    switch ( tab ) {
+    case SideBarTab::Search: return TR("ui.sidebar.search");
+    case SideBarTab::FileExplorer: return TR("ui.sidebar.file_explorer");
+    case SideBarTab::AudioExplorer: return TR("ui.sidebar.audio_explorer");
+    case SideBarTab::BeatMapExplorer: return TR("ui.sidebar.beatmap_explorer");
+    case SideBarTab::Settings: return TR("ui.sidebar.settings");
+    default: return "";
+    }
+}
+
 class SideBarUI : virtual public IUIView
 {
 public:

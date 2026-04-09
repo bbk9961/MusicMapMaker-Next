@@ -61,6 +61,8 @@ constexpr const char* ICON_MMM_MINIMIZE =
     "\xef\x8b\x91";  ///< \uf2d1 window-minimize
 constexpr const char* ICON_MMM_MAXIMIZE =
     "\xef\x8b\x90";  ///< \uf2d0 window-maximize
+constexpr const char* ICON_MMM_RESTORE =
+    "\xef\x8b\x92";  ///< \uf2d2 window-restore
 constexpr const char* ICON_MMM_CLOSE =
     "\xef\x80\x8d";  ///< \uf00d xmark / close
 

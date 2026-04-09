@@ -8,6 +8,7 @@
 #    include <GLFW/glfw3native.h>
 #    include <commctrl.h>  // For DefSubclassProc
 #    include <dwmapi.h>
+#    include <windowsx.h>
 
 namespace MMM::Graphic
 {
@@ -23,8 +24,15 @@ Win32WindowAdapter::Win32WindowAdapter(GLFWwindow* window) : m_window(window)
     // 安装窗口子类过程
     SetWindowSubclass(m_hwnd, WindowProc, 0, (DWORD_PTR)this);
 
+    // 启用调整大小和 Aero Snap
+    LONG_PTR style = GetWindowLongPtr(m_hwnd, GWL_STYLE);
+    style |= WS_THICKFRAME | WS_CAPTION | WS_MINIMIZEBOX | WS_MAXIMIZEBOX;
+    SetWindowLongPtr(m_hwnd, GWL_STYLE, style);
+    SetWindowPos(m_hwnd, nullptr, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
     // 方案 1：强制开启阴影（即使是无边框）
-    const MARGINS shadow_margin = { 3, 3, 3, 3 };
+    const MARGINS shadow_margin = { 1, 1, 1, 1 };
     DwmExtendFrameIntoClientArea(m_hwnd, &shadow_margin);
 
     // 方案 2：如果是 Windows 11，甚至可以设置圆角
@@ -56,8 +64,26 @@ LRESULT CALLBACK Win32WindowAdapter::WindowProc(HWND hWnd, UINT uMsg,
     Win32WindowAdapter* adapter =
         reinterpret_cast<Win32WindowAdapter*>(dwRefData);
 
+    if ( uMsg == WM_NCCALCSIZE && wParam == TRUE ) {
+        LPNCCALCSIZE_PARAMS params = reinterpret_cast<LPNCCALCSIZE_PARAMS>(lParam);
+
+        WINDOWPLACEMENT wp;
+        wp.length = sizeof(WINDOWPLACEMENT);
+        if ( GetWindowPlacement(hWnd, &wp) && wp.showCmd == SW_SHOWMAXIMIZED ) {
+            // 当窗口最大化时，系统会给窗口一个超出屏幕范围的负偏移（通常是边框宽度）
+            // 我们需要根据监视器的实际工作区调整它
+            HMONITOR hMonitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
+            MONITORINFO mi;
+            mi.cbSize = sizeof(mi);
+            if ( GetMonitorInfo(hMonitor, &mi) ) {
+                params->rgrc[0] = mi.rcWork;
+            }
+        }
+        return 0;
+    }
+
     if ( uMsg == WM_NCHITTEST ) {
-        POINT pt = { LOWORD(lParam), HIWORD(lParam) };
+        POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
         ScreenToClient(hWnd, &pt);
         RECT rect;
         GetClientRect(hWnd, &rect);

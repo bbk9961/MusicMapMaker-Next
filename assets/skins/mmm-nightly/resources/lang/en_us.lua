@@ -55,6 +55,19 @@ return {
 
 	["ui.settings.project"] = "Project Config",
 
+	-- Window control tooltips
+	["ui.window.minimize"] = "Minimize",
+	["ui.window.maximize"] = "Maximize",
+	["ui.window.restore"] = "Restore",
+	["ui.window.close"] = "Close",
+
+	-- Sidebar tooltips
+	["ui.sidebar.search"] = "Search",
+	["ui.sidebar.file_explorer"] = "File Explorer",
+	["ui.sidebar.audio_explorer"] = "Audio Explorer",
+	["ui.sidebar.beatmap_explorer"] = "Beatmap Explorer",
+	["ui.sidebar.settings"] = "Settings",
+
 	-- Toolbar tooltips
 	["ui.toolbar.move"] = "Move Tool (V/E)",
 	["ui.toolbar.marquee"] = "Marquee Tool (M/Q)",
