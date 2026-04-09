@@ -24,6 +24,9 @@ EditorEngine& EditorEngine::instance()
 
 EditorEngine::EditorEngine()
 {
+    // 从全局配置初始化本地缓存
+    m_editorConfig = Config::AppConfig::instance().getEditorConfig();
+
     // 默认创建一个 Session
     m_activeSession = std::make_unique<BeatmapSession>();
 
@@ -162,6 +165,8 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
 
     // 记录到最近打开列表
     Config::AppConfig::instance().addRecentProject(projectPath.string());
+    m_editorConfig.recentProjects =
+        Config::AppConfig::instance().getEditorConfig().recentProjects;
 
     // 新加载项目时，清空当前 Session 的所有谱面数据
     pushCommand(CmdLoadBeatmap{ nullptr });
@@ -210,16 +215,31 @@ std::shared_ptr<BeatmapSyncBuffer> EditorEngine::getSyncBuffer(
     return m_syncBuffers[cameraId];
 }
 
+EditTool EditorEngine::getCurrentTool() const
+{
+    if ( m_activeSession ) {
+        return m_activeSession->getCurrentTool();
+    }
+    return EditTool::Move;
+}
+
 void EditorEngine::setEditorConfig(const Config::EditorConfig& config)
 {
-    m_editorConfig = config;
+    // 关键修复：从全局 AppConfig 中同步最新的最近项目列表，防止被 UI 设置覆盖
+    auto& globalRecent =
+        Config::AppConfig::instance().getEditorConfig().recentProjects;
+
+    m_editorConfig                = config;
+    m_editorConfig.recentProjects = globalRecent;
+
     // 同步回全局 AppConfig 实例
-    Config::AppConfig::instance().getEditorConfig() = config;
-    pushCommand(CmdUpdateEditorConfig{ config });
+    Config::AppConfig::instance().getEditorConfig() = m_editorConfig;
+
+    pushCommand(CmdUpdateEditorConfig{ m_editorConfig });
 
     // 发布配置更新事件，供 UI 层订阅
     Event::EventBus::instance().publish(
-        Event::EditorConfigChangedEvent{ config });
+        Event::EditorConfigChangedEvent{ m_editorConfig });
 }
 
 void EditorEngine::loop()
