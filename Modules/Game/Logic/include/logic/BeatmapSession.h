@@ -48,6 +48,11 @@ public:
     BeatmapSession& operator=(const BeatmapSession&) = delete;
 
     /**
+     * @brief 获取当前工具类型
+     */
+    EditTool getCurrentTool() const { return m_currentTool; }
+
+    /**
      * @brief 推送指令到无锁队列（由 UI 线程调用）
      */
     void pushCommand(LogicCommand&& cmd);
@@ -58,6 +63,25 @@ public:
      * @param config 当前编辑器配置
      */
     void update(double dt, const Config::EditorConfig& config);
+
+    struct SnapResult {
+        bool   isSnapped{ false };
+        double snappedTime{ 0.0 };
+        int    numerator{ 0 };
+        int    denominator{ 1 };
+    };
+
+    /**
+     * @brief 计算给定时间点在特定视口下的磁吸结果
+     * @param rawTime 原始时间点
+     * @param mouseY 鼠标当前的 Y 坐标（用于阈值判断）
+     * @param camera 所在的视口信息
+     * @param config 当前编辑器配置
+     * @return 磁吸结果
+     */
+    SnapResult getSnapResult(double rawTime, float mouseY,
+                             const CameraInfo&           camera,
+                             const Config::EditorConfig& config) const;
 
 private:
     /**
@@ -75,12 +99,17 @@ private:
      * @param config 当前编辑器配置
      */
     void updateECSAndRender(const Config::EditorConfig& config);
-
     /**
      * @brief 根据当前视觉时间同步打击事件索引
      * 通常在 Seek 或开始播放时调用。
      */
     void syncHitIndex();
+
+    /**
+     * @brief 重新从 ECS 中收集音符信息并构建有序的打击事件列表
+     * 当音符被修改（如移动位置）后调用。
+     */
+    void rebuildHitEvents();
 
     /// @brief ECS 注册表：音符
     entt::registry m_noteRegistry;

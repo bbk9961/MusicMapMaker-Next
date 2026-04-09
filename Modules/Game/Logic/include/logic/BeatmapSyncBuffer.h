@@ -82,6 +82,11 @@ struct RenderSnapshot {
     EditTool currentTool{ EditTool::Move };
     bool     isHoveringCanvas{ false };
     double   hoveredTime{ 0.0 };
+    double   snappedTime{ 0.0 };  // 磁吸后的精确拍线时间
+    bool     isSnapped{ false };  // 是否磁吸到了拍线
+    int      snappedNumerator{ 0 };
+    int      snappedDenominator{ 1 };
+    int      currentBeatDivisor{ 4 };
     int32_t  hoveredTrack{ 0 };
 
     // 是否已加载谱面
@@ -98,14 +103,20 @@ struct RenderSnapshot {
         timelineElements.clear();
         uvMap.clear();
         backgroundPath.clear();
-        bgSize           = glm::vec2(0.0f);
-        isPlaying        = false;
-        currentTime      = 0.0;
-        totalTime        = 0.0;
-        isHoveringCanvas = false;
-        hoveredTime      = 0.0;
-        hoveredTrack     = 0;
-        hasBeatmap       = false;
+        bgSize             = glm::vec2(0.0f, 0.0f);
+        isPlaying          = false;
+        currentTime        = 0.0;
+        totalTime          = 0.0;
+        currentTool        = EditTool::Move;
+        isHoveringCanvas   = false;
+        hoveredTime        = 0.0;
+        snappedTime        = 0.0;
+        isSnapped          = false;
+        snappedNumerator   = 0;
+        snappedDenominator = 1;
+        currentBeatDivisor = 4;
+        hoveredTrack       = 0;
+        hasBeatmap         = false;
     }
 };
 
