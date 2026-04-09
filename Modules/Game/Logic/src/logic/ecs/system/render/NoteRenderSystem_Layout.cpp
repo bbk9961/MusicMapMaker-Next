@@ -1,8 +1,10 @@
+#include "config/skin/SkinConfig.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/NoteRenderSystem.h"
 #include "logic/ecs/system/ScrollCache.h"
 #include "logic/ecs/system/render/Batcher.h"
 #include <algorithm>
+#include <numeric>
 
 namespace MMM::Logic::System
 {
@@ -167,9 +169,23 @@ void NoteRenderSystem::renderTrackLayout(
     double endTime = cache->getTime(currentAbsY + judgmentLineY);
 
     batcher.setTexture(TextureID::None);
-    // 假设轨道底板线宽 1.0，主拍头线设为 2.0，且更亮；分拍线设为 1.0 较暗
-    glm::vec4 beatColor(1.0f, 1.0f, 1.0f, 0.4f);
-    glm::vec4 subBeatColor(1.0f, 1.0f, 1.0f, 0.15f);
+
+    auto& skin = Config::SkinManager::instance();
+    auto  getBeatLineConfig =
+        [&skin](int denominator) -> std::pair<glm::vec4, float> {
+        std::string   key = "beat_lines.beat_" + std::to_string(denominator);
+        Config::Color c   = skin.getColor(key);
+        // 如果返回了默认错误色(紫色)，尝试获取默认配置
+        if ( c.r == 1.0f && c.g == 0.0f && c.b == 1.0f && c.a == 1.0f ) {
+            c   = skin.getColor("beat_lines.default");
+            key = "beat_lines_width.default";
+        } else {
+            key = "beat_lines_width.beat_" + std::to_string(denominator);
+        }
+        float width =
+            skin.getValue(key, skin.getValue("beat_lines_width.default", 2.0f));
+        return { glm::vec4(c.r, c.g, c.b, c.a), width };
+    };
 
     for ( size_t i = 0; i < bpmEvents.size(); ++i ) {
         const auto* currentBPM = bpmEvents[i];
@@ -204,20 +220,21 @@ void NoteRenderSystem::renderTrackLayout(
             // 当前 step 在这拍里的索引 (0 代表一拍的开头)
             int beatIndex = stepOffset % beatDivisor;
 
-            bool isBeat = (beatIndex == 0);
+            int denominator = 1;
+            if ( beatIndex != 0 ) {
+                int gcd     = std::gcd(beatIndex, beatDivisor);
+                denominator = beatDivisor / gcd;
+            }
+
+            auto [color, width] = getBeatLineConfig(denominator);
 
             double absY = cache->getAbsY(t);
             float  y = judgmentLineY - static_cast<float>(absY - currentAbsY);
 
             // 只绘制屏幕范围内的线
             if ( y >= topY && y <= bottomY ) {
-                if ( isBeat ) {
-                    batcher.pushQuad(
-                        leftX, y + 1.0f, trackAreaW, 2.0f, beatColor);
-                } else {
-                    batcher.pushQuad(
-                        leftX, y + 0.5f, trackAreaW, 1.0f, subBeatColor);
-                }
+                batcher.pushQuad(
+                    leftX, y + width * 0.5f, trackAreaW, width, color);
             }
 
             stepOffset++;
