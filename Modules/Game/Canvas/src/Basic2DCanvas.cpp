@@ -13,9 +13,11 @@
 #include "ui/ITextureLoader.h"
 #include "ui/IUIView.h"
 #include "ui/UIManager.h"
+#include <algorithm>
 #include <filesystem>
 #include <glm/glm.hpp>
 #include <utility>
+#include <vector>
 
 namespace MMM::Canvas
 {
@@ -48,12 +50,30 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
     }
 
     // --- 快捷键处理：仅主画布响应空格切换播放/暂停 ---
-    if ( m_currentSnapshot && ImGui::IsKeyPressed(ImGuiKey_Space, false) ) {
-        // 如果 ImGui 没有捕获键盘（即没有在输入框中），则响应
-        // if ( !ImGui::GetIO().WantCaptureKeyboard ) {
-        Event::EventBus::instance().publish(Event::LogicCommandEvent(
-            Logic::CmdSetPlayState{ !m_currentSnapshot->isPlaying }));
-        // }
+    if ( m_currentSnapshot ) {
+        if ( ImGui::IsKeyPressed(ImGuiKey_Space, false) ) {
+            Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                Logic::CmdSetPlayState{ !m_currentSnapshot->isPlaying }));
+        }
+
+        // --- 快捷键：工具切换 (V/E: Move, M/Q: Marquee, P/W: Draw, C/R: Cut) ---
+        if ( ImGui::IsKeyPressed(ImGuiKey_V, false) ||
+             ImGui::IsKeyPressed(ImGuiKey_E, false) ) {
+            Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                Logic::CmdChangeTool{ Logic::EditTool::Move }));
+        } else if ( ImGui::IsKeyPressed(ImGuiKey_M, false) ||
+                    ImGui::IsKeyPressed(ImGuiKey_Q, false) ) {
+            Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                Logic::CmdChangeTool{ Logic::EditTool::Marquee }));
+        } else if ( ImGui::IsKeyPressed(ImGuiKey_P, false) ||
+                    ImGui::IsKeyPressed(ImGuiKey_W, false) ) {
+            Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                Logic::CmdChangeTool{ Logic::EditTool::Draw }));
+        } else if ( ImGui::IsKeyPressed(ImGuiKey_C, false) ||
+                    ImGui::IsKeyPressed(ImGuiKey_R, false) ) {
+            Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                Logic::CmdChangeTool{ Logic::EditTool::Cut }));
+        }
     }
 
     if ( m_currentSnapshot &&
@@ -97,18 +117,54 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
                 m_cameraId, localMousePos.x, localMousePos.y, isHovered }));
 
         // --- 交互：显示精确时间戳工具提示 ---
-        if ( isHovered && m_currentSnapshot->isHoveringCanvas &&
-             m_currentSnapshot->currentTool != Logic::EditTool::Move &&
-             m_currentSnapshot->currentTool != Logic::EditTool::Marquee ) {
+        if ( isHovered && m_currentSnapshot->isHoveringCanvas ) {
+            bool isEditTool =
+                (m_currentSnapshot->currentTool != Logic::EditTool::Move &&
+                 m_currentSnapshot->currentTool != Logic::EditTool::Marquee);
 
-            // 在鼠标右下方绘制一个半透明的小窗口
-            ImGui::SetNextWindowPos(ImVec2(mousePos.x + 15, mousePos.y + 15));
-            ImGui::SetNextWindowBgAlpha(0.6f);
-            ImGui::BeginTooltip();
-            ImGui::Text("Time: %.0f ms",
-                        m_currentSnapshot->hoveredTime * 1000.0);
-            ImGui::Text("Track: %d", m_currentSnapshot->hoveredTrack);
-            ImGui::EndTooltip();
+            if ( m_currentSnapshot->isSnapped || isEditTool ) {
+                ImGui::SetNextWindowPos(
+                    ImVec2(mousePos.x + 15, mousePos.y + 15));
+                ImGui::SetNextWindowBgAlpha(0.7f);
+                ImGui::BeginTooltip();
+
+                if ( m_currentSnapshot->isSnapped ) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f),
+                                       "%s: %.3f s",
+                                       TR("ui.canvas.snap").data(),
+                                       m_currentSnapshot->snappedTime);
+
+                    if ( m_currentSnapshot->snappedNumerator == 1 &&
+                         m_currentSnapshot->snappedDenominator == 1 ) {
+                        ImGui::TextColored(
+                            ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
+                            "%s (1/1)",
+                            TR("ui.canvas.beat_fraction").data());
+                    } else {
+                        ImGui::TextColored(
+                            ImVec4(0.8f, 0.9f, 1.0f, 1.0f),
+                            "%s (%d/%d)",
+                            TR("ui.canvas.beat_fraction").data(),
+                            m_currentSnapshot->snappedNumerator,
+                            m_currentSnapshot->snappedDenominator);
+                    }
+                } else {
+                    ImGui::Text("%s: %.3f s",
+                                TR("ui.canvas.time").data(),
+                                m_currentSnapshot->hoveredTime);
+                }
+
+                ImGui::Text("%s: %d",
+                            TR("ui.canvas.track").data(),
+                            m_currentSnapshot->hoveredTrack + 1);
+                ImGui::Separator();
+                ImGui::TextColored(ImVec4(0.5f, 0.8f, 0.5f, 1.0f),
+                                   "%s: 1/%d",
+                                   TR("ui.canvas.beat_divisor").data(),
+                                   m_currentSnapshot->currentBeatDivisor);
+
+                ImGui::EndTooltip();
+            }
         }
 
         entt::entity hoveredEntity = entt::null;
@@ -156,6 +212,83 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
         if ( ImGui::IsMouseReleased(0) ) {
             Event::EventBus::instance().publish(
                 Event::LogicCommandEvent(Logic::CmdEndDrag{ m_cameraId }));
+        }
+
+        // --- 交互：鼠标滚轮控制时间跳转与属性修改 ---
+        float wheel = ImGui::GetIO().MouseWheel;
+        if ( isHovered && std::abs(wheel) > 0.01f ) {
+            bool isCtrlPressed  = ImGui::GetIO().KeyCtrl;
+            bool isAltPressed   = ImGui::GetIO().KeyAlt;
+            bool isShiftPressed = ImGui::GetIO().KeyShift;
+
+            if ( isCtrlPressed ) {
+                auto editorCfg =
+                    Logic::EditorEngine::instance().getEditorConfig();
+                int   direction     = editorCfg.settings.reverseScroll ? -1 : 1;
+                float adjustedWheel = wheel * direction;
+                float step          = isShiftPressed ? 0.3f : 0.1f;
+                editorCfg.visual.timelineZoom += adjustedWheel * step;
+                editorCfg.visual.timelineZoom =
+                    std::clamp(editorCfg.visual.timelineZoom, 0.1f, 10.0f);
+                Logic::EditorEngine::instance().setEditorConfig(editorCfg);
+            } else if ( isAltPressed ) {
+                auto editorCfg =
+                    Logic::EditorEngine::instance().getEditorConfig();
+                int   direction     = editorCfg.settings.reverseScroll ? -1 : 1;
+                float adjustedWheel = wheel * direction;
+
+                static std::unordered_map<std::string, float> wheelAccumulator;
+                float& acc = wheelAccumulator[m_cameraId];
+                acc += adjustedWheel;
+
+                int steps = 0;
+                if ( acc >= 1.0f ) {
+                    steps = static_cast<int>(acc);
+                    acc -= steps;
+                } else if ( acc <= -1.0f ) {
+                    steps = static_cast<int>(acc);
+                    acc -= steps;
+                }
+
+                if ( steps != 0 ) {
+                    if ( isShiftPressed ) {
+                        const std::vector<int> presets = { 1, 2, 3,  4,
+                                                           6, 8, 12, 16 };
+                        int current = editorCfg.settings.beatDivisor;
+
+                        if ( steps > 0 ) {
+                            for ( int i = 0; i < steps; ++i ) {
+                                auto it = std::upper_bound(
+                                    presets.begin(), presets.end(), current);
+                                if ( it != presets.end() ) {
+                                    current = *it;
+                                } else {
+                                    current = presets.back();
+                                }
+                            }
+                        } else {
+                            for ( int i = 0; i < -steps; ++i ) {
+                                auto it = std::lower_bound(
+                                    presets.begin(), presets.end(), current);
+                                if ( it != presets.begin() ) {
+                                    current = *(--it);
+                                } else {
+                                    current = presets.front();
+                                }
+                            }
+                        }
+                        editorCfg.settings.beatDivisor = current;
+                    } else {
+                        editorCfg.settings.beatDivisor += steps;
+                    }
+                    editorCfg.settings.beatDivisor =
+                        std::clamp(editorCfg.settings.beatDivisor, 1, 64);
+                    Logic::EditorEngine::instance().setEditorConfig(editorCfg);
+                }
+            } else {
+                Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                    Logic::CmdScroll{ m_cameraId, wheel, isShiftPressed }));
+            }
         }
     }
 }

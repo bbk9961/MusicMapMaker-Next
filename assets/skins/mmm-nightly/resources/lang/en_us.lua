@@ -7,6 +7,7 @@ return {
 	["ui.file.open_recent"] = "Open Recent",
 	["ui.file.no_recent"] = "No Recent Items",
 	["ui.file.save"] = "Save",
+	["ui.file.pack"] = "Pack",
 	["ui.file.exit"] = "Exit",
 	["ui.edit"] = "Edit",
 	["ui.edit.undo"] = "Undo",
@@ -23,10 +24,13 @@ return {
 	["canvas.preview"] = "Preview",
 	["canvas.timeline"] = "Timeline",
 
+	["title.search_manager"] = "Search",
 	["title.file_manager"] = "File Browser",
 	["ui.file_manager.initial_hint"] = "No project opened",
 	["ui.file_manager.open_directory"] = "Open Folder",
 	["ui.file_manager.path_hint"] = "#Path Hint",
+
+	["ui.search.no_results"] = "No search results",
 
 	["title.audio_manager"] = "Audio Manager",
 	["ui.audio_manager.initial_hint"] = "No project, no audio resources",
@@ -47,7 +51,26 @@ return {
 	["ui.settings.visual.linear_scroll"] = "Linear Scroll Mapping",
 	["ui.settings.visual.offset"] = "Visual Offset",
 	["ui.settings.visual.visual_offset"] = "Global Render Offset (s)",
+	["ui.settings.visual.snap_threshold"] = "Snap Threshold (px)",
 
 	["ui.settings.project"] = "Project Config",
+
+	-- Toolbar tooltips
+	["ui.toolbar.move"] = "Move Tool (V/E)",
+	["ui.toolbar.marquee"] = "Marquee Tool (M/Q)",
+	["ui.toolbar.draw"] = "Draw Tool (P/W)",
+	["ui.toolbar.cut"] = "Cut Tool (C/R)",
+	["ui.toolbar.reverse_scroll"] = "Reverse Scroll Direction",
+	["ui.toolbar.scroll_snap"] = "Scroll Snap (Snap to beat lines when scrolling)",
+	["ui.toolbar.scroll_timing_mapping"] = "Toggle SCROLLTIMING Visual Mapping",
+	["ui.toolbar.beat_divisor"] = "Beat Divisor Settings",
+
+	-- Canvas / 主画布
+	["ui.canvas.time"] = "Time",
+	["ui.canvas.track"] = "Track",
+	["ui.canvas.snap"] = "Snap",
+	["ui.canvas.beat_divisor"] = "Beat Divisor",
+	["ui.canvas.beat_fraction"] = "Beat",
+
 	["tips.welcome"] = "Welcome to MusicMapMaker!",
 }

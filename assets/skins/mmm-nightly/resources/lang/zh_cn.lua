@@ -11,6 +11,7 @@ return {
 	["ui.file.no_recent"] = "无最近记录",
 	["ui.file.save"] = "保存",
 	["ui.file.save_as"] = "另存为...",
+	["ui.file.pack"] = "打包",
 
 	["ui.file.exit"] = "退出",
 	["ui.edit"] = "编辑",
@@ -28,6 +29,7 @@ return {
 	["canvas.preview"] = "预览",
 	["canvas.timeline"] = "时间线",
 
+	["title.search_manager"] = "搜索",
 	["title.file_manager"] = "文件浏览",
 	["title.settings_manager"] = "设置",
 	["ui.settings.software"] = "软件配置",
@@ -53,6 +55,7 @@ return {
 	["ui.settings.visual.linear_scroll"] = "线性流速映射",
 	["ui.settings.visual.offset"] = "视觉偏移",
 	["ui.settings.visual.visual_offset"] = "全局渲染偏移 (秒)",
+	["ui.settings.visual.snap_threshold"] = "磁吸阈值 (像素)",
 
 	["ui.settings.project"] = "项目配置",
 	["ui.settings.project.no_project"] = "当前未打开任何项目",
@@ -71,6 +74,8 @@ return {
 	["ui.file_manager.open_directory"] = "打开文件夹",
 	["ui.file_manager.path_hint"] = "#路径提示",
 
+	["ui.search.no_results"] = "无搜索结果",
+
 	["title.audio_manager"] = "音频管理",
 	["ui.audio_manager.initial_hint"] = "暂未打开项目, 无音频资源",
 	["ui.audio_manager.visual_offset"] = "渲染视觉偏移",
@@ -80,6 +85,24 @@ return {
 	["title.beatmap_manager"] = "谱面管理",
 	["ui.beatmap_manager.initial_hint"] = "暂未打开项目, 无谱面资源",
 	["ui.beatmap_manager.beatmaps"] = "谱面列表",
+
+	-- 工具栏 tooltips
+	["ui.toolbar.move"] = "移动工具 (V/E)",
+	["ui.toolbar.marquee"] = "选取工具 (M/Q)",
+	["ui.toolbar.draw"] = "绘制工具 (P/W)",
+	["ui.toolbar.cut"] = "裁剪工具 (C/R)",
+	["ui.toolbar.reverse_scroll"] = "反转滚动方向",
+	["ui.toolbar.scroll_snap"] = "滚动磁吸 (开启后滚动滚轮将吸附至分拍线)",
+	["ui.toolbar.scroll_timing_mapping"] = "开启/关闭 SCROLLTIMING 视觉映射",
+	["ui.toolbar.beat_divisor"] = "分拍数量设置",
+
+	-- Canvas / 主画布
+	["ui.canvas.time"] = "时间",
+	["ui.canvas.track"] = "轨道",
+	["ui.canvas.snap"] = "吸附",
+	["ui.canvas.beat_divisor"] = "当前分拍",
+	["ui.canvas.beat_fraction"] = "拍",
+
 
 	-- 带格式化参数的文本 (TR_FMT)
 	-- 大括号 {} 的位置和数量须和代码里的逻辑一致
