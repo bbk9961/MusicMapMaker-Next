@@ -213,6 +213,15 @@ void SettingsView::drawSoftwareSettings()
             0.5f);
     }
 
+    changed |=
+        ImGui::DragScalar(TR_CACHE("ui.settings.software.sync_interval").data(),
+                          ImGuiDataType_Double,
+                          &settings.syncConfig.syncInterval,
+                          0.1f,
+                          nullptr,
+                          nullptr,
+                          "%.1f s");
+
     if ( changed ) {
         Event::EventBus::instance().publish(
             Event::LogicCommandEvent(Logic::CmdUpdateEditorConfig{
@@ -225,6 +234,33 @@ void SettingsView::drawVisualSettings()
 {
     auto& visual  = Config::AppConfig::instance().getVisualConfig();
     bool  changed = false;
+
+    ImGui::SeparatorText(TR_CACHE("ui.settings.visual.layout").data());
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.layout_left").data(),
+                           &visual.trackLayout.left,
+                           0.0f,
+                           1.0f);
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.layout_top").data(),
+                           &visual.trackLayout.top,
+                           0.0f,
+                           1.0f);
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.layout_right").data(),
+                           &visual.trackLayout.right,
+                           0.0f,
+                           1.0f);
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.layout_bottom").data(),
+                           &visual.trackLayout.bottom,
+                           0.0f,
+                           1.0f);
+    changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.visual.layout_box_width").data(),
+        &visual.trackBoxLineWidth,
+        1.0f,
+        10.0f);
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.judgeline").data());
     changed |=
@@ -250,12 +286,64 @@ void SettingsView::drawVisualSettings()
                            0.5f,
                            3.0f);
 
+    int         noteFillMode = (int)visual.noteFillMode;
+    const char* fillModes[]  = {
+        "Stretch", "AspectFit", "AspectFill", "Center"
+    };
+    if ( ImGui::Combo(TR_CACHE("ui.settings.visual.note_fill_mode").data(),
+                      &noteFillMode,
+                      fillModes,
+                      IM_ARRAYSIZE(fillModes)) ) {
+        visual.noteFillMode = (Config::BackgroundFillMode)noteFillMode;
+        changed             = true;
+    }
+
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.background").data());
+    int bgFillMode = (int)visual.background.fillMode;
+    if ( ImGui::Combo(TR_CACHE("ui.settings.visual.bg_fill_mode").data(),
+                      &bgFillMode,
+                      fillModes,
+                      IM_ARRAYSIZE(fillModes)) ) {
+        visual.background.fillMode = (Config::BackgroundFillMode)bgFillMode;
+        changed                    = true;
+    }
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.bg_opaque").data(),
+                           &visual.background.opaque_ratio,
+                           0.0f,
+                           1.0f);
     changed |=
         ImGui::SliderFloat(TR_CACHE("ui.settings.visual.bg_darken").data(),
                            &visual.background.darken_ratio,
                            0.0f,
                            1.0f);
+
+    ImGui::SeparatorText(TR_CACHE("ui.settings.visual.preview").data());
+    changed |=
+        ImGui::SliderFloat(TR_CACHE("ui.settings.visual.preview_ratio").data(),
+                           &visual.previewConfig.areaRatio,
+                           1.0f,
+                           10.0f);
+    changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.visual.preview_margin_left").data(),
+        &visual.previewConfig.margin.left,
+        0.0f,
+        20.0f);
+    changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.visual.preview_margin_top").data(),
+        &visual.previewConfig.margin.top,
+        0.0f,
+        20.0f);
+    changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.visual.preview_margin_right").data(),
+        &visual.previewConfig.margin.right,
+        0.0f,
+        20.0f);
+    changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.visual.preview_margin_bottom").data(),
+        &visual.previewConfig.margin.bottom,
+        0.0f,
+        20.0f);
 
     changed |=
         ImGui::SliderFloat(TR_CACHE("ui.settings.visual.timeline_zoom").data(),
@@ -326,6 +414,23 @@ void SettingsView::drawEditorSettings()
 {
     auto& settings = Config::AppConfig::instance().getEditorSettings();
     bool  changed  = false;
+
+    ImGui::SeparatorText(TR_CACHE("ui.settings.editor.behavior").data());
+    changed |=
+        ImGui::Checkbox(TR_CACHE("ui.settings.editor.reverse_scroll").data(),
+                        &settings.reverseScroll);
+    changed |=
+        ImGui::Checkbox(TR_CACHE("ui.settings.editor.scroll_snap").data(),
+                        &settings.scrollSnap);
+
+    int beatDivisor = settings.beatDivisor;
+    if ( ImGui::SliderInt(TR_CACHE("ui.settings.editor.beat_divisor").data(),
+                          &beatDivisor,
+                          1,
+                          64) ) {
+        settings.beatDivisor = beatDivisor;
+        changed              = true;
+    }
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.editor.sfx").data());
 
