@@ -147,7 +147,7 @@ BeatmapSession::SnapResult BeatmapSession::getSnapResult(
     if ( rawTime < bpmEvents[0]->m_timestamp ) return result;
 
     float  judgmentLineY = camera.viewportHeight * config.visual.judgeline_pos;
-    double currentAbsY   = cache->getAbsY(m_currentTime);
+    double currentAbsY   = cache->getAbsY(m_visualTime);
 
     for ( size_t i = 0; i < bpmEvents.size(); ++i ) {
         const auto* currentBPM  = bpmEvents[i];
@@ -302,7 +302,7 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
                 float judgmentLineY =
                     camera.viewportHeight * config.visual.judgeline_pos;
 
-                double currentAbsY = cache->getAbsY(m_currentTime);
+                double currentAbsY = cache->getAbsY(m_visualTime);
                 double targetAbsY  = currentAbsY + (judgmentLineY - m_mouseY);
                 snapshot->hoveredTime = cache->getTime(targetAbsY);
 

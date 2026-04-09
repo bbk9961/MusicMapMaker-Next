@@ -112,7 +112,7 @@ void BeatmapSession::processCommands()
                                               .find<System::ScrollCache>();
                             if ( cache ) {
                                 double currentAbsY =
-                                    cache->getAbsY(m_currentTime);
+                                    cache->getAbsY(m_visualTime);
                                 double targetAbsY =
                                     currentAbsY + (judgmentLineY - arg.mouseY);
                                 double targetTime = cache->getTime(targetAbsY);
