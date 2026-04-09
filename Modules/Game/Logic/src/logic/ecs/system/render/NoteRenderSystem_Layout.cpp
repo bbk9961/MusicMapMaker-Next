@@ -233,6 +233,31 @@ void NoteRenderSystem::renderTrackLayout(
 
             // 只绘制屏幕范围内的线
             if ( y >= topY && y <= bottomY ) {
+                // 检查是否为当前磁吸的拍线
+                if ( batcher.snapshot->isSnapped &&
+                     std::abs(t - batcher.snapshot->snappedTime) < 1e-6 ) {
+                    // 绘制三层发光效果 (在其下方绘制)
+                    glm::vec4 glowCol = color;
+                    glowCol.a *= 0.6f;
+                    batcher.pushQuad(leftX,
+                                     y + (width + 4.0f) * 0.5f,
+                                     trackAreaW,
+                                     width + 4.0f,
+                                     glowCol);
+                    glowCol.a *= 0.5f;
+                    batcher.pushQuad(leftX,
+                                     y + (width + 10.0f) * 0.5f,
+                                     trackAreaW,
+                                     width + 10.0f,
+                                     glowCol);
+                    glowCol.a *= 0.5f;
+                    batcher.pushQuad(leftX,
+                                     y + (width + 20.0f) * 0.5f,
+                                     trackAreaW,
+                                     width + 20.0f,
+                                     glowCol);
+                }
+
                 batcher.pushQuad(
                     leftX, y + width * 0.5f, trackAreaW, width, color);
             }
