@@ -86,24 +86,33 @@ void VKRenderer::render(NativeWindow&                  window,
     ImGui::Render();  // 生成imgui绘制顶点数据
 
     // 请求下一个可绘制的图像 - 查到的同时发出图像可用信号量
-    auto imageResult = m_vkLogicalDevice.acquireNextImageKHR(
-        m_vkSwapChain.m_swapchain,
-        std::numeric_limits<uint64_t>::max(),
-        m_imageAvailableSems[m_currentFrameIndex]);
+    vk::ResultValue<uint32_t> imageResult =
+        m_vkLogicalDevice.acquireNextImageKHR(
+            m_vkSwapChain.m_swapchain,
+            std::numeric_limits<uint64_t>::max(),
+            m_imageAvailableSems[m_currentFrameIndex]);
 
-    // if ( imageResult.result == vk::Result::eErrorOutOfDateKHR ) {
-    //     // 先结束 ImGui 帧
-    //     ImGui::EndFrame();
-    //     // 标记需要重建
-    //     triggerRecreate(window);
-    //     return;
-    // }
-
-    if ( imageResult.result != vk::Result::eSuccess ) {
-        XWARN("acquire ImageKHR failed");
+    if ( imageResult.result == vk::Result::eErrorOutOfDateKHR ) {
+        ImGui::EndFrame();
+        triggerRecreate(window);
+        return;
+    } else if ( imageResult.result != vk::Result::eSuccess &&
+                imageResult.result != vk::Result::eSuboptimalKHR ) {
+        XWARN("acquire ImageKHR failed: {}",
+              static_cast<int>(imageResult.result));
+        ImGui::EndFrame();
+        return;
     }
+
     // 获取到实际查询到的可绘制的图像下标
-    auto imageIndex = imageResult.value;
+    uint32_t imageIndex = imageResult.value;
+
+    // 安全检查：防止越界
+    if ( imageIndex >= m_vkSwapChain.m_vkImageBuffers.size() ) {
+        XERROR("Invalid image index acquired: {}", imageIndex);
+        ImGui::EndFrame();
+        return;
+    }
 
     // 重置命令缓冲
     auto& currentCmdBuffer = m_vkCommandBuffers[m_currentFrameIndex];
@@ -198,15 +207,15 @@ void VKRenderer::render(NativeWindow&                  window,
         .setSwapchains(m_vkSwapChain.m_swapchain)
         // 等待信号量
         .setWaitSemaphores(m_renderFinishedSems[imageIndex]);
-    auto presentResult = m_LogicDevicePresentQueue.presentKHR(presentInfo);
 
-    if ( presentResult != vk::Result::eSuccess ) {
-        if ( presentResult == vk::Result::eSuboptimalKHR ) {
-            // triggerRecreate(window);
-            XWARN("Size Missed");
-        } else {
-            XWARN("Present failed");
-        }
+    vk::Result presentResult =
+        m_LogicDevicePresentQueue.presentKHR(presentInfo);
+
+    if ( presentResult == vk::Result::eErrorOutOfDateKHR ||
+         presentResult == vk::Result::eSuboptimalKHR ) {
+        m_vkSwapChain.markDirty();
+    } else if ( presentResult != vk::Result::eSuccess ) {
+        XWARN("Present failed: {}", static_cast<int>(presentResult));
     }
 
     // 并发帧数步进

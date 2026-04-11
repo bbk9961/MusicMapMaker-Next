@@ -42,7 +42,7 @@ VKShader::VKShader(vk::Device& vkLogicalDevice, std::string_view vertexSource,
     shaderCreateInfo.setPCode(
         reinterpret_cast<const uint32_t*>(vertexSource.data()));
     // 创建顶点着色器模块
-    m_vertexShaderModule = vkLogicalDevice.createShaderModule(shaderCreateInfo);
+    m_vertexShaderModule = vkLogicalDevice.createShaderModule(shaderCreateInfo).value;
     XINFO("Created vertex shader module");
     // 管线着色器模块stage创建信息
     vk::PipelineShaderStageCreateInfo pipelineVertexShaderStageCreateInfo;
@@ -61,7 +61,7 @@ VKShader::VKShader(vk::Device& vkLogicalDevice, std::string_view vertexSource,
         reinterpret_cast<const uint32_t*>(fragmentSource.data()));
     // 创建片段着色器模块
     m_fragmentShaderModule =
-        vkLogicalDevice.createShaderModule(shaderCreateInfo);
+        vkLogicalDevice.createShaderModule(shaderCreateInfo).value;
     XINFO("Created fragment shader module");
     // 管线着色器模块stage创建信息
     vk::PipelineShaderStageCreateInfo pipelineFragmentShaderStageCreateInfo;
@@ -92,7 +92,7 @@ VKShader::VKShader(vk::Device& vkLogicalDevice, std::string_view vertexSource,
         reinterpret_cast<const uint32_t*>(geometrySource.data()));
     // 创建几何着色器模块
     m_geometryShaderModule =
-        vkLogicalDevice.createShaderModule(shaderCreateInfo);
+        vkLogicalDevice.createShaderModule(shaderCreateInfo).value;
     XINFO("Created geometry shader module");
     // 管线着色器模块stage创建信息
     vk::PipelineShaderStageCreateInfo pipelineGeometryShaderStageCreateInfo;

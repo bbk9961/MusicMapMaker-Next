@@ -49,7 +49,7 @@ VKContext::VKContext()
     initVkInstanceCreateInfo();
 
     // 创建vk实例
-    m_vkInstance = vk::createInstance(m_vkInstanceCreateInfo);
+    m_vkInstance = vk::createInstance(m_vkInstanceCreateInfo).value;
     XINFO("VK Instance created.");
 
     // 初始化vk动态加载器(要在创建vkInstance后)
@@ -62,7 +62,7 @@ VKContext::VKContext()
         // 创建 Messenger 对象
         // 这里必须传入 dldy 否则会链接报错
         m_vkDebugMessenger = m_vkInstance.createDebugUtilsMessengerEXT(
-            m_vkDebugUtilCreateInfo, nullptr, m_vkDldy);
+            m_vkDebugUtilCreateInfo, nullptr, m_vkDldy).value;
         XINFO("Vulkan Debug Messenger Initialize Successed");
     }
 
@@ -93,7 +93,7 @@ VKContext::VKContext()
 VKContext::~VKContext()
 {
     if ( m_vkLogicalDevice ) {
-        m_vkLogicalDevice.waitIdle();
+        (void)m_vkLogicalDevice.waitIdle();
     }
 
     // 在关闭 ImGui之前必须先释放渲染器中imgui对纹理的引用！
@@ -242,13 +242,10 @@ void VKContext::recreateSwapchain(GLFWwindow* window_context, int width,
     }
 
     // 2. 等待设备空闲
-    m_vkLogicalDevice.waitIdle();
+    (void)m_vkLogicalDevice.waitIdle();
 
     // 3. 【只清理尺寸相关的资源】
     // 不需要销毁 Device! 不需要销毁 Renderer!
-
-    // 清理旧的 Framebuffers (可以在 swapchain 类内部实现)
-    m_swapchain->destroyFramebuffers();
 
     // 4. 【重建交换链】
     // 传入旧的 swapchain 句柄可以加速创建 (oldSwapchain)
@@ -273,7 +270,7 @@ void VKContext::recreateSwapchain(GLFWwindow* window_context, int width,
 void VKContext::setVSync(bool enabled)
 {
     // 1. 等待设备空闲，因为要修改交换链
-    m_vkLogicalDevice.waitIdle();
+    (void)m_vkLogicalDevice.waitIdle();
 
     // 2. 修改交换链配置类里的 PresentMode 偏好
     if ( enabled ) {
@@ -283,7 +280,7 @@ void VKContext::setVSync(bool enabled)
         VKSwapchain::s_globalPresentMode = vk::PresentModeKHR::eImmediate;
         // 查询物理设备支持的呈现模式
         std::vector<vk::PresentModeKHR> supported_presentModes =
-            m_vkPhysicalDevice.getSurfacePresentModesKHR(m_vkSurface);
+            m_vkPhysicalDevice.getSurfacePresentModesKHR(m_vkSurface).value;
         for ( const auto& presentMode : supported_presentModes ) {
             // 无限帧数优选mailbox模式
             // 直接取当前时刻gpu产出的最新的图像用于绘制(刷新率高且不撕裂)

@@ -72,6 +72,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 是否为Debug模式的宏
 add_definitions(-DBUILD_TYPE_DEBUG=$<CONFIG:Debug>)
+add_definitions(-DVULKAN_HPP_NO_EXCEPTIONS)
 
 # 强制 编译器 以 UTF-8 处理输入和执行字符集
 if(MSVC)

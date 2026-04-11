@@ -73,7 +73,7 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
     // 1. 创建 Staging Buffer 并上传
     vk::BufferCreateInfo stagingBufferInfo(
         {}, imageSize, vk::BufferUsageFlagBits::eTransferSrc);
-    vk::Buffer stagingBuffer = m_device.createBuffer(stagingBufferInfo);
+    vk::Buffer stagingBuffer = m_device.createBuffer(stagingBufferInfo).value;
 
     vk::MemoryRequirements memReqs =
         m_device.getBufferMemoryRequirements(stagingBuffer);
@@ -84,10 +84,10 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
                        vk::MemoryPropertyFlagBits::eHostVisible |
                            vk::MemoryPropertyFlagBits::eHostCoherent));
 
-    vk::DeviceMemory stagingMemory = m_device.allocateMemory(allocInfo);
-    m_device.bindBufferMemory(stagingBuffer, stagingMemory, 0);
+    vk::DeviceMemory stagingMemory = m_device.allocateMemory(allocInfo).value;
+    (void)m_device.bindBufferMemory(stagingBuffer, stagingMemory, 0);
 
-    void* data = m_device.mapMemory(stagingMemory, 0, imageSize);
+    void* data = m_device.mapMemory(stagingMemory, 0, imageSize).value;
     memcpy(data, pixels, static_cast<size_t>(imageSize));
     m_device.unmapMemory(stagingMemory);
 
@@ -104,7 +104,7 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
         vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
         vk::SharingMode::eExclusive);
 
-    m_image = m_device.createImage(imageInfo);
+    m_image = m_device.createImage(imageInfo).value;
     memReqs = m_device.getImageMemoryRequirements(m_image);
 
     vk::MemoryAllocateInfo imgAllocInfo(
@@ -112,8 +112,8 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
         findMemoryType(physDevice,
                        memReqs.memoryTypeBits,
                        vk::MemoryPropertyFlagBits::eDeviceLocal));
-    m_memory = m_device.allocateMemory(imgAllocInfo);
-    m_device.bindImageMemory(m_image, m_memory, 0);
+    m_memory = m_device.allocateMemory(imgAllocInfo).value;
+    (void)m_device.bindImageMemory(m_image, m_memory, 0);
 
     // 3. 数据拷贝 (Undefined -> Dst -> ShaderRead)
     transitionImageLayout(pool,
@@ -138,7 +138,7 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
         vk::Format::eR8G8B8A8Unorm,
         {},
         { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-    m_imageView = m_device.createImageView(viewInfo);
+    m_imageView = m_device.createImageView(viewInfo).value;
 
     // 5. 创建 Sampler
     vk::SamplerCreateInfo samplerInfo({},
@@ -157,7 +157,7 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
                                       0.0f,
                                       vk::BorderColor::eIntOpaqueBlack,
                                       VK_FALSE);
-    m_sampler = m_device.createSampler(samplerInfo);
+    m_sampler = m_device.createSampler(samplerInfo).value;
 }
 
 uint32_t VKTexture::findMemoryType(vk::PhysicalDevice&     physDevice,
@@ -182,9 +182,9 @@ void VKTexture::transitionImageLayout(vk::CommandPool pool, vk::Queue queue,
 {
     vk::CommandBufferAllocateInfo allocInfo(
         pool, vk::CommandBufferLevel::ePrimary, 1);
-    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo)[0];
+    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo).value[0];
 
-    cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+    (void)cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 
     vk::ImageMemoryBarrier barrier(
         {},
@@ -216,11 +216,11 @@ void VKTexture::transitionImageLayout(vk::CommandPool pool, vk::Queue queue,
 
     cmd.pipelineBarrier(
         sourceStage, destinationStage, {}, nullptr, nullptr, barrier);
-    cmd.end();
+    (void)cmd.end();
 
     vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, &cmd);
-    queue.submit(submitInfo, nullptr);
-    queue.waitIdle();
+    (void)queue.submit(submitInfo, nullptr);
+    (void)queue.waitIdle();
     m_device.freeCommandBuffers(pool, cmd);
 }
 
@@ -230,9 +230,9 @@ void VKTexture::copyBufferToImage(vk::CommandPool pool, vk::Queue queue,
 {
     vk::CommandBufferAllocateInfo allocInfo(
         pool, vk::CommandBufferLevel::ePrimary, 1);
-    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo)[0];
+    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo).value[0];
 
-    cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+    (void)cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
     vk::BufferImageCopy region(0,
                                0,
                                0,
@@ -241,11 +241,11 @@ void VKTexture::copyBufferToImage(vk::CommandPool pool, vk::Queue queue,
                                { width, height, 1 });
     cmd.copyBufferToImage(
         buffer, m_image, vk::ImageLayout::eTransferDstOptimal, region);
-    cmd.end();
+    (void)cmd.end();
 
     vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, &cmd);
-    queue.submit(submitInfo, nullptr);
-    queue.waitIdle();
+    (void)queue.submit(submitInfo, nullptr);
+    (void)queue.waitIdle();
     m_device.freeCommandBuffers(pool, cmd);
 }
 

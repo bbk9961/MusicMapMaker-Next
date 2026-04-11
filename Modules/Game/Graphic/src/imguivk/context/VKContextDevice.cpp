@@ -39,8 +39,9 @@ void VKContext::initLogicDevice()
 
     // --- macOS 适配开始 ---
     // 获取当前物理设备支持的所有扩展
-    auto availableDeviceExtensions =
+    auto availableDeviceExtensionsResult =
         m_vkPhysicalDevice.enumerateDeviceExtensionProperties();
+    auto& availableDeviceExtensions = availableDeviceExtensionsResult.value;
 
     // 检查是否存在 portability_subset
     for ( const auto& ext : availableDeviceExtensions ) {
@@ -65,7 +66,8 @@ void VKContext::initLogicDevice()
         .setPEnabledExtensionNames(deviceExtensions);
 
     // 5.创建vk逻辑设备 (通过物理设备)
-    m_vkLogicalDevice = m_vkPhysicalDevice.createDevice(vkDeviceCreateInfo);
+    m_vkLogicalDevice =
+        m_vkPhysicalDevice.createDevice(vkDeviceCreateInfo).value;
     XINFO("VK Logic Device Initialized.");
 
     // 6.获取图形队列族句柄

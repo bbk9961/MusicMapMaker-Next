@@ -6,6 +6,10 @@
 #include "graphic/imguivk/VKSwapchain.h"
 #include "graphic/imguivk/mem/VKMemBuffer.h"
 #include "graphic/imguivk/mesh/VKBasicVertex.h"
+
+#ifndef VULKAN_HPP_NO_EXCEPTIONS
+#    define VULKAN_HPP_NO_EXCEPTIONS
+#endif
 #include "vulkan/vulkan.hpp"
 #include <atomic>
 #include <chrono>

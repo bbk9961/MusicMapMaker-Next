@@ -32,7 +32,7 @@ VKMemBuffer::VKMemBuffer(const vk::PhysicalDevice& vkPhysicalDevice,
         ;
 
     // 2.创建缓冲区
-    m_vkBuffer = vkLogicalDevice.createBuffer(bufferCreateInfo);
+    m_vkBuffer = vkLogicalDevice.createBuffer(bufferCreateInfo).value;
 
     XINFO("Created VK Memory Buffer.");
 
@@ -74,19 +74,19 @@ VKMemBuffer::VKMemBuffer(const vk::PhysicalDevice& vkPhysicalDevice,
         // 设置为上面查询到的实际大小
         .setAllocationSize(m_memInfo.size);
     // 5.分配内存
-    m_vkDevMem = vkLogicalDevice.allocateMemory(memoryAllocateInfo);
+    m_vkDevMem = vkLogicalDevice.allocateMemory(memoryAllocateInfo).value;
     XINFO("Allocated VK Device Memory.");
 
     // 6.绑定内存
     //  memoryOffset通常是 0（表示从这块内存的开头开始用）
-    vkLogicalDevice.bindBufferMemory(m_vkBuffer, m_vkDevMem, 0);
+    (void)vkLogicalDevice.bindBufferMemory(m_vkBuffer, m_vkDevMem, 0);
     XINFO("Binded Memory to VKBuffer.");
 
     // 4. 持久化映射 (Persistent Mapping)
     // 只要是 HOST_VISIBLE 的内存，我们在创建时就一直 Map 着，直到析构才 Unmap。
     // 这对于每帧都要更新的 Vertex/Index/Uniform 缓冲区性能提升极大。
     if ( desireProperty & vk::MemoryPropertyFlagBits::eHostVisible ) {
-        m_mappedData = m_vkLogicalDevice.mapMemory(m_vkDevMem, 0, m_bufSize);
+        m_mappedData = m_vkLogicalDevice.mapMemory(m_vkDevMem, 0, m_bufSize).value;
         XINFO("VKMemBuffer Host memory persistently mapped.");
     }
 }
@@ -192,12 +192,12 @@ void VKMemBuffer::uploadDataStaged(const vk::PhysicalDevice& vkPhysicalDevice,
         .setCommandPool(cmdPool)
         .setCommandBufferCount(1);
     vk::CommandBuffer cmdBuf =
-        m_vkLogicalDevice.allocateCommandBuffers(allocInfo)[0];
+        m_vkLogicalDevice.allocateCommandBuffers(allocInfo).value[0];
 
     // 4. 开始录制命令
     vk::CommandBufferBeginInfo beginInfo;
     beginInfo.setFlags(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
-    cmdBuf.begin(beginInfo);
+    (void)cmdBuf.begin(beginInfo);
 
     // 5. 录制拷贝指令
     vk::BufferCopy copyRegion;
@@ -205,7 +205,7 @@ void VKMemBuffer::uploadDataStaged(const vk::PhysicalDevice& vkPhysicalDevice,
     cmdBuf.copyBuffer(stagingBuffer.getBuffer(), m_vkBuffer, 1, &copyRegion);
 
     // 6. 结束录制并提交到队列
-    cmdBuf.end();
+    (void)cmdBuf.end();
 
     vk::SubmitInfo submitInfo;
     submitInfo.setCommandBufferCount(1).setPCommandBuffers(&cmdBuf);
@@ -214,7 +214,7 @@ void VKMemBuffer::uploadDataStaged(const vk::PhysicalDevice& vkPhysicalDevice,
     // 7. 阻塞等待 GPU 把拷贝做完
     // (注意：对于最高性能的引擎，这里应该使用 Fence
     // 异步等待，但作为初始化阶段的数据上传，waitIdle 是标准的做法)
-    queue.waitIdle();
+    (void)queue.waitIdle();
 
     // 8. 清理一次性 Command Buffer
     m_vkLogicalDevice.freeCommandBuffers(cmdPool, 1, &cmdBuf);

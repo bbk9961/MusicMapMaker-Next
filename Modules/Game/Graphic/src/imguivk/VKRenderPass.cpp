@@ -98,7 +98,8 @@ VKRenderPass::VKRenderPass(vk::Device& logicalDevice, VKSwapchain& swapchain,
     // renderPassCreateInfo.setDependencies(subpassDependency);
 
     // 2:创建renderpass
-    m_graphicRenderPass = logicalDevice.createRenderPass(renderPassCreateInfo);
+    auto result = logicalDevice.createRenderPass(renderPassCreateInfo);
+    m_graphicRenderPass = result.value;
     XINFO("Created VK Graphics RenderPipeline RenderPass.");
 }
 

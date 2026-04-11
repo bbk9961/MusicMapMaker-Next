@@ -32,7 +32,7 @@ void VKRenderer::createCommandPool()
         // 可以随时重置
         .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
     m_vkCommandPool =
-        m_vkLogicalDevice.createCommandPool(commandPoolCreateInfo);
+        m_vkLogicalDevice.createCommandPool(commandPoolCreateInfo).value;
     XINFO("Created VK Command Pool.");
 }
 
@@ -53,7 +53,7 @@ void VKRenderer::allocateCommandBuffers()
         // 这里分配主要的
         .setLevel(vk::CommandBufferLevel::ePrimary);
     m_vkCommandBuffers =
-        m_vkLogicalDevice.allocateCommandBuffers(commandBufferAllocateInfo);
+        m_vkLogicalDevice.allocateCommandBuffers(commandBufferAllocateInfo).value;
 
     XINFO("Allocated VK Command Buffers.");
 }
@@ -72,9 +72,9 @@ void VKRenderer::createSemsWithFences()
         // 创建信号量
         vk::SemaphoreCreateInfo semaphoreCreateInfo;
         m_imageAvailableSems[i] =
-            m_vkLogicalDevice.createSemaphore(semaphoreCreateInfo);
+            m_vkLogicalDevice.createSemaphore(semaphoreCreateInfo).value;
         m_renderFinishedSems[i] =
-            m_vkLogicalDevice.createSemaphore(semaphoreCreateInfo);
+            m_vkLogicalDevice.createSemaphore(semaphoreCreateInfo).value;
         XINFO("Created image Semaphores For ImageBuffer{}.", i);
 
         // 创建同步栅
@@ -82,7 +82,7 @@ void VKRenderer::createSemsWithFences()
         // 初始化为 Signaled，让第一帧可以直接通过 wait
         fenceCreateInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
         m_cmdAvailableFences[i] =
-            m_vkLogicalDevice.createFence(fenceCreateInfo);
+            m_vkLogicalDevice.createFence(fenceCreateInfo).value;
         XINFO("Created cmd Sync Fence For ImageBuffer{}.", i);
     }
 }
@@ -115,7 +115,7 @@ void VKRenderer::createDescriptPool()
         .setMaxSets(1000 * poolSizes.size())
         .setPoolSizes(poolSizes);
 
-    m_vkDescriptorPool = m_vkLogicalDevice.createDescriptorPool(poolInfo);
+    m_vkDescriptorPool = m_vkLogicalDevice.createDescriptorPool(poolInfo).value;
 
     XINFO("Created Global Descriptor Pool for ImGui.");
 }

@@ -11,6 +11,10 @@
 #include <expected>
 #include <memory>
 #include <unordered_map>
+
+#ifndef VULKAN_HPP_NO_EXCEPTIONS
+#    define VULKAN_HPP_NO_EXCEPTIONS
+#endif
 #include <vulkan/vulkan.hpp>
 
 namespace MMM::Graphic

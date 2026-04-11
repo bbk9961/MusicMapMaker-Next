@@ -31,7 +31,7 @@ VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
     descriptorSetLayoutCreateInfo.setBindings(
         { Graphic::BRUSH_TEXTURE_BIND_DESC });
     m_descriptorSetLayout =
-        logicalDevice.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
+        logicalDevice.createDescriptorSetLayout(descriptorSetLayoutCreateInfo).value;
     XINFO("Created VK Descriptor Set Layout.");
 
     // --- 定义 Push Constant 范围 ---
@@ -52,7 +52,7 @@ VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
         // pushConstant范围配置
         .setPushConstantRanges(pushConstantRange);
     m_graphicsPipelineLayout =
-        logicalDevice.createPipelineLayout(pipelineLayoutCreateInfo);
+        logicalDevice.createPipelineLayout(pipelineLayoutCreateInfo).value;
     XINFO("Created VK Graphics RenderPipeline Layout.");
 
     // 4:图形管线创建信息

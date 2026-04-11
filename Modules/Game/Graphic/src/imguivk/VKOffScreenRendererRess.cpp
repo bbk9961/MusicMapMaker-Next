@@ -17,8 +17,9 @@ void VKOffScreenRenderer::transitionImageInternal(vk::CommandPool pool,
 {
     vk::CommandBufferAllocateInfo allocInfo(
         pool, vk::CommandBufferLevel::ePrimary, 1);
-    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo)[0];
-    cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo).value[0];
+    (void)cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+
 
     vk::ImageMemoryBarrier barrier(
         {},
@@ -35,11 +36,11 @@ void VKOffScreenRenderer::transitionImageInternal(vk::CommandPool pool,
     vk::PipelineStageFlags dstStage = vk::PipelineStageFlagBits::eAllCommands;
 
     cmd.pipelineBarrier(srcStage, dstStage, {}, nullptr, nullptr, barrier);
-    cmd.end();
+    (void)cmd.end();
 
     vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, &cmd);
-    queue.submit(submitInfo, nullptr);
-    queue.waitIdle();  // 必须等待完成，因为后面要立刻用
+    (void)queue.submit(submitInfo, nullptr);
+    (void)queue.waitIdle();  // 必须等待完成，因为后面要立刻用
     m_device.freeCommandBuffers(pool, cmd);
 }
 
@@ -63,7 +64,7 @@ void VKOffScreenRenderer::createOffscreenBuffer(
         .setSharingMode(vk::SharingMode::eExclusive)
         .setInitialLayout(vk::ImageLayout::eUndefined);
 
-    image = logicalDevice.createImage(imageInfo);
+    image = logicalDevice.createImage(imageInfo).value;
 
     vk::MemoryRequirements memRequirements =
         logicalDevice.getImageMemoryRequirements(image);
@@ -87,8 +88,8 @@ void VKOffScreenRenderer::createOffscreenBuffer(
             findMemoryType(memRequirements.memoryTypeBits,
                            vk::MemoryPropertyFlagBits::eDeviceLocal));
 
-    memory = logicalDevice.allocateMemory(allocInfo);
-    logicalDevice.bindImageMemory(image, memory, 0);
+    memory = logicalDevice.allocateMemory(allocInfo).value;
+    (void)logicalDevice.bindImageMemory(image, memory, 0);
 
     vk::ImageViewCreateInfo viewInfo;
     viewInfo.setImage(image)
@@ -97,7 +98,7 @@ void VKOffScreenRenderer::createOffscreenBuffer(
         .setSubresourceRange(vk::ImageSubresourceRange(
             vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
-    imageView = logicalDevice.createImageView(viewInfo);
+    imageView = logicalDevice.createImageView(viewInfo).value;
 
     if ( !sampler ) {
         vk::SamplerCreateInfo samplerInfo;
@@ -113,7 +114,7 @@ void VKOffScreenRenderer::createOffscreenBuffer(
             .setCompareOp(vk::CompareOp::eAlways)
             .setMipmapMode(vk::SamplerMipmapMode::eLinear);
 
-        sampler = logicalDevice.createSampler(samplerInfo);
+        sampler = logicalDevice.createSampler(samplerInfo).value;
     }
 
     vk::FramebufferCreateInfo framebufferInfo;
@@ -123,7 +124,8 @@ void VKOffScreenRenderer::createOffscreenBuffer(
         .setHeight(height)
         .setLayers(1);
 
-    framebuffer = logicalDevice.createFramebuffer(framebufferInfo);
+    framebuffer = logicalDevice.createFramebuffer(framebufferInfo).value;
+
     transitionImageInternal(commandPool,
                             queue,
                             vk::ImageLayout::eUndefined,
@@ -146,7 +148,7 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
     // 1. 先等待设备空闲，防止正在渲染时销毁
     // 核心修复：无论 m_device 是否有效，都尝试等待当前已有的设备
     if ( m_device ) {
-        m_device.waitIdle();
+        (void)m_device.waitIdle();
     }
 
     // 先释放
@@ -244,7 +246,7 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
         .setSharingMode(vk::SharingMode::eExclusive)
         .setInitialLayout(vk::ImageLayout::eUndefined);
 
-    m_image = m_device.createImage(imageInfo);
+    m_image = m_device.createImage(imageInfo).value;
 
     // ==========================================
     // 2. 为 Image 分配物理显存 (DeviceLocal)
@@ -273,9 +275,9 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
             findMemoryType(memRequirements.memoryTypeBits,
                            vk::MemoryPropertyFlagBits::eDeviceLocal));
 
-    m_imageMemory = m_device.allocateMemory(allocInfo);
+    m_imageMemory = m_device.allocateMemory(allocInfo).value;
     // 绑定显存到 Image
-    m_device.bindImageMemory(m_image, m_imageMemory, 0);
+    (void)m_device.bindImageMemory(m_image, m_imageMemory, 0);
 
     // ==========================================
     // 3. 创建 ImageView 和 Sampler
@@ -287,7 +289,7 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
         .setSubresourceRange(vk::ImageSubresourceRange(
             vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
 
-    m_imageView = m_device.createImageView(viewInfo);
+    m_imageView = m_device.createImageView(viewInfo).value;
 
     vk::SamplerCreateInfo samplerInfo;
     samplerInfo.setMagFilter(vk::Filter::eLinear)
@@ -302,7 +304,7 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
         .setCompareOp(vk::CompareOp::eAlways)
         .setMipmapMode(vk::SamplerMipmapMode::eLinear);
 
-    m_sampler = m_device.createSampler(samplerInfo);
+    m_sampler = m_device.createSampler(samplerInfo).value;
 
     // ==========================================
     // 4. 创建 Framebuffer 供 RenderPass 渲染使用
@@ -314,7 +316,7 @@ void VKOffScreenRenderer::reCreateFrameBuffer(
         .setHeight(creationH)
         .setLayers(1);
 
-    m_framebuffer = m_device.createFramebuffer(framebufferInfo);
+    m_framebuffer = m_device.createFramebuffer(framebufferInfo).value;
 
     // ==========================================
     // 4.5 初始布局转换 (重要！)
@@ -473,7 +475,7 @@ void VKOffScreenRenderer::createDescriptPool()
     std::array<vk::DescriptorPoolSize, 2> poolSizes{ uniformPoolSize,
                                                      samplerPoolSize };
     vk::DescriptorPoolCreateInfo          poolInfo({}, 4, 2, poolSizes.data());
-    m_descriptorPool = m_device.createDescriptorPool(poolInfo);
+    m_descriptorPool = m_device.createDescriptorPool(poolInfo).value;
 }
 
 /**
@@ -488,11 +490,11 @@ void VKOffScreenRenderer::createDescriptSets()
     // (m_brushRenderPipeline->m_descriptorSetLayout)
     vk::DescriptorSetAllocateInfo allocInfo(
         m_descriptorPool, 1, &m_mainBrushRenderPipeline->m_descriptorSetLayout);
-    m_offScreenDescriptorSet = m_device.allocateDescriptorSets(allocInfo)[0];
+    m_offScreenDescriptorSet = m_device.allocateDescriptorSets(allocInfo).value[0];
 
-    m_glowDescriptorSet = m_device.allocateDescriptorSets(allocInfo)[0];
-    m_pingDescriptorSet = m_device.allocateDescriptorSets(allocInfo)[0];
-    m_pongDescriptorSet = m_device.allocateDescriptorSets(allocInfo)[0];
+    m_glowDescriptorSet = m_device.allocateDescriptorSets(allocInfo).value[0];
+    m_pingDescriptorSet = m_device.allocateDescriptorSets(allocInfo).value[0];
+    m_pongDescriptorSet = m_device.allocateDescriptorSets(allocInfo).value[0];
 }
 
 /**
