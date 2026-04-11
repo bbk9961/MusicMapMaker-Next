@@ -465,6 +465,7 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
                                 }
                                 snapshot->hoveredNoteNumerator   = bestNum;
                                 snapshot->hoveredNoteDenominator = bestDen;
+                                snapshot->hoveredNoteTime        = noteTime;
                             }
                         }
                         break;  // 只处理一个悬停物体

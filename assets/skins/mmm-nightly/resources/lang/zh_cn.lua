@@ -147,6 +147,7 @@ return {
 	["ui.canvas.beat_fraction"] = "分拍位",
 	["ui.canvas.beat_index"] = "拍号",
 	["ui.canvas.note_fraction"] = "物件位置",
+	["ui.canvas.note_time"] = "精确时间",
 
 	["tips.welcome"] = "欢迎使用MusicMapMaker!",
 }

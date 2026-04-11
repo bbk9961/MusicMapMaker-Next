@@ -147,6 +147,7 @@ return {
 	["ui.canvas.beat_fraction"] = "Fraction",
 	["ui.canvas.beat_index"] = "Beat",
 	["ui.canvas.note_fraction"] = "Note Position",
+	["ui.canvas.note_time"] = "Exact Time",
 
 	["tips.welcome"] = "Welcome to MusicMapMaker!",
 }

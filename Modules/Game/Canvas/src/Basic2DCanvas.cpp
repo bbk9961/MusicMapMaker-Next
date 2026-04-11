@@ -157,6 +157,10 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
                             TR("ui.canvas.note_fraction").data(),
                             m_currentSnapshot->hoveredNoteNumerator,
                             m_currentSnapshot->hoveredNoteDenominator);
+                        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
+                                           "%s: %.3f s",
+                                           TR("ui.canvas.note_time").data(),
+                                           m_currentSnapshot->hoveredNoteTime);
                         ImGui::Spacing();
                         ImGui::Separator();
                         ImGui::Spacing();

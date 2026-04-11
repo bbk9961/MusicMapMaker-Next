@@ -105,6 +105,7 @@ struct RenderSnapshot {
     int32_t  hoveredTrack{ 0 };
     int      hoveredNoteNumerator{ 0 };
     int      hoveredNoteDenominator{ 1 };
+    double   hoveredNoteTime{ 0.0 };  // 悬浮物件的精确时间戳
     int      hoveredBeatIndex{
              0
     };  // 当前悬浮时间点所在的拍序 (从首个BPMTiming开始)
@@ -142,6 +143,7 @@ struct RenderSnapshot {
         hoveredTrack           = 0;
         hoveredNoteNumerator   = 0;
         hoveredNoteDenominator = 1;
+        hoveredNoteTime        = 0.0;
         hoveredBeatIndex       = 0;
         isPreviewHovered       = false;
         previewHoverY          = 0.0f;
