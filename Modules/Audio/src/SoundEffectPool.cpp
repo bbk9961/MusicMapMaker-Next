@@ -95,6 +95,10 @@ void SoundEffectPool::play(float volume)
         node->set_scheduled_start_frame(0);  // 确保没有残留的预定
         node->setvolume(volume);
         node->play();
+        {
+            std::lock_guard<std::mutex> lock(m_mtx);
+            m_latestNode = node;
+        }
     }
 }
 
@@ -131,6 +135,40 @@ void SoundEffectPool::releaseNode(std::shared_ptr<ice::SourceNode> node)
 {
     std::lock_guard<std::mutex> lock(m_mtx);
     m_readyQueue.push(std::move(node));
+}
+
+void SoundEffectPool::setVolume(float volume)
+{
+    std::lock_guard<std::mutex> lock(m_mtx);
+    m_volume = volume;
+    for ( auto& node : m_allNodes ) {
+        node->setvolume(volume);
+    }
+}
+
+double SoundEffectPool::getDuration() const
+{
+    if ( !m_track ) return 0.0;
+    const auto samplerate =
+        static_cast<double>(ice::ICEConfig::internal_format.samplerate);
+    if ( samplerate <= 0 ) return 0.0;
+    return static_cast<double>(m_track->num_frames()) / samplerate;
+}
+
+double SoundEffectPool::getLatestPlaybackTime() const
+{
+    std::shared_ptr<ice::SourceNode> latest;
+    {
+        std::lock_guard<std::mutex> lock(m_mtx);
+        latest = m_latestNode;
+    }
+
+    if ( !latest ) return 0.0;
+
+    const auto samplerate =
+        static_cast<double>(ice::ICEConfig::internal_format.samplerate);
+    if ( samplerate <= 0 ) return 0.0;
+    return static_cast<double>(latest->get_playpos()) / samplerate;
 }
 
 }  // namespace MMM::Audio

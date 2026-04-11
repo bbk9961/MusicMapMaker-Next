@@ -49,13 +49,28 @@ public:
     /// @brief 释放节点回池 (供回调内部调用)
     void releaseNode(std::shared_ptr<ice::SourceNode> node);
 
+    /// @brief 设置池内所有节点的音量
+    void setVolume(float volume);
+
+    /// @brief 获取池内音量
+    float getVolume() const { return m_volume; }
+
+    /// @brief 获取音效总时长 (秒)
+    double getDuration() const;
+
+    /// @brief 获取最近一次播放的进度 (秒)
+    double getLatestPlaybackTime() const;
+
 private:
     std::shared_ptr<ice::AudioTrack> m_track;
     std::shared_ptr<ice::MixBus>     m_mixer;
 
     std::queue<std::shared_ptr<ice::SourceNode>>  m_readyQueue;
     std::vector<std::shared_ptr<ice::SourceNode>> m_allNodes;
-    std::mutex                                    m_mtx;
+    std::shared_ptr<ice::SourceNode>              m_latestNode;
+    mutable std::mutex                            m_mtx;
+
+    float m_volume{ 1.0f };
 
     class SFXPlayCallback;
 };

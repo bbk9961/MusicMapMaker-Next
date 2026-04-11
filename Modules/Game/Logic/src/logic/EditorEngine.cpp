@@ -1,4 +1,5 @@
 #include "logic/EditorEngine.h"
+#include "audio/AudioManager.h"
 #include "config/AppConfig.h"
 #include "event/canvas/interactive/ResizeEvent.h"
 #include "event/core/EventBus.h"
@@ -8,10 +9,12 @@
 #include "event/ui/menu/ProjectLoadedEvent.h"
 #include "log/colorful-log.h"
 #include "logic/BeatmapSyncBuffer.h"
+#include "mmm/beatmap/BeatMap.h"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
+#include <unordered_set>
 
 namespace MMM::Logic
 {
@@ -81,41 +84,94 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
 
     // 扫描文件系统
     try {
+        std::vector<std::filesystem::path> mapFiles;
+        std::vector<std::filesystem::path> audioFiles;
+
         for ( const auto& entry :
               std::filesystem::recursive_directory_iterator(projectPath) ) {
             if ( !entry.is_regular_file() ) continue;
 
             auto ext = entry.path().extension().string();
-            auto relPath =
-                std::filesystem::relative(entry.path(), projectPath).string();
-            auto filename = entry.path().filename().string();
-
-            // 1. 扫描音频 (作为主轨道)
-            if ( ext == ".mp3" || ext == ".ogg" || ext == ".wav" ||
-                 ext == ".flac" ) {
-                AudioResource res;
-                res.m_id     = filename;
-                res.m_path   = relPath;
-                res.m_type   = AudioTrackType::Main;
-                res.m_volume = 1.0f;
-                newProject->m_audioResources.push_back(res);
-                XINFO("Found audio resource: {}", filename);
-            }
-
-            // 2. 扫描谱面 (*.osu, *.imd, *.mc)
             if ( ext == ".osu" || ext == ".imd" || ext == ".mc" ) {
-                Project::BeatmapEntry mapEntry;
-                mapEntry.m_name     = filename;
-                mapEntry.m_filePath = relPath;
-                // 默认策略：关联当前已找到的第一个音轨
-                if ( !newProject->m_audioResources.empty() ) {
-                    mapEntry.m_audioTrackId =
-                        newProject->m_audioResources.front().m_id;
-                }
-                newProject->m_beatmaps.push_back(mapEntry);
-                XINFO("Found beatmap: {}", filename);
+                mapFiles.push_back(entry.path());
+            } else if ( ext == ".mp3" || ext == ".ogg" || ext == ".wav" ||
+                        ext == ".flac" ) {
+                audioFiles.push_back(entry.path());
             }
         }
+
+        // 记录哪些音频被识别为主音轨
+        std::unordered_set<std::string> mainAudioPaths;
+
+        // 1. 处理谱面并识别主音轨
+        for ( const auto& mapPath : mapFiles ) {
+            auto relMapPath =
+                std::filesystem::relative(mapPath, projectPath).string();
+            auto filename = mapPath.filename().string();
+
+            Project::BeatmapEntry mapEntry;
+            mapEntry.m_name     = filename;
+            mapEntry.m_filePath = relMapPath;
+
+            // 预加载谱面以获取其定义的主音频路径
+            try {
+                auto tempMap = BeatMap::loadFromFile(mapPath);
+                if ( !tempMap.m_baseMapMetadata.main_audio_path.empty() ) {
+                    // 获取相对于项目根目录的音频路径
+                    auto absAudioPath =
+                        mapPath.parent_path() /
+                        tempMap.m_baseMapMetadata.main_audio_path;
+                    auto relAudioPath =
+                        std::filesystem::relative(absAudioPath, projectPath)
+                            .string();
+
+                    mapEntry.m_audioTrackId = absAudioPath.filename().string();
+                    mainAudioPaths.insert(relAudioPath);
+                }
+            } catch ( ... ) {
+                XWARN("Failed to probe main audio for beatmap: {}", filename);
+            }
+
+            newProject->m_beatmaps.push_back(mapEntry);
+            XINFO("Found beatmap: {}", filename);
+        }
+
+        // 2. 处理所有音频资源
+        for ( const auto& audioPath : audioFiles ) {
+            auto relAudioPath =
+                std::filesystem::relative(audioPath, projectPath).string();
+            auto filename = audioPath.filename().string();
+
+            AudioResource res;
+            res.m_id   = filename;
+            res.m_path = relAudioPath;
+            // 如果该音频在任意一个谱面中被引用为主音轨，则标记为 Main，否则为
+            // Effect
+            res.m_type          = (mainAudioPaths.count(relAudioPath) > 0)
+                                      ? AudioTrackType::Main
+                                      : AudioTrackType::Effect;
+            res.m_config.volume = 0.5f;
+            res.m_config.playbackSpeed = 1.0f;
+            res.m_config.muted         = false;
+
+            newProject->m_audioResources.push_back(res);
+            XINFO("Found {} audio resource: {}",
+                  (res.m_type == AudioTrackType::Main ? "Main" : "Effect"),
+                  filename);
+        }
+
+        // 3. 兜底逻辑：如果没有任何 Main
+        // 音轨但有音频，且有谱面没关联音轨，关联第一个
+        if ( mainAudioPaths.empty() && !newProject->m_audioResources.empty() ) {
+            newProject->m_audioResources.front().m_type = AudioTrackType::Main;
+            for ( auto& map : newProject->m_beatmaps ) {
+                if ( map.m_audioTrackId.empty() ) {
+                    map.m_audioTrackId =
+                        newProject->m_audioResources.front().m_id;
+                }
+            }
+        }
+
     } catch ( const std::exception& e ) {
         XERROR("Error while scanning project directory: {}", e.what());
     }
@@ -130,6 +186,22 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
             Project loadedProject  = j.get<Project>();
             newProject->m_metadata = loadedProject.m_metadata;
             newProject->m_settings = loadedProject.m_settings;
+
+            // 合并资源配置并应用到音频引擎
+            for ( auto& res : newProject->m_audioResources ) {
+                for ( const auto& loadedRes : loadedProject.m_audioResources ) {
+                    if ( res.m_id == loadedRes.m_id ) {
+                        res.m_config = loadedRes.m_config;
+                        // 如果是项目音效，应用音量
+                        if ( res.m_type == AudioTrackType::Effect ) {
+                            Audio::AudioManager::instance().setSFXPoolVolume(
+                                res.m_id, res.m_config.volume, false);
+                        }
+                        break;
+                    }
+                }
+            }
+
             XINFO("Project configuration loaded from mmm_project.json");
         } catch ( ... ) {
             XWARN(
@@ -144,6 +216,17 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
         nlohmann::json j = *newProject;
         file << std::setw(4) << j << std::endl;
     } catch ( ... ) {
+    }
+
+    // 预加载所有项目内的音效资源
+    for ( const auto& res : newProject->m_audioResources ) {
+        if ( res.m_type == AudioTrackType::Effect ) {
+            auto absPath = projectPath / res.m_path;
+            if ( std::filesystem::exists(absPath) ) {
+                Audio::AudioManager::instance().preloadSoundEffect(
+                    res.m_id, absPath.string(), res.m_config.volume);
+            }
+        }
     }
 
     // 更新当前项目单例状态
@@ -240,6 +323,24 @@ void EditorEngine::setEditorConfig(const Config::EditorConfig& config)
     // 发布配置更新事件，供 UI 层订阅
     Event::EventBus::instance().publish(
         Event::EditorConfigChangedEvent{ m_editorConfig });
+}
+
+void EditorEngine::saveProject()
+{
+    if ( !m_currentProject ) return;
+
+    std::filesystem::path projectFile =
+        m_currentProject->m_projectRoot / "mmm_project.json";
+    XINFO("Saving project to {}", projectFile.string());
+
+    try {
+        std::ofstream  file(projectFile);
+        nlohmann::json j = *m_currentProject;
+        file << std::setw(4) << j << std::endl;
+        XINFO("Project saved successfully.");
+    } catch ( const std::exception& e ) {
+        XERROR("Failed to save project: {}", e.what());
+    }
 }
 
 void EditorEngine::loop()

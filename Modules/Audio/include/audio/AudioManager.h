@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mmm/project/AudioResource.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -40,8 +41,9 @@ public:
 
     /// @brief 加载 BGM
     /// @param filePath 音频文件绝对路径
+    /// @param config 轨道详细配置 (从项目文件读取)
     /// @return 是否加载成功
-    bool loadBGM(const std::string& filePath);
+    bool loadBGM(const std::string& filePath, const AudioTrackConfig& config);
 
     /// @brief 开始/恢复播放
     void play();
@@ -65,11 +67,17 @@ public:
     /// @brief 获取总时长 (秒)
     double getTotalTime() const;
 
-    /// @brief 设置音量 (0.0 ~ 1.0)
-    void setVolume(float volume);
+    /// @brief 设置主音轨音量 (0.0 ~ 1.0)
+    void setMainTrackVolume(float volume);
 
-    /// @brief 获取当前音量
-    float getVolume() const;
+    /// @brief 获取主音轨当前音量
+    float getMainTrackVolume() const;
+
+    /// @brief 设置全局音量 (0.0 ~ 1.0)
+    void setGlobalVolume(float volume);
+
+    /// @brief 获取全局音量
+    float getGlobalVolume() const;
 
     /// @brief 设置播放倍率 (0.5 ~ 2.0)
     void setPlaybackSpeed(double speed);
@@ -77,12 +85,29 @@ public:
     /// @brief 获取当前播放倍率
     double getPlaybackSpeed() const;
 
+    /// @brief 设置特定 SFX 池的音量
+    /// @param key 标识符
+    /// @param volume 音量
+    /// @param isPermanent 是否为常驻音效 (若为真，则保存到软件配置)
+    void setSFXPoolVolume(const std::string& key, float volume,
+                          bool isPermanent = false);
+
+    /// @brief 获取特定 SFX 池的音量
+    float getSFXPoolVolume(const std::string& key) const;
+
+    /// @brief 获取特定 SFX 池的时长
+    double getSFXDuration(const std::string& key) const;
+
+    /// @brief 获取特定 SFX 池最近一次播放进度
+    double getSFXPlaybackTime(const std::string& key) const;
+
     /// @brief 预加载音效文件
     /// @param key 标识符（如 "hiteffect.note"）
     /// @param filePath 音效文件绝对路径
+    /// @param defaultVolume 初始默认音量
     /// @return 是否加载成功
-    bool preloadSoundEffect(const std::string& key,
-                            const std::string& filePath);
+    bool preloadSoundEffect(const std::string& key, const std::string& filePath,
+                            float defaultVolume = 1.0f);
 
     /// @brief 播放指定 key 的音效
     /// @param key 标识符
@@ -97,7 +122,7 @@ public:
                                   float volumeFactor = 1.0f);
 
 private:
-    AudioManager() = default;
+    AudioManager();
     ~AudioManager();
 
     std::unique_ptr<ice::ThreadPool> m_threadPool;
@@ -112,7 +137,8 @@ private:
         m_sfxPools;
 
     PlaybackStatus m_status{ PlaybackStatus::Stopped };
-    float          m_volume{ 0.5f };
+    float          m_mainTrackVolume{ 0.5f };
+    float          m_globalVolume{ 1.0f };
     double         m_speed{ 1.0 };
 };
 

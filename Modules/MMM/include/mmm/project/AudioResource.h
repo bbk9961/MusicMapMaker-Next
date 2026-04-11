@@ -17,6 +17,21 @@ NLOHMANN_JSON_SERIALIZE_ENUM(AudioTrackType,
                                  { AudioTrackType::Effect, "Effect" },
                              })
 
+/// @brief 单个音频轨道的详细配置
+struct AudioTrackConfig {
+    /// @brief 轨道音量 (0.0 ~ 1.0)
+    float volume{ 0.5f };
+
+    /// @brief 播放速度倍率 (0.5 ~ 2.0)
+    float playbackSpeed{ 1.0f };
+
+    /// @brief 是否静音
+    bool muted{ false };
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(AudioTrackConfig, volume, playbackSpeed,
+                                   muted)
+};
+
 /// @brief 项目管理的音频资源
 struct AudioResource {
     /// @brief 资源唯一标识 (ID)，用于被谱面引用
@@ -28,11 +43,11 @@ struct AudioResource {
     /// @brief 轨道类型
     AudioTrackType m_type{ AudioTrackType::Main };
 
-    /// @brief 默认预设音量 (0.0 ~ 1.0)
-    float m_volume{ 1.0f };
+    /// @brief 音轨配置 (持久化项)
+    AudioTrackConfig m_config;
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(AudioResource, m_id, m_path, m_type,
-                                   m_volume)
+                                   m_config)
 };
 
 }  // namespace MMM

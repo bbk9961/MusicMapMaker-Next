@@ -1,5 +1,7 @@
 #pragma once
+#include <map>
 #include <nlohmann/json.hpp>
+#include <string>
 
 namespace MMM::Config
 {
@@ -52,9 +54,13 @@ struct SfxConfig {
     /// @brief 每增加一个轨道的增益倍率
     float flickWidthVolumeMultiplier{ 0.1f };
 
+    /// @brief 皮肤常驻音效的独立音量映射 (Key: 音效ID, Value: 0.0~1.0)
+    std::map<std::string, float> permanentSfxVolumes;
+
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(SfxConfig, polylineStrategy,
                                    enableFlickWidthVolumeScaling,
-                                   flickWidthVolumeMultiplier)
+                                   flickWidthVolumeMultiplier,
+                                   permanentSfxVolumes)
 };
 
 enum class FilePickerStyle {
@@ -111,13 +117,16 @@ struct EditorSettings {
     /// @brief 滚动操作时的步长加速倍率 (用于非 Snap 滚动、缩放等)
     float scrollSpeedMultiplier{ 4.0f };
 
+    /// @brief 全局主音量 (0.0 ~ 1.0)
+    float globalVolume{ 0.25f };
+
     // TODO: 后续可在此添加自动保存(AutoSave)等配置
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(EditorSettings, syncConfig, sfxConfig,
                                    filePickerStyle, cursorStyle, beatDivisor,
                                    reverseScroll, scrollSnap,
                                    recentProjectsLimit, language,
-                                   scrollSpeedMultiplier)
+                                   scrollSpeedMultiplier, globalVolume)
 };
 
 }  // namespace MMM::Config

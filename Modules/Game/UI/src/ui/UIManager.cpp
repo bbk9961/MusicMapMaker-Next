@@ -8,6 +8,7 @@
 #include "log/colorful-log.h"
 #include "ui/IRenderableView.h"
 #include "ui/ITextureLoader.h"
+#include "ui/imgui/audio/AudioTrackControllerUI.h"
 #include <vector>
 
 namespace MMM::UI
@@ -70,6 +71,25 @@ void UIManager::onPrepareResources(vk::PhysicalDevice&   physicalDevice,
 /// @brief 更新ui
 void UIManager::onUpdateUI()
 {
+    // 清理已关闭的 IUIView (特别是 AudioTrackControllerUI)
+    std::vector<std::string> toRemove;
+    for ( auto& [name, view] : m_uiviews ) {
+        if ( auto* controller =
+                 dynamic_cast<AudioTrackControllerUI*>(view.get()) ) {
+            if ( !controller->isOpen() ) {
+                toRemove.push_back(name);
+            }
+        }
+    }
+
+    for ( const auto& name : toRemove ) {
+        m_uiviews.erase(name);
+        std::erase(m_uiSequence, name);
+        // 同时也从纹理加载器和可渲染序列中移除（如果存在）
+        std::erase(m_renderableUiSequence, name);
+        std::erase(m_textureLoaderSequence, name);
+    }
+
     // 按注册顺序更新ui
     for ( const auto& name : m_uiSequence ) {
         // 派发 ImGui 事件

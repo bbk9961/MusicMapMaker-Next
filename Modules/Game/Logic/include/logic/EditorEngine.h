@@ -114,6 +114,11 @@ public:
      */
     void setEditorConfig(const Config::EditorConfig& config);
 
+    /**
+     * @brief 持久化当前项目配置到 mmm_project.json
+     */
+    void saveProject();
+
 private:
     /**
      * @brief 逻辑线程的主循环

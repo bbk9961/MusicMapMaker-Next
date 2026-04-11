@@ -1,6 +1,7 @@
 #include "audio/AudioManager.h"
 #include "log/colorful-log.h"
 #include "logic/BeatmapSession.h"
+#include "logic/EditorEngine.h"
 #include "logic/ecs/components/NoteComponent.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/components/TransformComponent.h"
@@ -48,7 +49,22 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
                      beatmap->m_baseMapMetadata.main_audio_path;
     if ( !beatmap->m_baseMapMetadata.main_audio_path.empty() &&
          std::filesystem::exists(audioPath) ) {
-        Audio::AudioManager::instance().loadBGM(audioPath.string());
+        // 查找对应的 AudioResource 配置
+        AudioTrackConfig config;
+        auto*            project = EditorEngine::instance().getCurrentProject();
+        if ( project ) {
+            for ( const auto& res : project->m_audioResources ) {
+                if ( res.m_id ==
+                         beatmap->m_baseMapMetadata.main_audio_path.filename()
+                             .string() ||
+                     res.m_path ==
+                         beatmap->m_baseMapMetadata.main_audio_path.string() ) {
+                    config = res.m_config;
+                    break;
+                }
+            }
+        }
+        Audio::AudioManager::instance().loadBGM(audioPath.string(), config);
     }
 
     // 清空缓存上下文，以确保重新构建

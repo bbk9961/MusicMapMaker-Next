@@ -21,9 +21,6 @@ return {
 	["ui.edit.copy"] = "复制",
 	["ui.edit.paste"] = "粘贴",
 	["ui.edit.play_pause"] = "播放/暂停",
-	-- ["ui.view"] = "视图",
-	-- ["ui.settings"] = "设置",
-	-- ["ui.exit"] = "退出",
 
 	["canvas.editor"] = "编辑器",
 	["canvas.preview"] = "预览",
@@ -95,6 +92,7 @@ return {
 	["ui.settings.editor.sfx_strategy"] = "折线内部音效",
 	["ui.settings.editor.sfx_flick_scale"] = "Flick音量随宽度增益",
 	["ui.settings.editor.sfx_flick_mul"] = "每轨道增益倍率",
+
 	["ui.file_manager.initial_hint"] = "暂未打开项目",
 	["ui.file_manager.open_directory"] = "打开文件夹",
 	["ui.file_manager.path_hint"] = "#路径提示",
@@ -105,7 +103,14 @@ return {
 	["ui.audio_manager.initial_hint"] = "暂未打开项目, 无音频资源",
 	["ui.audio_manager.visual_offset"] = "渲染视觉偏移",
 	["ui.audio_manager.visual_offset_tooltip"] = "调整整体渲染相对于音频的偏移量(ms)，正值代表物件提前显示",
-	["ui.audio_manager.audio_tracks"] = "音轨列表",
+	["ui.audio_manager.audio_tracks"] = "主音轨列表",
+	["ui.audio_manager.project_sfx"] = "项目音效",
+	["ui.audio_manager.permanent_sfx"] = "常驻音效",
+	["ui.audio_manager.global_settings"] = "全局音频设置",
+	["ui.audio_manager.global_volume"] = "全局音量",
+	["ui.audio_manager.main_track_volume"] = "主音轨音量",
+	["ui.audio_manager.volume"] = "音量",
+	["ui.audio_manager.play_preview"] = "试听预览",
 
 	["title.beatmap_manager"] = "谱面管理",
 	["ui.beatmap_manager.initial_hint"] = "暂未打开项目, 无谱面资源",
@@ -143,15 +148,5 @@ return {
 	["ui.canvas.beat_index"] = "拍号",
 	["ui.canvas.note_fraction"] = "物件位置",
 
-
-	-- 带格式化参数的文本 (TR_FMT)
-	-- 大括号 {} 的位置和数量须和代码里的逻辑一致
-	-- ["title.fps: {}"] = "帧率: {}",
-
-	-- 支持调整参数顺序 (fmt 库特性)
-	-- 原文: "Position: {}, {}"
-	-- ["info.position: {}, {}"] = "位置: X={}, Y={}",
-
-	-- tips,长文本
 	["tips.welcome"] = "欢迎使用MusicMapMaker!",
 }

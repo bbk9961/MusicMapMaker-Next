@@ -11,6 +11,8 @@ target_link_libraries(Audio
 		Log
 		Event
 		3rd_rubberband
+		MMM
+		Config
 )
 if(WIN32)
 	target_link_libraries(Audio

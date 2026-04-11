@@ -1,14 +1,19 @@
 return {
-	-- [ Translation Key ] = "翻译后的目标文本"
+	-- [ Translation Key ] = "Translated text"
 
-	-- 普通文本
+	-- Common Text
 	["ui.file"] = "File",
-	["ui.file.open"] = "Open",
+	["ui.file.new_map"] = "New Beatmap",
+	["ui.file.new_pro"] = "New Project",
+	["ui.file.open_map"] = "Open Beatmap",
+	["ui.file.open_pro"] = "Open Project",
 	["ui.file.open_recent"] = "Open Recent",
 	["ui.file.no_recent"] = "No Recent Items",
 	["ui.file.save"] = "Save",
+	["ui.file.save_as"] = "Save As...",
 	["ui.file.pack"] = "Pack",
 	["ui.file.exit"] = "Exit",
+
 	["ui.edit"] = "Edit",
 	["ui.edit.undo"] = "Undo",
 	["ui.edit.redo"] = "Redo",
@@ -17,29 +22,15 @@ return {
 	["ui.edit.paste"] = "Paste",
 	["ui.edit.play_pause"] = "Play/Pause",
 
-	-- 带格式化参数的文本 (TR_FMT)
-	-- 大括号 {} 的位置和数量须和代码里的逻辑一致
-	-- ["title.fps: {}"] = "FPS: {}",
 	["canvas.editor"] = "Editor",
 	["canvas.preview"] = "Preview",
 	["canvas.timeline"] = "Timeline",
 
 	["title.search_manager"] = "Search",
 	["title.file_manager"] = "File Browser",
-	["ui.file_manager.initial_hint"] = "No project opened",
-	["ui.file_manager.open_directory"] = "Open Folder",
-	["ui.file_manager.path_hint"] = "#Path Hint",
-
-	["ui.search.no_results"] = "No search results",
-
-	["title.audio_manager"] = "Audio Manager",
-	["ui.audio_manager.initial_hint"] = "No project, no audio resources",
-	["ui.audio_manager.visual_offset"] = "Visual Offset",
-	["ui.audio_manager.visual_offset_tooltip"] = "Adjust overall rendering offset relative to audio (ms)",
-	["ui.audio_manager.audio_tracks"] = "Audio Tracks",
-
+	["title.settings_manager"] = "Settings",
 	["ui.settings.software"] = "Software Config",
-	["ui.settings.software.general"] = "General",
+	["ui.settings.software.general"] = "General Settings",
 	["ui.settings.software.language"] = "Language",
 	["ui.settings.software.picker_native"] = "Native File Picker",
 	["ui.settings.software.picker_unified"] = "Unified File Picker",
@@ -51,7 +42,7 @@ return {
 	["ui.settings.software.sync_interval"] = "Sync Interval",
 
 	["ui.settings.visual"] = "Visual Config",
-	["ui.settings.visual.layout"] = "Layout Ratios",
+	["ui.settings.visual.layout"] = "Layout",
 	["ui.settings.visual.layout_left"] = "Left Margin",
 	["ui.settings.visual.layout_top"] = "Top Margin",
 	["ui.settings.visual.layout_right"] = "Right Margin",
@@ -67,7 +58,7 @@ return {
 	["ui.settings.visual.background"] = "Background & Canvas",
 	["ui.settings.visual.bg_fill_mode"] = "Background Fill Mode",
 	["ui.settings.visual.bg_opaque"] = "Background Opacity",
-	["ui.settings.visual.bg_darken"] = "Background Darken Ratio",
+	["ui.settings.visual.bg_darken"] = "Background Darken",
 	["ui.settings.visual.preview"] = "Preview Area",
 	["ui.settings.visual.preview_ratio"] = "Preview Viewport Ratio",
 	["ui.settings.visual.preview_margin_left"] = "Margin Left",
@@ -89,7 +80,7 @@ return {
 	["ui.settings.project.path"] = "Physical Path",
 
 	["ui.settings.editor"] = "Editor Config",
-	["ui.settings.editor.behavior"] = "Basic Behavior",
+	["ui.settings.editor.behavior"] = "Behavior",
 	["ui.settings.editor.reverse_scroll"] = "Reverse Scroll Direction",
 	["ui.settings.editor.scroll_snap"] = "Enable Scroll Snap",
 	["ui.settings.editor.scroll_multiplier"] = "Shift Scroll Multiplier",
@@ -101,6 +92,29 @@ return {
 	["ui.settings.editor.sfx_strategy"] = "Internal Polyline SFX",
 	["ui.settings.editor.sfx_flick_scale"] = "Flick Volume Scaling",
 	["ui.settings.editor.sfx_flick_mul"] = "Per-Track Volume Multiplier",
+
+	["ui.file_manager.initial_hint"] = "No project opened",
+	["ui.file_manager.open_directory"] = "Open Folder",
+	["ui.file_manager.path_hint"] = "#Path Hint",
+
+	["ui.search.no_results"] = "No search results",
+
+	["title.audio_manager"] = "Audio Manager",
+	["ui.audio_manager.initial_hint"] = "No project, no audio resources",
+	["ui.audio_manager.visual_offset"] = "Visual Offset",
+	["ui.audio_manager.visual_offset_tooltip"] = "Adjust overall rendering offset relative to audio (ms)",
+	["ui.audio_manager.audio_tracks"] = "Main Audio Tracks",
+	["ui.audio_manager.project_sfx"] = "Project SFX",
+	["ui.audio_manager.permanent_sfx"] = "Permanent SFX",
+	["ui.audio_manager.global_settings"] = "Global Audio Settings",
+	["ui.audio_manager.global_volume"] = "Global Volume",
+	["ui.audio_manager.main_track_volume"] = "Main Track Volume",
+	["ui.audio_manager.volume"] = "Volume",
+	["ui.audio_manager.play_preview"] = "Play Preview",
+
+	["title.beatmap_manager"] = "Beatmap Manager",
+	["ui.beatmap_manager.initial_hint"] = "No project opened, no beatmap resources",
+	["ui.beatmap_manager.beatmaps"] = "Beatmaps",
 
 	-- Window control tooltips
 	["ui.window.minimize"] = "Minimize",
