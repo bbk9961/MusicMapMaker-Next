@@ -61,7 +61,7 @@ VKRenderer::VKRenderer(vk::PhysicalDevice& vkPhysicalDevice,
 VKRenderer::~VKRenderer()
 {
     // 等待设备空闲，确保不再使用任何资源
-    m_vkLogicalDevice.waitIdle();
+    (void)m_vkLogicalDevice.waitIdle();
 
     // 释放描述符池
     // 描述符集会随描述符池一同销毁，不必再手动销毁
