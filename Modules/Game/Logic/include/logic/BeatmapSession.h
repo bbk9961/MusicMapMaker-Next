@@ -2,6 +2,8 @@
 
 #include "common/LogicCommands.h"
 #include "config/EditorConfig.h"
+#include "event/audio/AudioPlaybackEvent.h"
+#include "event/core/EventBus.h"
 #include "logic/SyncClock.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/HitFXSystem.h"
@@ -129,6 +131,12 @@ private:
     /// @brief 谱面当前视觉渲染时间 (秒)
     double m_visualTime{ 0.0 };
 
+    /// @brief 缓存的最新音频硬件位置 (秒)
+    double m_lastAudioPos{ 0.0 };
+
+    /// @brief 记录上次音频位置更新事件发生时的系统高精度时间 (秒)
+    double m_lastAudioSysTime{ 0.0 };
+
     /// @brief 同步时钟
     SyncClock m_syncClock;
 
@@ -175,6 +183,9 @@ private:
 
     /// @brief 打击音效与视觉特效系统
     System::HitFXSystem m_hitFXSystem;
+
+    Event::ScopedSubscription<Event::AudioFinishedEvent> m_audioFinishedToken;
+    Event::ScopedSubscription<Event::AudioPositionEvent> m_audioPositionToken;
 };
 
 }  // namespace MMM::Logic

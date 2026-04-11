@@ -26,6 +26,24 @@ struct Batcher {
         currentCmd.indexCount      = 0;
         currentCmd.texture         = VK_NULL_HANDLE;
         currentCmd.customTextureId = 0;
+        currentCmd.scissor         = vk::Rect2D{ { 0, 0 }, { 8192, 8192 } };
+    }
+
+    void setScissor(float x, float y, float w, float h)
+    {
+        vk::Rect2D nextScissor;
+        nextScissor.offset.x      = static_cast<int32_t>(std::max(0.0f, x));
+        nextScissor.offset.y      = static_cast<int32_t>(std::max(0.0f, y));
+        nextScissor.extent.width  = static_cast<uint32_t>(std::max(0.0f, w));
+        nextScissor.extent.height = static_cast<uint32_t>(std::max(0.0f, h));
+
+        if ( currentCmd.indexCount > 0 && currentCmd.scissor != nextScissor ) {
+            targetCmds->push_back(currentCmd);
+            currentCmd.indexCount   = 0;
+            currentCmd.indexOffset  = snapshot->indices.size();
+            currentCmd.vertexOffset = 0;
+        }
+        currentCmd.scissor = nextScissor;
     }
 
     void setTexture(TextureID tex)

@@ -1,5 +1,7 @@
 #include "audio/AudioManager.h"
 #include "audio/SoundEffectPool.h"
+#include "event/audio/AudioPlaybackEvent.h"
+#include "event/core/EventBus.h"
 #include "log/colorful-log.h"
 
 #include <ice/core/MixBus.hpp>
@@ -12,6 +14,35 @@
 
 namespace MMM::Audio
 {
+
+class AudioPlayCallBack : public ice::PlayCallBack
+{
+public:
+    void play_done(bool loop) const override
+    {
+        if ( !loop ) {
+            Event::AudioFinishedEvent e;
+            e.isLooping = loop;
+            Event::EventBus::instance().publish(e);
+        }
+    }
+
+    void frameplaypos_updated(size_t frame_pos) override {}
+
+    void timeplaypos_updated(std::chrono::nanoseconds time_pos) override
+    {
+        Event::AudioPositionEvent e;
+        e.positionSeconds = std::chrono::duration<double>(time_pos).count();
+        e.systemTimeSeconds =
+            std::chrono::duration<double>(
+                std::chrono::steady_clock::now().time_since_epoch())
+                .count();
+        Event::EventBus::instance().publish(e);
+    }
+};
+
+static std::shared_ptr<AudioPlayCallBack> g_callback =
+    std::make_shared<AudioPlayCallBack>();
 
 AudioManager& AudioManager::instance()
 {
@@ -82,6 +113,7 @@ bool AudioManager::loadBGM(const std::string& filePath)
 
     m_bgmSource = std::make_shared<ice::SourceNode>(track);
     m_bgmSource->setvolume(m_volume);
+    m_bgmSource->add_playcallback(g_callback);
 
     m_mixer->add_source(m_bgmSource);
 

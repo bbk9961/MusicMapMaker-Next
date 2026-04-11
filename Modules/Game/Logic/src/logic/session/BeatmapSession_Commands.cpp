@@ -40,6 +40,9 @@ void BeatmapSession::processCommands()
                 } else if constexpr ( std::is_same_v<T, CmdSetPlayState> ) {
                     m_isPlaying = arg.isPlaying;
                     if ( m_isPlaying ) {
+                        m_syncTimer        = 0.0;
+                        m_lastAudioPos     = 0.0;
+                        m_lastAudioSysTime = 0.0;
                         Audio::AudioManager::instance().play();
                         m_syncClock.reset(m_currentTime);
                         // 开始播放时，确保索引同步并清理可能的残留特效
@@ -206,7 +209,9 @@ void BeatmapSession::processCommands()
                 } else if constexpr ( std::is_same_v<T, CmdSeek> ) {
                     double totalTime =
                         Audio::AudioManager::instance().getTotalTime();
-                    m_currentTime = std::clamp(arg.time, 0.0, totalTime);
+                    m_currentTime      = std::clamp(arg.time, 0.0, totalTime);
+                    m_lastAudioPos     = 0.0;
+                    m_lastAudioSysTime = 0.0;
                     m_syncClock.reset(m_currentTime);
                     Audio::AudioManager::instance().seek(m_currentTime);
                     // Seek 时同步索引并清理残留特效
@@ -227,7 +232,8 @@ void BeatmapSession::processCommands()
                         wheel = -wheel;
                     }
 
-                    double targetTime = m_currentTime;
+                    double targetTime   = m_currentTime;
+                    double visualOffset = m_lastConfig.visual.visualOffset;
 
                     if ( m_lastConfig.settings.scrollSnap ) {
                         // 滚动磁吸逻辑
@@ -254,10 +260,15 @@ void BeatmapSession::processCommands()
                                                  b->m_timestamp;
                                       });
 
-                            // 找到当前时间所在的 BPM 区间
+                            // 核心修复：基于视觉位置进行吸附判定
+                            // 视觉上的时间位置应包含偏移量
+                            double visualCurrentTime =
+                                m_currentTime + visualOffset;
+
+                            // 找到视觉位置所在的 BPM 区间
                             size_t currentIdx = 0;
                             for ( size_t i = 0; i < bpmEvents.size(); ++i ) {
-                                if ( m_currentTime >=
+                                if ( visualCurrentTime >=
                                      bpmEvents[i]->m_timestamp ) {
                                     currentIdx = i;
                                 } else {
@@ -269,44 +280,63 @@ void BeatmapSession::processCommands()
                             double      bpmVal     = currentBPM->m_value;
                             double      beatDuration =
                                 60.0 / (bpmVal > 0 ? bpmVal : 120.0);
-                            double stepDuration = beatDuration / beatDivisor;
 
-                            double relativeTime =
-                                m_currentTime - currentBPM->m_timestamp;
-                            double stepCount = relativeTime / stepDuration;
+                            // 如果按住 Shift，步长变为整拍 (Beat Level)
+                            double stepDuration =
+                                arg.isShiftDown ? beatDuration
+                                                : (beatDuration / beatDivisor);
 
-                            // 根据滚轮方向决定是向上取整还是向下取整，以确保“下一个”或“上一个”
+                            // 计算相对于视觉位置的步数
+                            double relativeVisualTime =
+                                visualCurrentTime - currentBPM->m_timestamp;
+                            double stepCount =
+                                relativeVisualTime / stepDuration;
+
+                            // 即使在 Snap 模式下，也应支持滚轮幅度 (Magnitude)
+                            double jump = std::max(
+                                1.0, static_cast<double>(std::abs(wheel)));
+
+                            double targetVisualTime = visualCurrentTime;
                             if ( wheel > 0 ) {
                                 // 向上滚动 (时间减小)
-                                // 我们想要寻找上一个分拍线
-                                targetTime = currentBPM->m_timestamp +
-                                             std::floor(stepCount - 0.001) *
-                                                 stepDuration;
+                                targetVisualTime =
+                                    currentBPM->m_timestamp +
+                                    std::floor(stepCount - 0.001 -
+                                               (jump - 1.0)) *
+                                        stepDuration;
                             } else {
                                 // 向下滚动 (时间增大)
-                                // 我们想要寻找下一个分拍线
-                                targetTime =
-                                    currentBPM->m_timestamp +
-                                    std::ceil(stepCount + 0.001) * stepDuration;
+                                targetVisualTime = currentBPM->m_timestamp +
+                                                   std::ceil(stepCount + 0.001 +
+                                                             (jump - 1.0)) *
+                                                       stepDuration;
                             }
+
+                            // 最终 seek 的时间需扣除视觉偏移
+                            targetTime = targetVisualTime - visualOffset;
                         } else {
                             // 无 BPM 事件，回退到普通滚动
                             double step = 0.25;
-                            if ( arg.isShiftDown ) step *= 3.0;
+                            if ( arg.isShiftDown )
+                                step *=
+                                    m_lastConfig.settings.scrollSpeedMultiplier;
                             targetTime = m_currentTime -
                                          static_cast<double>(wheel) * step;
                         }
                     } else {
-                        // 普通滚动逻辑
+                        // 普通滚动逻辑 (使用配置中的加速倍率)
                         double step = 0.25;
-                        if ( arg.isShiftDown ) step *= 3.0;
+                        if ( arg.isShiftDown )
+                            step *= m_lastConfig.settings.scrollSpeedMultiplier;
                         targetTime =
                             m_currentTime - static_cast<double>(wheel) * step;
                     }
 
                     double totalTime =
                         Audio::AudioManager::instance().getTotalTime();
-                    m_currentTime = std::clamp(targetTime, 0.0, totalTime);
+                    m_currentTime      = std::clamp(targetTime, 0.0, totalTime);
+                    m_lastAudioPos     = 0.0;
+                    m_lastAudioSysTime = 0.0;
                     m_syncClock.reset(m_currentTime);
                     Audio::AudioManager::instance().seek(m_currentTime);
                     syncHitIndex();

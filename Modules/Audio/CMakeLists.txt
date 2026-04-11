@@ -9,6 +9,7 @@ target_link_libraries(Audio
 	PUBLIC
 		ICE::IonCachyEngine
 		Log
+		Event
 		3rd_rubberband
 )
 if(WIN32)

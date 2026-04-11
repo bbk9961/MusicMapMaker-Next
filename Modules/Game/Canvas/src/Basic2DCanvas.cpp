@@ -1,5 +1,6 @@
 #include "canvas/Basic2DCanvas.h"
 #include "common/LogicCommands.h"
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "event/canvas/interactive/ResizeEvent.h"
 #include "event/core/EventBus.h"
@@ -117,81 +118,98 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
                 m_cameraId, localMousePos.x, localMousePos.y, isHovered }));
 
         // --- 交互：显示精确时间戳工具提示 ---
-        if ( isHovered && m_currentSnapshot->isHoveringCanvas ) {
-            bool isEditTool =
-                (m_currentSnapshot->currentTool != Logic::EditTool::Move &&
-                 m_currentSnapshot->currentTool != Logic::EditTool::Marquee);
+        if ( isHovered && m_currentSnapshot->isHoveringCanvas &&
+             !m_currentSnapshot->isPlaying ) {
+            auto& visual = Config::AppConfig::instance().getVisualConfig();
+            auto& layout = visual.trackLayout;
 
-            if ( m_currentSnapshot->isSnapped || isEditTool ||
-                 m_currentSnapshot->hoveredNoteNumerator > 0 ) {
-                ImGui::SetNextWindowPos(
-                    ImVec2(mousePos.x + 15, mousePos.y + 15));
-                ImGui::SetNextWindowBgAlpha(0.7f);
-                ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
-                                    ImVec2(12, 12));
-                ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(8, 6));
+            // 转换 localMousePos 到归一化比例 (0.0~1.0)
+            float normX = localMousePos.x / m_targetWidth;
+            float normY = localMousePos.y / m_targetHeight;
 
-                ImGui::BeginTooltip();
+            // 只有当鼠标在视觉配置定义的轨道布局范围内时才显示 Tooltip
+            bool isInTrackLayout =
+                (normX >= layout.left && normX <= layout.right &&
+                 normY >= layout.top && normY <= layout.bottom);
 
-                if ( m_currentSnapshot->hoveredNoteNumerator > 0 ) {
-                    ImGui::TextColored(
-                        ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
-                        "%s: %d/%d",
-                        TR("ui.canvas.note_fraction").data(),
-                        m_currentSnapshot->hoveredNoteNumerator,
-                        m_currentSnapshot->hoveredNoteDenominator);
+            if ( isInTrackLayout ) {
+                bool isEditTool =
+                    (m_currentSnapshot->currentTool != Logic::EditTool::Move &&
+                     m_currentSnapshot->currentTool !=
+                         Logic::EditTool::Marquee);
+
+                if ( m_currentSnapshot->isSnapped || isEditTool ||
+                     m_currentSnapshot->hoveredNoteNumerator > 0 ) {
+                    ImGui::SetNextWindowPos(
+                        ImVec2(mousePos.x + 15, mousePos.y + 15));
+                    ImGui::SetNextWindowBgAlpha(0.7f);
+                    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
+                                        ImVec2(12, 12));
+                    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing,
+                                        ImVec2(8, 6));
+
+                    ImGui::BeginTooltip();
+
+                    if ( m_currentSnapshot->hoveredNoteNumerator > 0 ) {
+                        ImGui::TextColored(
+                            ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
+                            "%s: %d/%d",
+                            TR("ui.canvas.note_fraction").data(),
+                            m_currentSnapshot->hoveredNoteNumerator,
+                            m_currentSnapshot->hoveredNoteDenominator);
+                        ImGui::Spacing();
+                        ImGui::Separator();
+                        ImGui::Spacing();
+                    }
+
+                    if ( m_currentSnapshot->isSnapped ) {
+                        ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f),
+                                           "%s: %.3f s",
+                                           TR("ui.canvas.snap").data(),
+                                           m_currentSnapshot->snappedTime);
+
+                        if ( m_currentSnapshot->snappedNumerator == 1 &&
+                             m_currentSnapshot->snappedDenominator == 1 ) {
+                            ImGui::TextColored(
+                                ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
+                                "%s (1/1)",
+                                TR("ui.canvas.beat_fraction").data());
+                        } else {
+                            ImGui::TextColored(
+                                ImVec4(0.8f, 0.9f, 1.0f, 1.0f),
+                                "%s (%d/%d)",
+                                TR("ui.canvas.beat_fraction").data(),
+                                m_currentSnapshot->snappedNumerator,
+                                m_currentSnapshot->snappedDenominator);
+                        }
+                    } else {
+                        ImGui::Text("%s: %.3f s",
+                                    TR("ui.canvas.time").data(),
+                                    m_currentSnapshot->hoveredTime);
+                    }
+
+                    if ( m_currentSnapshot->hoveredBeatIndex > 0 ) {
+                        ImGui::Text("%s: %d",
+                                    TR("ui.canvas.beat_index").data(),
+                                    m_currentSnapshot->hoveredBeatIndex);
+                    }
+
+                    ImGui::Text("%s: %d",
+                                TR("ui.canvas.track").data(),
+                                m_currentSnapshot->hoveredTrack + 1);
+
                     ImGui::Spacing();
                     ImGui::Separator();
                     ImGui::Spacing();
+
+                    ImGui::TextColored(ImVec4(0.5f, 0.8f, 0.5f, 1.0f),
+                                       "%s: %d",
+                                       TR("ui.canvas.beat_divisor").data(),
+                                       m_currentSnapshot->currentBeatDivisor);
+
+                    ImGui::EndTooltip();
+                    ImGui::PopStyleVar(2);
                 }
-
-                if ( m_currentSnapshot->isSnapped ) {
-                    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f),
-                                       "%s: %.3f s",
-                                       TR("ui.canvas.snap").data(),
-                                       m_currentSnapshot->snappedTime);
-
-                    if ( m_currentSnapshot->snappedNumerator == 1 &&
-                         m_currentSnapshot->snappedDenominator == 1 ) {
-                        ImGui::TextColored(
-                            ImVec4(1.0f, 1.0f, 1.0f, 1.0f),
-                            "%s (1/1)",
-                            TR("ui.canvas.beat_fraction").data());
-                    } else {
-                        ImGui::TextColored(
-                            ImVec4(0.8f, 0.9f, 1.0f, 1.0f),
-                            "%s (%d/%d)",
-                            TR("ui.canvas.beat_fraction").data(),
-                            m_currentSnapshot->snappedNumerator,
-                            m_currentSnapshot->snappedDenominator);
-                    }
-                } else {
-                    ImGui::Text("%s: %.3f s",
-                                TR("ui.canvas.time").data(),
-                                m_currentSnapshot->hoveredTime);
-                }
-
-                if ( m_currentSnapshot->hoveredBeatIndex > 0 ) {
-                    ImGui::Text("%s: %d",
-                                TR("ui.canvas.beat_index").data(),
-                                m_currentSnapshot->hoveredBeatIndex);
-                }
-
-                ImGui::Text("%s: %d",
-                            TR("ui.canvas.track").data(),
-                            m_currentSnapshot->hoveredTrack + 1);
-
-                ImGui::Spacing();
-                ImGui::Separator();
-                ImGui::Spacing();
-
-                ImGui::TextColored(ImVec4(0.5f, 0.8f, 0.5f, 1.0f),
-                                   "%s: %d",
-                                   TR("ui.canvas.beat_divisor").data(),
-                                   m_currentSnapshot->currentBeatDivisor);
-
-                ImGui::EndTooltip();
-                ImGui::PopStyleVar(2);
             }
         }
 
@@ -259,7 +277,9 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
                     Logic::EditorEngine::instance().getEditorConfig();
                 int   direction     = editorCfg.settings.reverseScroll ? -1 : 1;
                 float adjustedWheel = wheel * direction;
-                float step          = isShiftPressed ? 0.3f : 0.1f;
+                float step          = 0.1f;
+                if ( isShiftPressed )
+                    step *= editorCfg.settings.scrollSpeedMultiplier;
                 editorCfg.visual.timelineZoom += adjustedWheel * step;
                 editorCfg.visual.timelineZoom =
                     std::clamp(editorCfg.visual.timelineZoom, 0.1f, 10.0f);
@@ -312,6 +332,10 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
                         }
                         editorCfg.settings.beatDivisor = current;
                     } else {
+                        // 正常模式下，如果按住 Ctrl 等（其实这里 logic 只处理
+                        // Alt）， 如果有加速需求逻辑（虽然此处 user 没提 Alt
+                        // 模式也加速，但为了统一倍率感） 暂时保持原样，仅在
+                        // Scroll 指令中应用倍率
                         editorCfg.settings.beatDivisor += steps;
                     }
                     editorCfg.settings.beatDivisor =
@@ -370,6 +394,7 @@ void Basic2DCanvas::onRecordDrawCmds(vk::CommandBuffer& cmdBuf,
     }
 
     vk::DescriptorSet lastBoundTexture = VK_NULL_HANDLE;
+    vk::Rect2D        lastScissor;
 
     for ( const auto& cmd : m_currentSnapshot->cmds ) {
         vk::DescriptorSet actualTexture = cmd.texture;
@@ -401,6 +426,11 @@ void Basic2DCanvas::onRecordDrawCmds(vk::CommandBuffer& cmdBuf,
             lastBoundTexture = actualTexture;
         }
 
+        if ( cmd.scissor != lastScissor ) {
+            cmdBuf.setScissor(0, 1, &cmd.scissor);
+            lastScissor = cmd.scissor;
+        }
+
         cmdBuf.drawIndexed(
             cmd.indexCount, 1, cmd.indexOffset, cmd.vertexOffset, 0);
     }
@@ -419,6 +449,7 @@ void Basic2DCanvas::onRecordGlowCmds(vk::CommandBuffer& cmdBuf,
     }
 
     vk::DescriptorSet lastBoundTexture = VK_NULL_HANDLE;
+    vk::Rect2D        lastScissor;
 
     for ( const auto& cmd : m_currentSnapshot->glowCmds ) {
         vk::DescriptorSet actualTexture = cmd.texture;
@@ -448,6 +479,11 @@ void Basic2DCanvas::onRecordGlowCmds(vk::CommandBuffer& cmdBuf,
             lastBoundTexture = actualTexture;
         }
 
+        if ( cmd.scissor != lastScissor ) {
+            cmdBuf.setScissor(0, 1, &cmd.scissor);
+            lastScissor = cmd.scissor;
+        }
+
         cmdBuf.drawIndexed(
             cmd.indexCount, 1, cmd.indexOffset, cmd.vertexOffset, 0);
     }
@@ -466,9 +502,8 @@ std::vector<std::string> Basic2DCanvas::getShaderSources(
     const std::string& shader_name)
 {
     // 如果缓存里有，直接返回内存里的字符串拷贝
-    if ( m_shaderSourceCache.find(shader_name) != m_shaderSourceCache.end() ) {
+    if ( m_shaderSourceCache.count(shader_name) )
         return m_shaderSourceCache[shader_name];
-    }
 
     // 读取spv源码初始化shader
     Config::SkinData::CanvasConfig canvas_config =

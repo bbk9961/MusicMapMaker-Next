@@ -92,6 +92,7 @@ return {
 	["ui.settings.editor.behavior"] = "Basic Behavior",
 	["ui.settings.editor.reverse_scroll"] = "Reverse Scroll Direction",
 	["ui.settings.editor.scroll_snap"] = "Enable Scroll Snap",
+	["ui.settings.editor.scroll_multiplier"] = "Shift Scroll Multiplier",
 	["ui.settings.editor.cursor_style"] = "Cursor Style",
 	["ui.settings.editor.cursor_software"] = "Software (With Trail)",
 	["ui.settings.editor.cursor_system"] = "System Native",

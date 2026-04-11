@@ -29,7 +29,11 @@ public:
     EditorEngine();
     ~EditorEngine();
 
-    // ... (保持禁用拷贝移动部分)
+    // 禁用拷贝与移动
+    EditorEngine(EditorEngine&&)                 = delete;
+    EditorEngine(const EditorEngine&)            = delete;
+    EditorEngine& operator=(EditorEngine&&)      = delete;
+    EditorEngine& operator=(const EditorEngine&) = delete;
 
     /**
      * @brief 启动逻辑线程

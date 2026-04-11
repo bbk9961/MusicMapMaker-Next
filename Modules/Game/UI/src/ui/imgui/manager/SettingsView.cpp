@@ -453,6 +453,13 @@ void SettingsView::drawEditorSettings()
         ImGui::Checkbox(TR_CACHE("ui.settings.editor.scroll_snap").data(),
                         &settings.scrollSnap);
 
+    changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.editor.scroll_multiplier").data(),
+        &settings.scrollSpeedMultiplier,
+        1.0f,
+        10.0f,
+        "%.1f");
+
     int beatDivisor = settings.beatDivisor;
     if ( ImGui::SliderInt(TR_CACHE("ui.settings.editor.beat_divisor").data(),
                           &beatDivisor,

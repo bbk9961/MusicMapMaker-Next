@@ -23,6 +23,7 @@
 #include "ui/imgui/manager/FileManagerView.h"
 #include "ui/imgui/manager/SearchView.h"
 #include "ui/imgui/manager/SettingsView.h"
+#include <chrono>
 #include <nfd.h>
 
 namespace MMM

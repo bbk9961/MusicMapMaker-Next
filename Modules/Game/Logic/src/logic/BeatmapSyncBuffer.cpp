@@ -5,43 +5,46 @@ namespace MMM::Logic
 
 BeatmapSyncBuffer::BeatmapSyncBuffer()
 {
-    // 初始化指针分配
-    m_working   = &m_buffers[0];
-    m_completed = &m_buffers[1];
-    m_reading   = &m_buffers[2];
+    // 初始化池：分配足够多的缓冲应对高速生产
+    for ( int i = 0; i < 10; ++i ) {
+        m_storage.push_back(std::make_unique<RenderSnapshot>());
+        m_freeQueue.enqueue(m_storage.back().get());
+    }
+
+    // 初始化一个安全的读取帧防止刚开始时 nullptr 崩溃
+    m_reading = new RenderSnapshot();
+    m_storage.push_back(std::unique_ptr<RenderSnapshot>(m_reading));
 }
 
 RenderSnapshot* BeatmapSyncBuffer::getWorkingSnapshot()
 {
+    // 如果没有空闲的缓冲，只能新建一个以保证1对1帧率不断裂
+    if ( !m_freeQueue.try_dequeue(m_working) ) {
+        m_working = new RenderSnapshot();
+        m_storage.push_back(std::unique_ptr<RenderSnapshot>(m_working));
+    }
     return m_working;
 }
 
 void BeatmapSyncBuffer::pushWorkingSnapshot()
 {
-    // 将写完的 working 指针与 completed 指针交换
-    // std::memory_order_acq_rel 确保写操作在此交换前完成
-    m_working = m_completed.exchange(m_working, std::memory_order_acq_rel);
-    // 标记有新数据
-    m_hasNew.store(true, std::memory_order_release);
-    // 交换回来后，m_working 就指向了原本作为 completed
-    // (可能是很早之前写好的或者是刚被UI退回来的) 缓冲区
-    // 可以直接进行下一次清空和写入
+    if ( m_working ) {
+        m_readyQueue.enqueue(m_working);
+        m_working = nullptr;
+    }
 }
 
 RenderSnapshot* BeatmapSyncBuffer::pullLatestSnapshot()
 {
-    // 只有当存在新数据时，才进行缓冲区交换
-    if ( m_hasNew.exchange(false, std::memory_order_acquire) ) {
-        // 把当前 UI 用完的 reading 缓冲区交给 completed，换回最新的 completed
-        RenderSnapshot* latest =
-            m_completed.exchange(m_reading, std::memory_order_acq_rel);
-
-        if ( latest != m_reading ) {
-            m_reading = latest;
+    RenderSnapshot* latest = nullptr;
+    if ( m_readyQueue.try_dequeue(latest) ) {
+        // 将之前 UI 消费完的缓冲归还到 free 队列
+        if ( m_reading ) {
+            m_freeQueue.enqueue(m_reading);
         }
+        m_reading = latest;
     }
-
-    // 始终返回 m_reading (哪怕没有新数据，老的 m_reading 里的内容依然可用)
+    // 如果 readyQueue 为空，继续复用上一帧的数据 (应对 Logic 降速掉帧情况)
     return m_reading;
 }
 

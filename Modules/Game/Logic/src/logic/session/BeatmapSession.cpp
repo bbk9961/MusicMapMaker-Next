@@ -10,6 +10,7 @@
 #include "logic/ecs/system/NoteTransformSystem.h"
 #include "logic/ecs/system/ScrollCache.h"
 #include "mmm/beatmap/BeatMap.h"
+#include <chrono>
 #include <numeric>
 
 // 独立函数，用于 entt 信号回调，标记 ScrollCache 为脏状态
@@ -33,6 +34,29 @@ BeatmapSession::BeatmapSession()
         .connect<&markScrollCacheDirty>();
     m_timelineRegistry.on_destroy<TimelineComponent>()
         .connect<&markScrollCacheDirty>();
+
+    // 订阅音频事件
+    m_audioFinishedToken =
+        MMM::Event::EventBus::instance()
+            .subscribe<MMM::Event::AudioFinishedEvent>(
+                [this](const MMM::Event::AudioFinishedEvent& e) {
+                    if ( !e.isLooping ) {
+                        m_isPlaying = false;
+                        // 确保 AudioManager 状态同步
+                        Audio::AudioManager::instance().pause();
+                    }
+                });
+
+    m_audioPositionToken =
+        MMM::Event::EventBus::instance()
+            .subscribe<MMM::Event::AudioPositionEvent>(
+                [this](const MMM::Event::AudioPositionEvent& e) {
+                    if ( m_isPlaying ) {
+                        // 仅缓存位置和系统时间戳
+                        m_lastAudioPos     = e.positionSeconds;
+                        m_lastAudioSysTime = e.systemTimeSeconds;
+                    }
+                });
 }
 
 void BeatmapSession::pushCommand(LogicCommand&& cmd)
@@ -60,14 +84,26 @@ void BeatmapSession::update(double dt, const Config::EditorConfig& config)
         // 2. 周期性：通过同步计时器修正可能的累积偏移
         m_syncTimer += dt;
         if ( m_syncTimer >= config.settings.syncConfig.syncInterval ) {
-            double audioTime = Audio::AudioManager::instance().getCurrentTime();
+            // 使用事件回调缓存的最新硬件位置进行推演，消除事件传递延迟抖动
+            double currentSysTime =
+                std::chrono::duration<double>(
+                    std::chrono::steady_clock::now().time_since_epoch())
+                    .count();
+            double audioTime =
+                (m_lastAudioPos > 0.0)
+                    ? (m_lastAudioPos +
+                       (currentSysTime - m_lastAudioSysTime) * speed)
+                    : Audio::AudioManager::instance().getCurrentTime();
+
             // 修正视觉时间偏移 (根据配置的同步模式: Integral 或 WaterTank)
             m_syncClock.sync(audioTime, config.settings.syncConfig);
+
             // 将逻辑时间对齐至硬件时间，防止长期累积误差
             m_currentTime = audioTime;
             m_syncTimer   = 0.0;
         }
 
+        // 3. 计算最终视觉时间 (包含配置的视觉偏移)
         m_visualTime = m_syncClock.getVisualTime() + config.visual.visualOffset;
 
         // --- 打击音效与特效触发逻辑 ---

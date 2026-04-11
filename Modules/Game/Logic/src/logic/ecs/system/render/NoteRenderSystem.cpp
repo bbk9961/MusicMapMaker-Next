@@ -31,6 +31,7 @@ void NoteRenderSystem::generateSnapshot(
     float   renderScaleY = 1.0f;
 
     if ( cameraId == "Timeline" ) {
+        batcher.setScissor(0, 0, viewportWidth, viewportHeight);
         NoteRenderSystem::generateTimelineSnapshot(snapshot,
                                                    batcher,
                                                    currentTime,
@@ -40,6 +41,12 @@ void NoteRenderSystem::generateSnapshot(
                                                    config,
                                                    cache);
     } else if ( cameraId == "Preview" ) {
+        float lx = config.visual.previewConfig.margin.left;
+        float rx = viewportWidth - config.visual.previewConfig.margin.right;
+        float ty = config.visual.previewConfig.margin.top;
+        float by = viewportHeight - config.visual.previewConfig.margin.bottom;
+        batcher.setScissor(lx, ty, rx - lx, by - ty);
+
         NoteRenderSystem::generatePreviewSnapshot(snapshot,
                                                   batcher,
                                                   viewportWidth,
@@ -56,6 +63,9 @@ void NoteRenderSystem::generateSnapshot(
                                                   singleTrackW,
                                                   renderScaleY);
     } else {
+        // 主画布背景不裁剪
+        batcher.setScissor(0, 0, viewportWidth, viewportHeight);
+
         NoteRenderSystem::generateMainCanvasSnapshot(registry,
                                                      timelineRegistry,
                                                      snapshot,
@@ -285,6 +295,13 @@ void NoteRenderSystem::generateMainCanvasSnapshot(
 {
     BackgroundRenderSystem::render(
         batcher, viewportWidth, viewportHeight, config, snapshot);
+
+    // 设置轨道区域裁剪
+    float lx = viewportWidth * config.visual.trackLayout.left;
+    float rx = viewportWidth * config.visual.trackLayout.right;
+    float ty = viewportHeight * config.visual.trackLayout.top;
+    float by = viewportHeight * config.visual.trackLayout.bottom;
+    batcher.setScissor(lx, ty, rx - lx, by - ty);
 
     if ( !snapshot->hasBeatmap ) {
         batcher.setTexture(TextureID::Logo);

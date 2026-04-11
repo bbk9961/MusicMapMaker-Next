@@ -1,4 +1,5 @@
 #include "canvas/TimelineCanvas.h"
+#include "config/AppConfig.h"
 #include "event/core/EventBus.h"
 #include "event/logic/LogicCommandEvent.h"
 #include "graphic/imguivk/VKShader.h"
@@ -73,13 +74,24 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
             if ( texID != VK_NULL_HANDLE ) {
                 ImGui::Image((ImTextureID)(VkDescriptorSet)texID, size);
 
+                bool  isHovered = ImGui::IsItemHovered();
+                float wheel     = ImGui::GetIO().MouseWheel;
+                if ( isHovered && std::abs(wheel) > 0.01f ) {
+                    Event::EventBus::instance().publish(
+                        Event::LogicCommandEvent(Logic::CmdScroll{
+                            m_name, -wheel, ImGui::GetIO().KeyShift }));
+                }
+
                 // 在 ImGui Image 之上绘制交互层
                 ImVec2 canvasPos = ImGui::GetItemRectMin();
                 ImVec2 mousePos  = ImGui::GetMousePos();
                 auto*  drawList  = ImGui::GetWindowDrawList();
                 float  iconSize  = 20.0f;
                 float  padding   = 5.0f;
-                float  proximity = 5.0f;  // 5像素检测范围
+
+                auto& visual = Config::AppConfig::instance().getVisualConfig();
+                float proximity =
+                    visual.snapThreshold;  // 使用视觉设置中的磁吸阈值
 
                 ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
                 ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
@@ -227,18 +239,34 @@ void TimelineCanvas::onRecordDrawCmds(vk::CommandBuffer& cmdBuf,
                                       vk::PipelineLayout pipelineLayout,
                                       vk::DescriptorSet  defaultDescriptor)
 {
-    if ( !m_currentSnapshot || m_currentSnapshot->indices.empty() ) return;
+    if ( !m_currentSnapshot ) return;
 
-    cmdBuf.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
-                              pipelineLayout,
-                              0,
-                              1,
-                              &defaultDescriptor,
-                              0,
-                              nullptr);
+    vk::DescriptorSet lastBound = VK_NULL_HANDLE;
+    vk::Rect2D        lastScissor;
 
-    cmdBuf.drawIndexed(
-        static_cast<uint32_t>(m_currentSnapshot->indices.size()), 1, 0, 0, 0);
+    for ( const auto& cmd : m_currentSnapshot->cmds ) {
+        // Timeline 目前主要用纯色，使用 defaultDescriptor
+        vk::DescriptorSet tex = defaultDescriptor;
+
+        if ( tex != lastBound ) {
+            cmdBuf.bindDescriptorSets(vk::PipelineBindPoint::eGraphics,
+                                      pipelineLayout,
+                                      0,
+                                      1,
+                                      &tex,
+                                      0,
+                                      nullptr);
+            lastBound = tex;
+        }
+
+        if ( cmd.scissor != lastScissor ) {
+            cmdBuf.setScissor(0, 1, &cmd.scissor);
+            lastScissor = cmd.scissor;
+        }
+
+        cmdBuf.drawIndexed(
+            cmd.indexCount, 1, cmd.indexOffset, cmd.vertexOffset, 0);
+    }
 }
 
 }  // namespace MMM::Canvas

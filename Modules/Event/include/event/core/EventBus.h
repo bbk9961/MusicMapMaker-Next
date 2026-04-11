@@ -147,7 +147,7 @@ private:
         m_inheritanceCache[index] = std::move(hierarchy);
     }
 
-    template<typename DerivedType, typename Tuple, size_t Index = 0>
+    template<typename EventType, typename Tuple, size_t Index = 0>
     void collect_parents(std::vector<std::type_index>& hierarchy)
     {
         if constexpr ( Index < std::tuple_size_v<Tuple> ) {
@@ -164,9 +164,53 @@ private:
             }
 
             // 处理 Tuple 中的下一个父类
-            collect_parents<DerivedType, Tuple, Index + 1>(hierarchy);
+            collect_parents<EventType, Tuple, Index + 1>(hierarchy);
         }
     }
+};
+
+/**
+ * @brief RAII 风格的订阅令牌，超出作用域自动取消订阅
+ */
+template<typename EventType> class ScopedSubscription
+{
+public:
+    ScopedSubscription() = default;
+    ScopedSubscription(SubscriptionID id) : m_id(id) {}
+    ~ScopedSubscription()
+    {
+        if ( m_id != 0 ) {
+            EventBus::instance().unsubscribe<EventType>(m_id);
+        }
+    }
+
+    // 禁用拷贝，允许移动
+    ScopedSubscription(const ScopedSubscription&)            = delete;
+    ScopedSubscription& operator=(const ScopedSubscription&) = delete;
+    ScopedSubscription(ScopedSubscription&& other) noexcept : m_id(other.m_id)
+    {
+        other.m_id = 0;
+    }
+    ScopedSubscription& operator=(ScopedSubscription&& other) noexcept
+    {
+        if ( this != &other ) {
+            if ( m_id != 0 ) EventBus::instance().unsubscribe<EventType>(m_id);
+            m_id       = other.m_id;
+            other.m_id = 0;
+        }
+        return *this;
+    }
+
+    void reset()
+    {
+        if ( m_id != 0 ) {
+            EventBus::instance().unsubscribe<EventType>(m_id);
+            m_id = 0;
+        }
+    }
+
+private:
+    SubscriptionID m_id{ 0 };
 };
 
 }  // namespace MMM::Event

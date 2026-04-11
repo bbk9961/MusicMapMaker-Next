@@ -235,6 +235,7 @@ void PreviewCanvas::onRecordDrawCmds(vk::CommandBuffer& cmdBuf,
     }
 
     vk::DescriptorSet lastBound = VK_NULL_HANDLE;
+    vk::Rect2D        lastScissor;
 
     for ( const auto& cmd : m_currentSnapshot->cmds ) {
         vk::DescriptorSet tex = m_atlasUVs.count(cmd.customTextureId)
@@ -251,6 +252,12 @@ void PreviewCanvas::onRecordDrawCmds(vk::CommandBuffer& cmdBuf,
                                       nullptr);
             lastBound = tex;
         }
+
+        if ( cmd.scissor != lastScissor ) {
+            cmdBuf.setScissor(0, 1, &cmd.scissor);
+            lastScissor = cmd.scissor;
+        }
+
         cmdBuf.drawIndexed(
             cmd.indexCount, 1, cmd.indexOffset, cmd.vertexOffset, 0);
     }

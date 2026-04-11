@@ -16,5 +16,6 @@ struct BrushDrawCmd {
         0
     };  // 自定义纹理ID，用于逻辑层与渲染层解耦的纹理映射
     std::string shaderId;  // 绑定的自定义 Shader 管线名称 (留作扩展)
+    vk::Rect2D  scissor;   // 裁剪视口 (物理像素)
 };
 }  // namespace MMM::UI

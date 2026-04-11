@@ -86,6 +86,7 @@ return {
 	["ui.settings.editor.behavior"] = "基础行为",
 	["ui.settings.editor.reverse_scroll"] = "反转鼠标滚轮方向",
 	["ui.settings.editor.scroll_snap"] = "鼠标滚动时启用磁吸",
+	["ui.settings.editor.scroll_multiplier"] = "Shift滚动加速倍率",
 	["ui.settings.editor.cursor_style"] = "光标样式",
 	["ui.settings.editor.cursor_software"] = "软件内置 (带拖尾)",
 	["ui.settings.editor.cursor_system"] = "系统原生",

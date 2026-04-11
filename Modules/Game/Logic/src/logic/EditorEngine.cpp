@@ -245,17 +245,26 @@ void EditorEngine::setEditorConfig(const Config::EditorConfig& config)
 void EditorEngine::loop()
 {
     auto lastTime = std::chrono::high_resolution_clock::now();
+    // 限制逻辑线程最高帧率约为 240Hz (4.16ms)
+    // 这能确保 Logic 线程拥有极高的平滑度且不会100%占用CPU核心引发调度抖动
+    const double targetDt = 1.0 / 240.0;
 
-    // 独立线程死循环，不限制帧率
     while ( m_running ) {
         auto currentTime = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> dt = currentTime - lastTime;
-        lastTime                         = currentTime;
+        std::chrono::duration<double> passed = currentTime - lastTime;
+
+        // 如果距离上一帧还没有达到 1/240 秒，就主动让出 CPU
+        if ( passed.count() < targetDt ) {
+            std::this_thread::sleep_for(std::chrono::microseconds(100));
+            continue;
+        }
+
+        lastTime  = currentTime;
+        double dt = passed.count();
 
         if ( m_activeSession ) {
-            m_activeSession->update(dt.count(), m_editorConfig);
+            m_activeSession->update(dt, m_editorConfig);
         } else {
-            // 如果没有活动的 Session，稍微让出一下 CPU 避免空转占用过高
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
     }

@@ -238,7 +238,9 @@ void ToolbarView::update(UIManager* sourceManager)
             float wheel = ImGui::GetIO().MouseWheel;
             if ( std::abs(wheel) > 0.1f ) {
                 int delta = (wheel > 0) ? 1 : -1;
-                if ( ImGui::GetIO().KeyShift ) delta *= 4;
+                if ( ImGui::GetIO().KeyShift )
+                    delta *= static_cast<int>(
+                        editorCfg.settings.scrollSpeedMultiplier);
                 int newDivisor = std::clamp(currentDivisor + delta, 1, 64);
                 if ( newDivisor != currentDivisor ) {
                     auto newConfig                 = editorCfg;
