@@ -45,19 +45,40 @@ void PreviewCanvas::update(UI::UIManager* sourceManager)
         m_currentSnapshot = m_syncBuffer->pullLatestSnapshot();
     }
 
-    // --- 简单的点击跳转时间逻辑 ---
-    if ( m_currentSnapshot && ImGui::IsWindowHovered() &&
-         ImGui::IsMouseClicked(0) ) {
-        ImVec2 mousePos  = ImGui::GetMousePos();
-        ImVec2 windowPos = ImGui::GetWindowPos();
-        ImVec2 localPos  = { mousePos.x - windowPos.x,
+    // --- 交互：发送鼠标位置指令给逻辑线程 ---
+    ImVec2 mousePos      = ImGui::GetMousePos();
+    ImVec2 windowPos     = ImGui::GetCursorScreenPos();
+    ImVec2 localMousePos = { mousePos.x - windowPos.x,
                              mousePos.y - windowPos.y };
+    bool   isHovered     = ImGui::IsWindowHovered();
 
-        Logic::CmdUpdateDrag dragCmd{ m_cameraId, localPos.x, localPos.y };
-        Event::EventBus::instance().publish(
-            Event::LogicCommandEvent(std::move(dragCmd)));
-        Event::EventBus::instance().publish(
-            Event::LogicCommandEvent(Logic::CmdEndDrag{ m_cameraId }));
+    Event::EventBus::instance().publish(
+        Event::LogicCommandEvent(Logic::CmdSetMousePosition{
+            m_cameraId, localMousePos.x, localMousePos.y, isHovered }));
+
+    // --- 简单的点击跳转时间逻辑 ---
+    if ( m_currentSnapshot && isHovered ) {
+        if ( ImGui::IsMouseClicked(0) ) {
+            Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                Logic::CmdSeek{ m_currentSnapshot->hoveredTime }));
+        }
+
+        // --- 交互：滚轮调整预览区倍率 ---
+        float wheel = ImGui::GetIO().MouseWheel;
+        if ( std::abs(wheel) > 0.01f ) {
+            auto  editorCfg = Logic::EditorEngine::instance().getEditorConfig();
+            float step      = 0.5f;
+            if ( ImGui::GetIO().KeyShift ) step *= 2.0f;
+
+            // 增大 areaRatio
+            // 代表显示更多内容（缩小），减小代表显示更少内容（放大）
+            // 习惯上向上滚动为放大（减小倍率）
+            editorCfg.visual.previewConfig.areaRatio -= wheel * step;
+            editorCfg.visual.previewConfig.areaRatio = std::clamp(
+                editorCfg.visual.previewConfig.areaRatio, 1.0f, 50.0f);
+
+            Logic::EditorEngine::instance().setEditorConfig(editorCfg);
+        }
     }
 }
 

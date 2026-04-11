@@ -387,6 +387,13 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
                 }
                 snapshot->currentBeatDivisor = config.settings.beatDivisor;
 
+                // --- 预览区悬停状态 ---
+                if ( cameraId == "Preview" ) {
+                    snapshot->isPreviewHovered = true;
+                    snapshot->previewHoverY    = m_mouseY;
+                    snapshot->previewHoverTime = snapshot->hoveredTime;
+                }
+
                 // --- 智能拟合：计算当前悬停物件的最简分拍 ---
                 auto interView = m_noteRegistry.view<InteractionComponent>();
                 for ( auto entity : interView ) {

@@ -109,6 +109,10 @@ struct RenderSnapshot {
              0
     };  // 当前悬浮时间点所在的拍序 (从首个BPMTiming开始)
 
+    bool   isPreviewHovered{ false };
+    float  previewHoverY{ 0.0f };
+    double previewHoverTime{ 0.0f };
+
     // 是否已加载谱面
     bool hasBeatmap{ false };
 
@@ -139,6 +143,9 @@ struct RenderSnapshot {
         hoveredNoteNumerator   = 0;
         hoveredNoteDenominator = 1;
         hoveredBeatIndex       = 0;
+        isPreviewHovered       = false;
+        previewHoverY          = 0.0f;
+        previewHoverTime       = 0.0;
         hasBeatmap             = false;
     }
 };

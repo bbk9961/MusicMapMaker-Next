@@ -111,7 +111,7 @@ void NoteRenderSystem::generateSnapshot(
                     double      bpmTime    = currentBPM->m_timestamp;
                     double      bpmVal     = currentBPM->m_value;
                     if ( bpmVal <= 0.0 ) bpmVal = 120.0;
-                    if ( bpmVal > 10000.0 ) bpmVal = 10000.0; // 增加安全限制
+                    if ( bpmVal > 10000.0 ) bpmVal = 10000.0;  // 增加安全限制
 
                     double nextBpmTime =
                         (i + 1 < bpmEvents.size())
@@ -284,6 +284,43 @@ void NoteRenderSystem::generatePreviewSnapshot(
         trackAreaW,
         config.visual.judgelineWidth,
         { lineCol.r, lineCol.g, lineCol.b, lineCol.a });
+
+    // --- 绘制预览跳转包围盒 (淡黄色) ---
+    if ( snapshot->isPreviewHovered ) {
+        float previewHoverY = snapshot->previewHoverY;
+        float hoverBoxTop =
+            previewHoverY -
+            (config.visual.judgeline_pos - config.visual.trackLayout.top) *
+                mainViewportHeight * renderScaleY;
+
+        auto hoverBoxCol = skin.getColor("preview.hoverbox");
+        // 如果没配，手动给一个淡黄色
+        if ( hoverBoxCol.r == 1.0f && hoverBoxCol.g == 0.0f &&
+             hoverBoxCol.b == 1.0f ) {
+            hoverBoxCol = { 1.0f, 1.0f, 0.6f, 0.3f };
+        }
+
+        batcher.pushQuad(
+            leftX,
+            hoverBoxTop + boxDrawH,
+            trackAreaW,
+            boxDrawH,
+            { hoverBoxCol.r, hoverBoxCol.g, hoverBoxCol.b, hoverBoxCol.a });
+        batcher.pushStrokeRect(
+            leftX,
+            hoverBoxTop,
+            rightX,
+            hoverBoxTop + boxDrawH,
+            2.0f,
+            { hoverBoxCol.r, hoverBoxCol.g, hoverBoxCol.b, 0.8f });
+
+        // 在鼠标位置绘制一条临时的判定线预览
+        batcher.pushQuad(leftX,
+                         previewHoverY + config.visual.judgelineWidth * 0.5f,
+                         trackAreaW,
+                         config.visual.judgelineWidth,
+                         { hoverBoxCol.r, hoverBoxCol.g, hoverBoxCol.b, 0.6f });
+    }
 }
 
 void NoteRenderSystem::generateMainCanvasSnapshot(
