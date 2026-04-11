@@ -51,10 +51,14 @@ void PreviewCanvas::update(UI::UIManager* sourceManager)
     ImVec2 localMousePos = { mousePos.x - windowPos.x,
                              mousePos.y - windowPos.y };
     bool   isHovered     = ImGui::IsWindowHovered();
+    bool   isDragging    = ImGui::IsMouseDragging(0);
 
     Event::EventBus::instance().publish(
-        Event::LogicCommandEvent(Logic::CmdSetMousePosition{
-            m_cameraId, localMousePos.x, localMousePos.y, isHovered }));
+        Event::LogicCommandEvent(Logic::CmdSetMousePosition{ m_cameraId,
+                                                             localMousePos.x,
+                                                             localMousePos.y,
+                                                             isHovered,
+                                                             isDragging }));
 
     // --- 跳转时间逻辑 ---
     if ( m_currentSnapshot && isHovered ) {

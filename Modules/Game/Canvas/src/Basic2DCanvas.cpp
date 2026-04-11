@@ -112,10 +112,14 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
                                  mousePos.y - windowPos.y };
 
         // --- 交互：发送鼠标位置指令给逻辑线程 (用于工具提示等) ---
-        bool isHovered = ImGui::IsWindowHovered();
-        Event::EventBus::instance().publish(
-            Event::LogicCommandEvent(Logic::CmdSetMousePosition{
-                m_cameraId, localMousePos.x, localMousePos.y, isHovered }));
+        bool isHovered  = ImGui::IsWindowHovered();
+        bool isDragging = ImGui::IsMouseDragging(0);
+        Event::EventBus::instance().publish(Event::LogicCommandEvent(
+            Logic::CmdSetMousePosition{ m_cameraId,
+                                        localMousePos.x,
+                                        localMousePos.y,
+                                        isHovered,
+                                        isDragging }));
 
         // --- 交互：显示精确时间戳工具提示 ---
         if ( isHovered && m_currentSnapshot->isHoveringCanvas &&

@@ -225,13 +225,70 @@ void BeatmapSession::processCommands()
                     // 核心修复：只有当鼠标在当前视口内，或者当前视口正是之前记录的鼠标所在视口时，才更新状态。
                     // 这样可以防止多个视口（如主画布、预览区、时间轴）在同一帧内互相覆盖
                     // hover 状态导致闪烁。
-                    if ( arg.isHovering || m_mouseCameraId == arg.cameraId ) {
+                    if ( arg.isHovering || m_mouseCameraId == arg.cameraId ||
+                         m_isDragging ) {
                         m_mouseCameraId   = arg.cameraId;
                         m_mouseX          = arg.mouseX;
                         m_mouseY          = arg.mouseY;
                         m_isMouseInCanvas = arg.isHovering;
+                        m_isDragging =
+                            arg.isDragging;  // 直接更新为最新的拖拽状态
 
-                        if ( !arg.isHovering ) {
+                        // 在此处提前计算预览区悬停时间，供其他逻辑同步
+                        if ( (arg.cameraId == "Preview" && arg.isHovering) ||
+                             m_isDragging ) {
+                            auto* cache = m_timelineRegistry.ctx()
+                                              .find<System::ScrollCache>();
+                            if ( cache ) {
+                                auto itP = m_cameras.find("Preview");
+                                if ( itP != m_cameras.end() ) {
+                                    const auto& camera = itP->second;
+                                    float       judgmentLineY =
+                                        camera.viewportHeight *
+                                        m_lastConfig.visual.judgeline_pos;
+
+                                    double currentAbsY =
+                                        cache->getAbsY(m_visualTime);
+                                    double deltaY = (judgmentLineY - m_mouseY);
+
+                                    float mainHeight = 1000.0f;
+                                    auto  itMain     = m_cameras.find("Main");
+                                    if ( itMain != m_cameras.end() ) {
+                                        mainHeight =
+                                            itMain->second.viewportHeight;
+                                    }
+
+                                    float mainEffectiveH =
+                                        (m_lastConfig.visual.trackLayout
+                                             .bottom -
+                                         m_lastConfig.visual.trackLayout.top) *
+                                        mainHeight;
+
+                                    float previewDrawH =
+                                        camera.viewportHeight -
+                                        (m_lastConfig.visual.previewConfig
+                                             .margin.top +
+                                         m_lastConfig.visual.previewConfig
+                                             .margin.bottom);
+
+                                    float renderScaleY =
+                                        previewDrawH /
+                                        (mainEffectiveH *
+                                         m_lastConfig.visual.previewConfig
+                                             .areaRatio);
+
+                                    if ( std::abs(renderScaleY) > 0.0001f ) {
+                                        deltaY /= renderScaleY;
+                                    }
+
+                                    double targetAbsY = currentAbsY + deltaY;
+                                    m_previewHoverTime =
+                                        cache->getTime(targetAbsY);
+                                }
+                            }
+                        }
+
+                        if ( !arg.isHovering && !m_isDragging ) {
                             m_mouseCameraId =
                                 "";  // 离开视口后清除 ID，允许其他视口接管
                         }

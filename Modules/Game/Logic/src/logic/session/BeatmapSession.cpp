@@ -353,6 +353,13 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
         snapshot->isHoveringCanvas =
             m_isMouseInCanvas && (m_mouseCameraId == cameraId);
 
+        // 核心修复：预览区的拖拽状态广播
+        // 如果预览区正在拖拽，所有视口的渲染快照都需要知道预览区当前的悬停时间点。
+        snapshot->isPreviewDragging =
+            m_isDragging &&
+            (m_dragCameraId == "Preview" || m_mouseCameraId == "Preview");
+        snapshot->previewHoverTime = m_previewHoverTime;
+
         if ( snapshot->isHoveringCanvas ) {
             auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>();
             if ( cache ) {
@@ -418,15 +425,11 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
 
                 // --- 预览区悬停状态 ---
                 if ( cameraId == "Preview" ) {
-                    snapshot->isPreviewHovered = true;
-                    snapshot->previewHoverY    = m_mouseY;
+                    snapshot->isPreviewHovered  = true;
+                    snapshot->isPreviewDragging = m_isDragging;
+                    snapshot->previewHoverY     = m_mouseY;
 
-                    // 核心修复：预览区的跳转不应基于当前的视觉时间（m_visualTime）偏移，
-                    // 而是应该计算鼠标位置在预览范围内映射的“绝对逻辑时间”。
-                    // 这里的 snapshot->hoveredTime 已经在上面通过
-                    // cache->getTime 计算出来了， 但它是以 m_visualTime
-                    // 为基准加上偏移。
-                    // 实际上对于预览区，我们希望它是一个大尺度的映射。
+                    // 核心逻辑：拖动预览区时，主画布应该渲染拖拽处的内容
                     snapshot->previewHoverTime = snapshot->hoveredTime;
                 }
 
@@ -515,8 +518,9 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
             camera.viewportHeight * config.visual.judgeline_pos;
 
         // 获取主视口高度用于预览区比例对齐
-        float mainHeight = 1000.0f;
-        auto  itMain     = m_cameras.find("Main");
+        float mainHeight =
+            camera.viewportHeight;  // 默认为当前视口高度，防止除以 0 或比例错乱
+        auto itMain = m_cameras.find("Main");
         if ( itMain != m_cameras.end() ) {
             mainHeight = itMain->second.viewportHeight;
         }

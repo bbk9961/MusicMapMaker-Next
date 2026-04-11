@@ -113,6 +113,7 @@ struct RenderSnapshot {
     bool   isPreviewHovered{ false };
     float  previewHoverY{ 0.0f };
     double previewHoverTime{ 0.0f };
+    bool   isPreviewDragging{ false };
 
     // 是否已加载谱面
     bool hasBeatmap{ false };
@@ -148,6 +149,7 @@ struct RenderSnapshot {
         isPreviewHovered       = false;
         previewHoverY          = 0.0f;
         previewHoverTime       = 0.0;
+        isPreviewDragging      = false;
         hasBeatmap             = false;
     }
 };

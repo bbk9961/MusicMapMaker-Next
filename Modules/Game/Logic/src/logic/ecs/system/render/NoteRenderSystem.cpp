@@ -1,6 +1,8 @@
 #include "logic/ecs/system/NoteRenderSystem.h"
 #include "config/skin/SkinConfig.h"
 #include "imgui.h"
+#include "log/colorful-log.h"
+#include "logic/EditorEngine.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/BackgroundRenderSystem.h"
 #include "logic/ecs/system/ScrollCache.h"
@@ -18,6 +20,15 @@ void NoteRenderSystem::generateSnapshot(
     int32_t trackCount, const Config::EditorConfig& config,
     float mainViewportHeight)
 {
+    // 核心同步：如果预览区正在拖拽，主画布（Main）渲染的时间应该是预览区当前的悬停时间
+    // 但必须确保 currentTime
+    // 不断更新导致死循环问题，所以这里只做渲染偏移，不改写真实的逻辑时间
+    double renderTime = currentTime;
+    if ( cameraId == "Main" && snapshot->isPreviewDragging ) {
+        XINFO("主画布时间更新为:{}s", snapshot->previewHoverTime);
+        renderTime = snapshot->previewHoverTime;
+    }
+
     const auto* cache = timelineRegistry.ctx().find<ScrollCache>();
     if ( !cache ) return;
 
@@ -34,7 +45,7 @@ void NoteRenderSystem::generateSnapshot(
         batcher.setScissor(0, 0, viewportWidth, viewportHeight);
         NoteRenderSystem::generateTimelineSnapshot(snapshot,
                                                    batcher,
-                                                   currentTime,
+                                                   renderTime,
                                                    viewportWidth,
                                                    viewportHeight,
                                                    judgmentLineY,
@@ -70,7 +81,7 @@ void NoteRenderSystem::generateSnapshot(
                                                      timelineRegistry,
                                                      snapshot,
                                                      batcher,
-                                                     currentTime,
+                                                     renderTime,
                                                      viewportWidth,
                                                      viewportHeight,
                                                      judgmentLineY,
@@ -85,8 +96,10 @@ void NoteRenderSystem::generateSnapshot(
                                                      singleTrackW);
 
         // --- 交互：计算当前悬浮时间点所在的拍序 ---
-        if ( snapshot->isHoveringCanvas ) {
-            double hoveredTime = snapshot->hoveredTime;
+        if ( snapshot->isHoveringCanvas || snapshot->isPreviewDragging ) {
+            double hoveredTime = snapshot->isPreviewDragging
+                                     ? snapshot->previewHoverTime
+                                     : snapshot->hoveredTime;
             std::vector<const TimelineComponent*> bpmEvents;
             auto tlView = timelineRegistry.view<const TimelineComponent>();
             for ( auto entity : tlView ) {
@@ -142,51 +155,23 @@ void NoteRenderSystem::generateSnapshot(
         }
     }
 
-    // 统一绘制音符
-    if ( snapshot->hasBeatmap && cameraId != "Timeline" ) {
-        NoteRenderSystem::renderNotes(registry,
-                                      snapshot,
-                                      cameraId,
-                                      currentTime,
-                                      judgmentLineY,
-                                      trackCount,
-                                      config,
-                                      batcher,
-                                      leftX,
-                                      rightX,
-                                      topY,
-                                      bottomY,
-                                      singleTrackW,
-                                      renderScaleY);
-    }
-
-    /*
-    // --- 调试：绘制 Hitbox ---
-    NoteRenderSystem::debugRenderHitboxes(batcher, snapshot);
-    */
+    NoteRenderSystem::renderNotes(registry,
+                                  snapshot,
+                                  cameraId,
+                                  renderTime,
+                                  judgmentLineY,
+                                  trackCount,
+                                  config,
+                                  batcher,
+                                  leftX,
+                                  rightX,
+                                  topY,
+                                  bottomY,
+                                  singleTrackW,
+                                  renderScaleY);
 
     batcher.flush();
 }
-
-/*
-void NoteRenderSystem::debugRenderHitboxes(Batcher&        batcher,
-                                           RenderSnapshot* snapshot)
-{
-    batcher.setTexture(TextureID::None);
-    for ( const auto& box : snapshot->hitboxes ) {
-        glm::vec4 color;
-        switch ( box.part ) {
-        case HoverPart::Head: color = { 1.0f, 0.0f, 0.0f, 0.8f }; break;
-        case HoverPart::HoldBody: color = { 0.0f, 1.0f, 0.0f, 0.8f }; break;
-        case HoverPart::PolylineNode: color = { 0.0f, 0.0f, 1.0f, 0.8f }; break;
-        case HoverPart::FlickArrow: color = { 1.0f, 1.0f, 0.0f, 0.8f }; break;
-        default: color = { 1.0f, 1.0f, 1.0f, 0.8f }; break;
-        }
-        batcher.pushStrokeRect(
-            box.x, box.y, box.x + box.w, box.y + box.h, 2.0f, color);
-    }
-}
-*/
 
 void NoteRenderSystem::generateTimelineSnapshot(
     RenderSnapshot* snapshot, Batcher& batcher, double currentTime,
@@ -260,67 +245,88 @@ void NoteRenderSystem::generatePreviewSnapshot(
     auto  lineCol = skin.getColor("preview.judgeline");
 
     float mainJudgelineInPreviewY = judgmentLineY;
-    float boxDrawH                = mainEffectiveH * renderScaleY;
-    float boxTop =
-        mainJudgelineInPreviewY -
-        (config.visual.judgeline_pos - config.visual.trackLayout.top) *
-            mainViewportHeight * renderScaleY;
 
-    batcher.setTexture(TextureID::None);
-    batcher.pushQuad(leftX,
-                     boxTop + boxDrawH,
-                     trackAreaW,
-                     boxDrawH,
-                     { boxCol.r, boxCol.g, boxCol.b, boxCol.a });
-    batcher.pushStrokeRect(leftX,
-                           boxTop,
-                           rightX,
-                           boxTop + boxDrawH,
-                           2.0f,
-                           { boxCol.r, boxCol.g, boxCol.b, 1.0f });
-    batcher.pushQuad(
-        leftX,
-        mainJudgelineInPreviewY + config.visual.judgelineWidth * 0.5f,
-        trackAreaW,
-        config.visual.judgelineWidth,
-        { lineCol.r, lineCol.g, lineCol.b, lineCol.a });
+    // 核心修正：包围盒的高度应该代表主视窗在预览比例下的可见范围。
+    // 在 Batcher 中，pushQuad(x, y, w, h) 的 y 是底边坐标。
+    float boxDrawH = mainEffectiveH * renderScaleY;
 
-    // --- 绘制预览跳转包围盒 (淡黄色) ---
-    if ( snapshot->isPreviewHovered ) {
-        float previewHoverY = snapshot->previewHoverY;
-        float hoverBoxTop =
-            previewHoverY -
-            (config.visual.judgeline_pos - config.visual.trackLayout.top) *
+    // --- 区分状态进行绘制 ---
+    bool isDragging = snapshot->isPreviewDragging;
+
+    // 1. [展示中] 始终绘制当前主视窗位置的包围盒 (除非正在拖拽)
+    if ( !isDragging ) {
+        // boxBottom 计算：判定线位置 + (视觉底部 - 判定线位置) * 缩放
+        float boxBottom =
+            mainJudgelineInPreviewY +
+            (config.visual.trackLayout.bottom - config.visual.judgeline_pos) *
+                mainViewportHeight * renderScaleY;
+
+        batcher.setTexture(TextureID::None);
+        batcher.pushQuad(leftX,
+                         boxBottom,
+                         trackAreaW,
+                         boxDrawH,
+                         { boxCol.r, boxCol.g, boxCol.b, boxCol.a });
+        batcher.pushStrokeRect(leftX,
+                               boxBottom - boxDrawH,
+                               rightX,
+                               boxBottom,
+                               2.0f,
+                               { boxCol.r, boxCol.g, boxCol.b, 1.0f });
+    }
+
+    // 2. [悬浮中/拖拽中] 绘制参考包围盒
+    if ( snapshot->isPreviewHovered || isDragging ) {
+        float previewHoverY =
+            isDragging ? snapshot->previewHoverY
+                       : snapshot->previewHoverY;  // 实际上拖拽时也是由
+                                                   // mousePosition 驱动的
+        float hoverBoxBottom =
+            previewHoverY +
+            (config.visual.trackLayout.bottom - config.visual.judgeline_pos) *
                 mainViewportHeight * renderScaleY;
 
         auto hoverBoxCol = skin.getColor("preview.hoverbox");
-        // 如果没配，手动给一个淡黄色
         if ( hoverBoxCol.r == 1.0f && hoverBoxCol.g == 0.0f &&
              hoverBoxCol.b == 1.0f ) {
             hoverBoxCol = { 1.0f, 1.0f, 0.6f, 0.3f };
         }
 
+        // 如果正在拖动，使用更亮的颜色
+        if ( isDragging ) {
+            hoverBoxCol.a = std::min(1.0f, hoverBoxCol.a * 2.0f);
+        }
+
+        batcher.setTexture(TextureID::None);
         batcher.pushQuad(
             leftX,
-            hoverBoxTop + boxDrawH,
+            hoverBoxBottom,
             trackAreaW,
             boxDrawH,
             { hoverBoxCol.r, hoverBoxCol.g, hoverBoxCol.b, hoverBoxCol.a });
         batcher.pushStrokeRect(
             leftX,
-            hoverBoxTop,
+            hoverBoxBottom - boxDrawH,
             rightX,
-            hoverBoxTop + boxDrawH,
+            hoverBoxBottom,
             2.0f,
             { hoverBoxCol.r, hoverBoxCol.g, hoverBoxCol.b, 0.8f });
 
-        // 在鼠标位置绘制一条临时的判定线预览
+        // 在鼠标位置绘制临时的判定线预览
         batcher.pushQuad(leftX,
                          previewHoverY + config.visual.judgelineWidth * 0.5f,
                          trackAreaW,
                          config.visual.judgelineWidth,
                          { hoverBoxCol.r, hoverBoxCol.g, hoverBoxCol.b, 0.6f });
     }
+
+    batcher.setTexture(TextureID::None);
+    batcher.pushQuad(
+        leftX,
+        mainJudgelineInPreviewY + config.visual.judgelineWidth * 0.5f,
+        trackAreaW,
+        config.visual.judgelineWidth,
+        { lineCol.r, lineCol.g, lineCol.b, lineCol.a });
 }
 
 void NoteRenderSystem::generateMainCanvasSnapshot(

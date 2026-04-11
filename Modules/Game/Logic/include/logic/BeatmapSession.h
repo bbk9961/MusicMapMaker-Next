@@ -154,6 +154,8 @@ private:
     float       m_mouseX{ 0.0f };
     float       m_mouseY{ 0.0f };
     bool        m_isMouseInCanvas{ false };
+    bool        m_isDragging{ false };
+    double      m_previewHoverTime{ 0.0 };
 
     /// @brief 当前轨道数
     int32_t m_trackCount{ 12 };

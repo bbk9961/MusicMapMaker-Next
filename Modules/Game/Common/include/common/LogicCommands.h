@@ -94,6 +94,7 @@ struct CmdSetMousePosition {
     float       mouseX;
     float       mouseY;
     bool        isHovering;
+    bool        isDragging{ false };
 };
 
 /**
