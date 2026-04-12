@@ -42,7 +42,11 @@ public:
                         vk::Device& logicalDevice, vk::CommandPool& cmdPool,
                         vk::Queue& queue) override;
 
-private:
+    void renderMenuBar(UIManager* sourceManager, float menuBarHeight,
+                       float sidebarWidth, float toolbarWidth, float dpiScale);
+    void renderDockingSpace(UIManager* sourceManager, float menuBarHeight,
+                            float sidebarWidth, float toolbarWidth);
+
     ///@brief 是否需要重载
     bool m_needReload{ true };
 

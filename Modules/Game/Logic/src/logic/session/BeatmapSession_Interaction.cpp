@@ -5,6 +5,7 @@
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/components/TransformComponent.h"
 #include "logic/ecs/system/ScrollCache.h"
+#include "logic/session/NoteAction.h"
 #include "mmm/beatmap/BeatMap.h"
 #include <algorithm>
 
@@ -57,6 +58,11 @@ void BeatmapSession::handleCommand(const CmdStartDrag& cmd)
             m_noteRegistry.emplace<InteractionComponent>(cmd.entity);
         }
         m_noteRegistry.get<InteractionComponent>(cmd.entity).isDragging = true;
+        
+        // 备份初始状态用于撤销
+        if ( auto* note = m_noteRegistry.try_get<NoteComponent>(cmd.entity) ) {
+            m_dragInitialNote = *note;
+        }
     }
 }
 
@@ -126,9 +132,23 @@ void BeatmapSession::handleCommand(const CmdEndDrag& cmd)
             m_noteRegistry.get<InteractionComponent>(m_draggedEntity)
                 .isDragging = false;
         }
+
+        // 提交撤销操作
+        if ( m_dragInitialNote.has_value() ) {
+            auto* currentNote = m_noteRegistry.try_get<NoteComponent>(m_draggedEntity);
+            if ( currentNote ) {
+                auto action = std::make_unique<NoteAction>(
+                    NoteAction::Type::Update, m_draggedEntity, *m_dragInitialNote, *currentNote);
+                // 注意：pushAndExecute 会再次调用 execute，其中的 rebuildHitEvents 会执行。
+                // 但由于数据已经在 CmdUpdateDrag 中修改过了，Action::execute 只是覆盖一遍相同数据。
+                m_actionStack.pushAndExecute(std::move(action), *this);
+            }
+        }
+        
         rebuildHitEvents();
     }
-    m_draggedEntity = entt::null;
+    m_draggedEntity   = entt::null;
+    m_dragInitialNote = std::nullopt;
 }
 
 void BeatmapSession::handleCommand(const CmdSetMousePosition& cmd)

@@ -2,10 +2,14 @@ add_library(UI STATIC
     src/ui/UIManager.cpp
     src/ui/brush/Brush.cpp
     src/ui/imgui/MainDockSpaceUI.cpp
+    src/ui/imgui/MainDockSpaceUI_MenuBar.cpp
+    src/ui/imgui/MainDockSpaceUI_Docking.cpp
     src/ui/imgui/FloatingManagerUI.cpp
     src/ui/imgui/SideBarUI.cpp
     src/ui/imgui/menu/MainMenuView.cpp
     src/ui/imgui/manager/FileManagerView.cpp
+    src/ui/imgui/manager/FileManagerView_Hierarchy.cpp
+    src/ui/imgui/manager/FileManagerView_Interactions.cpp
     src/ui/imgui/manager/SearchView.cpp
     src/ui/imgui/manager/AudioManagerView.cpp
     src/ui/imgui/manager/BeatMapManagerView.cpp

@@ -30,6 +30,11 @@ public:
                   UIManager*     sourceManager) override;
 
 private:
+    void handleDragDrop(UIManager* sourceManager);
+    void renderEmptyProjectView(LayoutContext& layoutContext);
+    void renderActiveProjectView(LayoutContext& layoutContext,
+                                 UIManager*     sourceManager);
+
     void drawDirectoryRecursive(const std::filesystem::path& path,
                                 UIManager*                   sourceManager);
     void openFolderPicker();

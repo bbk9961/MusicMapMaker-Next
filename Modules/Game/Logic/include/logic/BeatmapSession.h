@@ -7,6 +7,7 @@
 #include "logic/SyncClock.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/HitFXSystem.h"
+#include "logic/session/EditorAction.h"
 #include "mmm/note/Note.h"
 #include "mmm/timing/Timing.h"
 #include <concurrentqueue.h>
@@ -56,6 +57,17 @@ public:
     EditTool getCurrentTool() const { return m_currentTool; }
 
     /**
+     * @brief 获取操作栈
+     */
+    EditorActionStack& getActionStack() { return m_actionStack; }
+
+    /**
+     * @brief 获取相关注册表 (用于 Action 执行)
+     */
+    entt::registry& getNoteRegistry() { return m_noteRegistry; }
+    entt::registry& getTimelineRegistry() { return m_timelineRegistry; }
+
+    /**
      * @brief 推送指令到无锁队列（由 UI 线程调用）
      */
     void pushCommand(LogicCommand&& cmd);
@@ -66,6 +78,12 @@ public:
      * @param config 当前编辑器配置
      */
     void update(double dt, const Config::EditorConfig& config);
+
+    /**
+     * @brief 暴露同步辅助方法给外部 Action
+     */
+    void syncHitIndex();
+    void rebuildHitEvents();
 
     struct SnapResult {
         bool   isSnapped{ false };
@@ -104,17 +122,6 @@ private:
      * @param config 当前编辑器配置
      */
     void updateECSAndRender(const Config::EditorConfig& config);
-    /**
-     * @brief 根据当前视觉时间同步打击事件索引
-     * 通常在 Seek 或开始播放时调用。
-     */
-    void syncHitIndex();
-
-    /**
-     * @brief 重新从 ECS 中收集音符信息并构建有序的打击事件列表
-     * 当音符被修改（如移动位置）后调用。
-     */
-    void rebuildHitEvents();
 
     // --- 指令处理器 (Command Handlers) ---
     void handleCommand(const CmdUpdateEditorConfig& cmd);
@@ -199,6 +206,8 @@ private:
 
     /// @brief 当前正在拖拽的实体
     entt::entity m_draggedEntity{ entt::null };
+    /// @brief 拖拽开始时的状态备份 (用于撤销)
+    std::optional<NoteComponent> m_dragInitialNote;
     /// @brief 拖拽发起时的摄像机 ID
     std::string m_dragCameraId;
 
@@ -219,6 +228,9 @@ private:
 
     Event::ScopedSubscription<Event::AudioFinishedEvent> m_audioFinishedToken;
     Event::ScopedSubscription<Event::AudioPositionEvent> m_audioPositionToken;
+
+    /// @brief 操作栈管理器
+    EditorActionStack m_actionStack;
 };
 
 }  // namespace MMM::Logic
