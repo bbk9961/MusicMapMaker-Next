@@ -68,6 +68,9 @@ private:
     // 渲染编辑器弹窗
     void renderEventEditorPopup();
 
+    // 渲染创建事件弹窗
+    void renderEventCreationPopup();
+
     std::string                               m_canvasName;
     bool                                      m_needReload{ true };
     std::shared_ptr<Logic::BeatmapSyncBuffer> m_syncBuffer;
@@ -79,6 +82,15 @@ private:
     double       m_editTime{ 0.0 };
     double       m_editValue{ 1.0 };
     std::string  m_editType; // "BPM" or "Scroll"
+
+    // 创建弹窗状态
+    bool   m_isCreatePopupOpen{ false };
+    double m_createTimeRaw{ 0.0 };
+    double m_createTimeSnapped{ 0.0 };
+    double m_createValue{ 120.0 };
+    int    m_createType{ 0 };     // 0: BPM, 1: Scroll
+    int    m_createPosType{ 0 };  // 0: Click, 1: Current
+    bool   m_isTimeSnapped{ false };
 
     // 缓存 Shader 源码
     std::unordered_map<std::string, std::vector<std::string>>

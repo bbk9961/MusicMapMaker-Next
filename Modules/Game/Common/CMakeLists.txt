@@ -6,4 +6,5 @@ target_include_directories(Common INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/3rdpty/sources/entt/src
     ${PROJECT_SOURCE_DIR}/Modules/Config/include
+    ${PROJECT_SOURCE_DIR}/Modules/MMM/include
 )

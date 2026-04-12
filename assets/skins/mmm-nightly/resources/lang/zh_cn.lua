@@ -192,4 +192,14 @@ return {
 	["ui.timeline.event_editor.cancel"] = "取消",
 	["ui.timeline.event_type.bpm"] = "BPM",
 	["ui.timeline.event_type.scroll"] = "流速",
+
+	-- 时间线事件创建器
+	["ui.timeline.event_creator.title"] = "创建时间点",
+	["ui.timeline.event_creator.pos_type"] = "创建时间位置",
+	["ui.timeline.event_creator.pos_click"] = "鼠标点击位置",
+	["ui.timeline.event_creator.pos_click_snapped"] = "鼠标点击位置 (已磁吸)",
+	["ui.timeline.event_creator.pos_current"] = "当前判定线位置",
+	["ui.timeline.event_creator.type"] = "时间点类型",
+	["ui.timeline.event_creator.value"] = "具体数值",
+	["ui.timeline.event_creator.create"] = "创建",
 }

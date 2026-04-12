@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/LogicCommands.h"
+#include "logic/ecs/system/ScrollCache.h"
 #include "graphic/imguivk/mesh/VKBasicVertex.h"
 #include "ui/brush/BrushDrawCmd.h"
 #include <atomic>
@@ -82,6 +83,7 @@ struct RenderSnapshot {
     std::vector<UI::BrushDrawCmd>               glowCmds;
     std::vector<Hitbox>                         hitboxes;
     std::vector<TimelineInteractiveElement>     timelineElements;
+    std::vector<System::ScrollSegment>          scrollSegments; // 全量 ScrollCache 拷贝，用于 UI 侧时间计算
 
     // 纹理 UV 映射表 (TextureID -> u,v,w,h)
     std::unordered_map<uint32_t, glm::vec4> uvMap;
@@ -131,6 +133,7 @@ struct RenderSnapshot {
         glowCmds.clear();
         hitboxes.clear();
         timelineElements.clear();
+        scrollSegments.clear();
         uvMap.clear();
         backgroundPath.clear();
         bgSize                 = glm::vec2(0.0f, 0.0f);

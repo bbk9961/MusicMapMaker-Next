@@ -90,6 +90,64 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
                             m_name, -wheel, ImGui::GetIO().KeyShift }));
                 }
 
+                if ( isHovered &&
+                     ImGui::IsMouseClicked(ImGuiMouseButton_Right) ) {
+                    auto& visual =
+                        Config::AppConfig::instance().getVisualConfig();
+                    float  judgmentLineY = size.y * visual.judgeline_pos;
+                    ImVec2 canvasPos     = ImGui::GetItemRectMin();
+                    ImVec2 mousePos      = ImGui::GetMousePos();
+                    float  localMouseY   = mousePos.y - canvasPos.y;
+
+                    const auto& segments = m_currentSnapshot->scrollSegments;
+                    if ( segments.empty() ) {
+                        float  zoom = visual.timelineZoom;
+                        double speed = 500.0 * zoom;
+                        m_createTimeRaw = (judgmentLineY - localMouseY) / speed + m_currentSnapshot->currentTime;
+                    } else {
+                        // 寻找 currentTime 对应的 AbsY
+                        auto it = std::upper_bound(segments.begin(), segments.end(), m_currentSnapshot->currentTime,
+                            [](double val, const Logic::System::ScrollSegment& seg) { return val < seg.time; });
+                        double currentAbsY = 0;
+                        if (it == segments.begin()) {
+                            currentAbsY = segments[0].absY + (m_currentSnapshot->currentTime - segments[0].time) * segments[0].speed;
+                        } else {
+                            auto prev = std::prev(it);
+                            currentAbsY = prev->absY + (m_currentSnapshot->currentTime - prev->time) * prev->speed;
+                        }
+
+                        double targetAbsY = currentAbsY + (judgmentLineY - localMouseY);
+
+                        // 寻找 targetAbsY 对应的 Time
+                        auto itTime = std::lower_bound(segments.begin(), segments.end(), targetAbsY,
+                            [](const Logic::System::ScrollSegment& seg, double val) { return seg.absY < val; });
+                        
+                        if (itTime == segments.begin()) {
+                            if (std::abs(segments[0].speed) < 1e-6) m_createTimeRaw = segments[0].time;
+                            else m_createTimeRaw = segments[0].time + (targetAbsY - segments[0].absY) / segments[0].speed;
+                        } else {
+                            auto prev = std::prev(itTime);
+                            if (std::abs(prev->speed) < 1e-6) m_createTimeRaw = prev->time;
+                            else m_createTimeRaw = prev->time + (targetAbsY - prev->absY) / prev->speed;
+                        }
+                    }
+
+                    // 磁吸逻辑
+                    m_isTimeSnapped    = false;
+                    m_createTimeSnapped = m_createTimeRaw;
+                    float minItemDist  = visual.snapThreshold;
+                    for ( const auto& el : m_currentSnapshot->timelineElements ) {
+                        if ( std::abs(el.y - localMouseY) < minItemDist ) {
+                            m_createTimeSnapped = el.time;
+                            m_isTimeSnapped     = true;
+                            minItemDist         = std::abs(el.y - localMouseY);
+                        }
+                    }
+
+                    m_isCreatePopupOpen = true;
+                    ImGui::OpenPopup("TimelineCreateEvent");
+                }
+
                 // 在 ImGui Image 之上绘制交互层
                 ImVec2 canvasPos = ImGui::GetItemRectMin();
                 ImVec2 mousePos  = ImGui::GetMousePos();
@@ -184,6 +242,7 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
                 ImGui::PopStyleVar();
 
                 renderEventEditorPopup();
+                renderEventCreationPopup();
             }
         }
     }
@@ -306,7 +365,7 @@ void TimelineCanvas::renderEventEditorPopup()
             (m_editType == "BPM") ? TR("ui.timeline.event_type.bpm").data()
                                   : TR("ui.timeline.event_type.scroll").data();
 
-        ImGui::Text(
+        ImGui::Text("%s",
             TR_FMT("ui.timeline.event_editor.title", typeTitle).c_str());
         ImGui::Separator();
         ImGui::Spacing();
@@ -360,6 +419,97 @@ void TimelineCanvas::renderEventEditorPopup()
                            ImVec2(80, 0)) ) {
             ImGui::CloseCurrentPopup();
             m_isPopupOpen = false;
+        }
+
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleVar();
+}
+
+void TimelineCanvas::renderEventCreationPopup()
+{
+    ImGui::SetNextWindowSize(ImVec2(350, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(15, 15));
+
+    if ( ImGui::BeginPopupModal("TimelineCreateEvent",
+                                &m_isCreatePopupOpen,
+                                ImGuiWindowFlags_NoResize |
+                                    ImGuiWindowFlags_AlwaysAutoResize) ) {
+        ImGui::TextUnformatted(TR("ui.timeline.event_creator.title").data());
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // 1. 位置选择
+        ImGui::TextUnformatted(TR("ui.timeline.event_creator.pos_type").data());
+        ImGui::RadioButton(
+            m_isTimeSnapped
+                ? TR("ui.timeline.event_creator.pos_click_snapped").data()
+                : TR("ui.timeline.event_creator.pos_click").data(),
+            &m_createPosType,
+            0);
+        ImGui::RadioButton(TR("ui.timeline.event_creator.pos_current").data(),
+                           &m_createPosType,
+                           1);
+
+        double targetTime = (m_createPosType == 0)
+                                ? m_createTimeSnapped
+                                : m_currentSnapshot->currentTime;
+        ImGui::Text("Time: %.3f s", targetTime);
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // 2. 类型选择
+        ImGui::TextUnformatted(TR("ui.timeline.event_creator.type").data());
+        if ( ImGui::RadioButton("BPM", &m_createType, 0) ) {
+            m_createValue = 120.0;
+        }
+        ImGui::SameLine();
+        if ( ImGui::RadioButton("Scroll", &m_createType, 1) ) {
+            m_createValue = 1.0;
+        }
+
+        // 3. 数值输入
+        ImGui::Spacing();
+        if ( m_createType == 0 ) {
+            ImGui::TextUnformatted(TR("ui.timeline.event_editor.bpm").data());
+            ImGui::InputDouble("##BPMValue", &m_createValue, 0.1, 1.0, "%.2f");
+        } else {
+            ImGui::TextUnformatted(
+                TR("ui.timeline.event_editor.scroll").data());
+            ImGui::InputDouble("##ScrollValue", &m_createValue, 0.01, 0.1, "%.3f");
+            ImGui::TextDisabled(
+                "%s", TR("ui.timeline.event_editor.scroll_hint").data());
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        if ( ImGui::Button(TR("ui.timeline.event_creator.create").data(),
+                           ImVec2(100, 0)) ) {
+            ::MMM::TimingEffect type = (m_createType == 0)
+                                           ? ::MMM::TimingEffect::BPM
+                                           : ::MMM::TimingEffect::SCROLL;
+            double finalValue = m_createValue;
+            if ( type == ::MMM::TimingEffect::SCROLL ) {
+                if ( m_createValue > 1e-6 ) {
+                    finalValue = -100.0 / m_createValue;
+                }
+            }
+
+            Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                Logic::CmdCreateTimelineEvent{ targetTime, type, finalValue }));
+            ImGui::CloseCurrentPopup();
+            m_isCreatePopupOpen = false;
+        }
+
+        ImGui::SameLine();
+        if ( ImGui::Button(TR("ui.timeline.event_editor.cancel").data(),
+                           ImVec2(100, 0)) ) {
+            ImGui::CloseCurrentPopup();
+            m_isCreatePopupOpen = false;
         }
 
         ImGui::EndPopup();

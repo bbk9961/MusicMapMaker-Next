@@ -192,4 +192,14 @@ return {
 	["ui.timeline.event_editor.cancel"] = "Cancel",
 	["ui.timeline.event_type.bpm"] = "BPM",
 	["ui.timeline.event_type.scroll"] = "Scroll",
+
+	-- Timeline Event Creator
+	["ui.timeline.event_creator.title"] = "Create Timeline Event",
+	["ui.timeline.event_creator.pos_type"] = "Creation Time Position",
+	["ui.timeline.event_creator.pos_click"] = "Mouse Click Position",
+	["ui.timeline.event_creator.pos_click_snapped"] = "Mouse Click Position (Snapped)",
+	["ui.timeline.event_creator.pos_current"] = "Current Judge Line Position",
+	["ui.timeline.event_creator.type"] = "Event Type",
+	["ui.timeline.event_creator.value"] = "Specific Value",
+	["ui.timeline.event_creator.create"] = "Create",
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "config/EditorConfig.h"
+#include "mmm/timing/Timing.h"
 #include <entt/entt.hpp>
 #include <memory>
 #include <string>
@@ -204,6 +205,15 @@ struct CmdDeleteTimelineEvent {
 };
 
 /**
+ * @brief 创建时间线事件指令
+ */
+struct CmdCreateTimelineEvent {
+    double              time;
+    ::MMM::TimingEffect type;
+    double              value;
+};
+
+/**
  * @brief 所有可能的逻辑指令变体
  */
 using LogicCommand =
@@ -213,6 +223,7 @@ using LogicCommand =
                  CmdSeek, CmdSetPlaybackSpeed, CmdChangeTool,
                  CmdSetMousePosition, CmdUndo, CmdRedo, CmdCopy, CmdPaste,
                  CmdCut, CmdSaveBeatmap, CmdPackBeatmap, CmdScroll,
-                 CmdUpdateTimelineEvent, CmdDeleteTimelineEvent>;
+                 CmdUpdateTimelineEvent, CmdDeleteTimelineEvent,
+                 CmdCreateTimelineEvent>;
 
 }  // namespace MMM::Logic

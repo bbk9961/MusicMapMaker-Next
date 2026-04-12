@@ -34,6 +34,9 @@ void NoteRenderSystem::generateSnapshot(
     // 将 ScrollCache 指针存入 context 供 renderPolyline 等后续使用
     registry.ctx().erase<const ScrollCache*>();
     registry.ctx().emplace<const ScrollCache*>(cache);
+    
+    // 拷贝缓存段供 UI 线程计算时间映射
+    snapshot->scrollSegments = cache->getSegments();
 
     Batcher batcher(snapshot);
     float   leftX = 0, rightX = 0, topY = 0, bottomY = 0, trackAreaW = 0,

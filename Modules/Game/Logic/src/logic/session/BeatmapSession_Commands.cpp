@@ -468,6 +468,13 @@ void BeatmapSession::processCommands()
                     if ( m_timelineRegistry.valid(arg.entity) ) {
                         m_timelineRegistry.destroy(arg.entity);
                     }
+                } else if constexpr ( std::is_same_v<T, CmdCreateTimelineEvent> ) {
+                    auto entity = m_timelineRegistry.create();
+                    m_timelineRegistry.emplace<TimelineComponent>(
+                        entity, arg.time, arg.type, arg.value);
+                    // 标记脏并重建由 registry patch 自动触发（如果有连接）
+                    // 显式触发一次同步
+                    m_timelineRegistry.patch<TimelineComponent>(entity);
                 }
             },
             cmd);
