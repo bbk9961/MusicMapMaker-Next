@@ -222,6 +222,7 @@ private:
 
     /// @brief 框选状态
     bool        m_isSelecting{ false };
+    bool        m_hasMarqueeSelection{ false };
     std::string m_selectionCameraId;
     double      m_selectionStartTime{ 0.0 };
     float       m_selectionStartTrack{ 0.0f };

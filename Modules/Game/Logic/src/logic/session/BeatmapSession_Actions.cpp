@@ -1,5 +1,6 @@
 #include "log/colorful-log.h"
 #include "logic/BeatmapSession.h"
+#include "logic/ecs/components/TransformComponent.h"
 #include "logic/session/NoteAction.h"
 #include "logic/session/TimelineAction.h"
 
@@ -131,6 +132,7 @@ void BatchNoteAction::execute(BeatmapSession& session)
         if ( entry.after.has_value() ) {
             if ( !reg.valid(entry.entity) ) entry.entity = reg.create();
             reg.emplace_or_replace<NoteComponent>(entry.entity, *entry.after);
+            reg.emplace_or_replace<TransformComponent>(entry.entity);
         } else if ( entry.before.has_value() ) {
             if ( reg.valid(entry.entity) ) reg.destroy(entry.entity);
         }
@@ -146,6 +148,7 @@ void BatchNoteAction::undo(BeatmapSession& session)
         if ( entry.before.has_value() ) {
             if ( !reg.valid(entry.entity) ) entry.entity = reg.create();
             reg.emplace_or_replace<NoteComponent>(entry.entity, *entry.before);
+            reg.emplace_or_replace<TransformComponent>(entry.entity);
         } else if ( entry.after.has_value() ) {
             if ( reg.valid(entry.entity) ) reg.destroy(entry.entity);
         }

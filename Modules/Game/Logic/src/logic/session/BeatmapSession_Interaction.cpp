@@ -24,7 +24,9 @@ void BeatmapSession::handleCommand(const CmdSetHoveredEntity& cmd)
 
 void BeatmapSession::handleCommand(const CmdSelectEntity& cmd)
 {
+    // 如果清空其他选中，则也清空当前可能的框选留存
     if ( cmd.clearOthers ) {
+        m_hasMarqueeSelection = false;
         auto view = m_noteRegistry.view<InteractionComponent>();
         for ( auto entity : view ) {
             m_noteRegistry.get<InteractionComponent>(entity).isSelected = false;
@@ -204,8 +206,9 @@ void BeatmapSession::handleCommand(const CmdChangeTool& cmd)
 
 void BeatmapSession::handleCommand(const CmdStartMarquee& cmd)
 {
-    m_isSelecting       = true;
-    m_selectionCameraId = cmd.cameraId;
+    m_isSelecting         = true;
+    m_hasMarqueeSelection = true;
+    m_selectionCameraId   = cmd.cameraId;
     auto* cache         = m_timelineRegistry.ctx().find<System::ScrollCache>();
     if ( cache ) {
         auto it = m_cameras.find(cmd.cameraId);

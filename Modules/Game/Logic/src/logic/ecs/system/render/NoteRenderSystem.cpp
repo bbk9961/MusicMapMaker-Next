@@ -217,6 +217,8 @@ void NoteRenderSystem::renderMarquee(Batcher& batcher, RenderSnapshot* snapshot,
     float w      = right - left;
     float h      = bottom - top;
 
+    if ( w < 1.0f || h < 1.0f ) return;
+
     auto& settings  = Config::AppConfig::instance().getEditorSettings();
     float borderW   = settings.marqueeThickness;
     float cornerR   = settings.marqueeRounding;

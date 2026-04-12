@@ -82,7 +82,7 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
 
         // --- 注入框选状态 ---
         snapshot->isSelecting =
-            m_isSelecting && (m_selectionCameraId == cameraId);
+            m_hasMarqueeSelection && (m_selectionCameraId == cameraId);
         snapshot->selectionStartTime  = m_selectionStartTime;
         snapshot->selectionStartTrack = m_selectionStartTrack;
         snapshot->selectionEndTime    = m_selectionEndTime;
