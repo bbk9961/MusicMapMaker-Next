@@ -540,28 +540,31 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
                                                    config,
                                                    finalMainHeight);
 
-        // 4. 生成打击特效
-        float leftX  = camera.viewportWidth * config.visual.trackLayout.left;
-        float rightX = camera.viewportWidth * config.visual.trackLayout.right;
-        float trackAreaW   = rightX - leftX;
-        float singleTrackW = trackAreaW / static_cast<float>(m_trackCount);
+        // 4. 生成打击特效 (仅在主画布和预览区显示)
+        if ( cameraId == "Basic2DCanvas" || cameraId == "Preview" ) {
+            float leftX = camera.viewportWidth * config.visual.trackLayout.left;
+            float rightX =
+                camera.viewportWidth * config.visual.trackLayout.right;
+            float trackAreaW   = rightX - leftX;
+            float singleTrackW = trackAreaW / static_cast<float>(m_trackCount);
 
-        // 针对预览区，布局参数略有不同
-        if ( cameraId == "Preview" ) {
-            leftX = config.visual.previewConfig.margin.left;
-            rightX =
-                camera.viewportWidth - config.visual.previewConfig.margin.right;
-            trackAreaW   = rightX - leftX;
-            singleTrackW = trackAreaW / static_cast<float>(m_trackCount);
+            // 针对预览区，布局参数略有不同
+            if ( cameraId == "Preview" ) {
+                leftX        = config.visual.previewConfig.margin.left;
+                rightX       = camera.viewportWidth -
+                               config.visual.previewConfig.margin.right;
+                trackAreaW   = rightX - leftX;
+                singleTrackW = trackAreaW / static_cast<float>(m_trackCount);
+            }
+
+            m_hitFXSystem.generateSnapshot(snapshot,
+                                           m_visualTime,
+                                           config,
+                                           m_trackCount,
+                                           judgmentLineY,
+                                           leftX,
+                                           singleTrackW);
         }
-
-        m_hitFXSystem.generateSnapshot(snapshot,
-                                       m_visualTime,
-                                       config,
-                                       m_trackCount,
-                                       judgmentLineY,
-                                       leftX,
-                                       singleTrackW);
 
         // 5. 提交专属快照
         syncBuffer->pushWorkingSnapshot();

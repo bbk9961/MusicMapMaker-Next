@@ -188,12 +188,13 @@ void NoteRenderSystem::generateTimelineSnapshot(
         cache->getTime(currentAbsY - (viewportHeight - judgmentLineY));
     double endTime = cache->getTime(currentAbsY + judgmentLineY);
 
+    float paddingX = 30.0f;
+    float lineW    = viewportWidth - paddingX * 2.0f;
+
     for ( const auto& seg : cache->getSegments() ) {
         if ( seg.time < startTime || seg.time > endTime ) continue;
 
         float y = judgmentLineY - static_cast<float>(seg.absY - currentAbsY);
-        float paddingX = 30.0f;
-        float lineW    = viewportWidth - paddingX * 2.0f;
 
         glm::vec4 color = { tickCol.r, tickCol.g, tickCol.b, 0.8f };
         if ( (seg.effects & SCROLL_EFFECT_BPM) &&
@@ -209,9 +210,9 @@ void NoteRenderSystem::generateTimelineSnapshot(
         snapshot->timelineElements.push_back({ seg.time, y, seg.effects });
     }
 
-    batcher.pushQuad(0,
+    batcher.pushQuad(paddingX,
                      judgmentLineY + 1.0f,
-                     viewportWidth,
+                     lineW,
                      2.0f,
                      { 1.0f, 0.2f, 0.2f, 1.0f });
 }
