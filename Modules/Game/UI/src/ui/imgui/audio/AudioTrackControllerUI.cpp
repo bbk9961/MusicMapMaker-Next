@@ -3,6 +3,7 @@
 #include "config/skin/translation/Translation.h"
 #include "imgui.h"
 #include "logic/EditorEngine.h"
+#include "ui/Icons.h"
 #include "ui/UIManager.h"
 
 namespace MMM::UI
@@ -28,53 +29,90 @@ void AudioTrackControllerUI::update(UIManager* sourceManager)
     auto& engine  = Logic::EditorEngine::instance();
     auto* project = engine.getCurrentProject();
 
-    ImGui::SetNextWindowSize(ImVec2(300, 150), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowSize(ImVec2(350, 150), ImGuiCond_FirstUseEver);
     if ( ImGui::Begin(m_trackName.c_str(), &m_isOpen) ) {
-        float volume = 0.0f;
+        float volume = 0.5f;
         float speed  = 1.0f;
         bool  muted  = false;
 
-        bool changed = false;
-
-        // 获取当前状态
-        if ( m_type == TrackType::Main ) {
-            volume = audio.getMainTrackVolume();
-            speed  = (float)audio.getPlaybackSpeed();
-            // TODO: Main track mute state? Assume false for now as it's the
-            // core
-        } else {
-            volume = audio.getSFXPoolVolume(m_trackId);
-        }
-
-        // 1. 音量控制
-        if ( ImGui::SliderFloat(TR("ui.audio_manager.volume").data(),
-                                &volume,
-                                0.0f,
-                                1.0f,
-                                "%.2f") ) {
-            changed = true;
-            if ( m_type == TrackType::Main ) {
-                audio.setMainTrackVolume(volume);
-            } else {
-                // 判断是否是常驻音效（皮肤）还是项目音效
-                bool  isPermanent = true;
-                auto& skinData    = Config::SkinManager::instance().getData();
-                if ( skinData.audioPaths.count(m_trackId) == 0 ) {
-                    isPermanent = false;
+        AudioTrackConfig* config = nullptr;
+        if ( project ) {
+            for ( auto& res : project->m_audioResources ) {
+                if ( res.m_id == m_trackId ) {
+                    config = &res.m_config;
+                    break;
                 }
-                audio.setSFXPoolVolume(m_trackId, volume, isPermanent);
             }
         }
 
-        // 2. 播放速度控制 (仅对 Main 有效，SFX 目前不支持变速播放)
+        if ( config ) {
+            volume = config->volume;
+            speed  = config->playbackSpeed;
+            muted  = config->muted;
+        } else {
+            // 回退到内存状态
+            if ( m_type == TrackType::Main ) {
+                volume = audio.getMainTrackVolume();
+                speed  = (float)audio.getPlaybackSpeed();
+                muted  = audio.isMainTrackMuted();
+            } else {
+                volume = audio.getSFXPoolVolume(m_trackId);
+                muted  = audio.getSFXPoolMute(m_trackId);
+            }
+        }
+
+        bool changed = false;
+
+        // --- 1. 静音按钮与音量图标 ---
+        const char* icon = ICON_MMM_VOLUME_MUTE;
+        if ( !muted ) {
+            if ( volume <= 0.33f )
+                icon = ICON_MMM_VOLUME_OFF;
+            else if ( volume <= 0.66f )
+                icon = ICON_MMM_VOLUME_LOW;
+            else
+                icon = ICON_MMM_VOLUME_HIGH;
+        }
+
+        bool pushedTextColor = false;
+        if ( muted ) {
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                                  ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
+            pushedTextColor = true;
+        }
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+        if ( ImGui::Button(icon, ImVec2(30, 0)) ) {
+            muted   = !muted;
+            changed = true;
+        }
+        ImGui::PopStyleColor();  // Pop ImGuiCol_Button
+        if ( pushedTextColor ) {
+            ImGui::PopStyleColor();  // Pop ImGuiCol_Text
+        }
+        if ( ImGui::IsItemHovered() ) {
+            ImGui::SetTooltip(muted ? "Unmute" : "Mute");
+        }
+
+        ImGui::SameLine();
+
+        // --- 2. 音量拉条 ---
+        ImGui::SetNextItemWidth(-50);
+        if ( ImGui::SliderFloat("##Volume", &volume, 0.0f, 1.0f, "%.2f") ) {
+            changed = true;
+            // 如果拉动了进度条，自动解除静音（可选，但通常用户期望这样）
+            if ( muted && volume > 0.0f ) {
+                muted = false;
+            }
+        }
+
+        // --- 3. 播放速度控制 (仅对 Main 有效) ---
         if ( m_type == TrackType::Main ) {
             if ( ImGui::SliderFloat("Speed", &speed, 0.5f, 2.0f, "%.2fx") ) {
                 changed = true;
-                audio.setPlaybackSpeed(speed);
             }
         }
 
-        // 3. 特效音轨预览控件
+        // --- 4. 特效音轨预览控件 ---
         if ( m_type == TrackType::Effect ) {
             ImGui::Separator();
             if ( ImGui::Button(TR("ui.audio_manager.play_preview").data()) ) {
@@ -92,28 +130,30 @@ void AudioTrackControllerUI::update(UIManager* sourceManager)
             ImGui::ProgressBar(progress, ImVec2(-1, 0), progressText.c_str());
         }
 
-        // 4. 应用更改并持久化
+        // --- 5. 应用更改并持久化 ---
         if ( changed ) {
+            if ( config ) {
+                config->volume        = volume;
+                config->muted         = muted;
+                config->playbackSpeed = speed;
+            }
+
             if ( m_type == TrackType::Main ) {
-                // 同步到项目配置
-                if ( project ) {
-                    for ( auto& res : project->m_audioResources ) {
-                        if ( res.m_id == m_trackId ) {
-                            res.m_config.volume        = volume;
-                            res.m_config.playbackSpeed = speed;
-                        }
-                    }
-                    engine.saveProject();
-                }
+                audio.setMainTrackVolume(volume);
+                audio.setMainTrackMute(muted);
+                audio.setPlaybackSpeed(speed);
             } else {
-                if ( project ) {
-                    for ( auto& res : project->m_audioResources ) {
-                        if ( res.m_id == m_trackId ) {
-                            res.m_config.volume = volume;
-                        }
-                    }
-                    engine.saveProject();
+                bool  isPermanent = true;
+                auto& skinData    = Config::SkinManager::instance().getData();
+                if ( skinData.audioPaths.count(m_trackId) == 0 ) {
+                    isPermanent = false;
                 }
+                audio.setSFXPoolVolume(m_trackId, volume, isPermanent);
+                audio.setSFXPoolMute(m_trackId, muted, isPermanent);
+            }
+
+            if ( project ) {
+                engine.saveProject();
             }
         }
     }

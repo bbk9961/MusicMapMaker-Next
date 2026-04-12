@@ -57,10 +57,13 @@ struct SfxConfig {
     /// @brief 皮肤常驻音效的独立音量映射 (Key: 音效ID, Value: 0.0~1.0)
     std::map<std::string, float> permanentSfxVolumes;
 
+    /// @brief 皮肤常驻音效的静音状态 (Key: 音效ID)
+    std::map<std::string, bool> permanentSfxMutes;
+
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(SfxConfig, polylineStrategy,
                                    enableFlickWidthVolumeScaling,
                                    flickWidthVolumeMultiplier,
-                                   permanentSfxVolumes)
+                                   permanentSfxVolumes, permanentSfxMutes)
 };
 
 enum class FilePickerStyle {

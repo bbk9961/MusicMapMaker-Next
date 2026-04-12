@@ -49,10 +49,13 @@ public:
     /// @brief 释放节点回池 (供回调内部调用)
     void releaseNode(std::shared_ptr<ice::SourceNode> node);
 
-    /// @brief 设置池内所有节点的音量
+    /// @brief 设置池内所有节点的音量 (由 AudioManager 调用，会考虑全局音量)
     void setVolume(float volume);
 
-    /// @brief 获取池内音量
+    /// @brief 更新当前所有播放节点的音量 (当全局音量变化或静音状态变化时)
+    void updateEffectiveVolume(float globalVolume, bool muted);
+
+    /// @brief 获取池内音量 (原始音量，不含全局增益)
     float getVolume() const { return m_volume; }
 
     /// @brief 获取音效总时长 (秒)

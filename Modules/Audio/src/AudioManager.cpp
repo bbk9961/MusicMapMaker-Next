@@ -58,8 +58,12 @@ AudioManager::AudioManager()
     auto& settings    = Config::AppConfig::instance().getEditorSettings();
     m_globalVolume    = settings.globalVolume;
     m_mainTrackVolume = 0.5f;  // 默认主音轨音量
-}
 
+    // 初始化常驻音效静音状态
+    for ( const auto& [key, muted] : settings.sfxConfig.permanentSfxMutes ) {
+        m_sfxMutes[key] = muted;
+    }
+}
 
 AudioManager::~AudioManager() = default;
 
@@ -124,10 +128,11 @@ bool AudioManager::loadBGM(const std::string&      filePath,
     }
 
     m_mainTrackVolume = config.volume;
+    m_mainTrackMuted  = config.muted;
 
     m_bgmSource = std::make_shared<ice::SourceNode>(track);
-    m_bgmSource->setvolume(config.muted ? 0.0f
-                                        : m_mainTrackVolume * m_globalVolume);
+    m_bgmSource->setvolume(
+        m_mainTrackMuted ? 0.0f : m_mainTrackVolume * m_globalVolume);
     m_bgmSource->add_playcallback(g_callback);
 
     m_mixer->add_source(m_bgmSource);
@@ -200,13 +205,28 @@ void AudioManager::setMainTrackVolume(float volume)
 {
     m_mainTrackVolume = std::clamp(volume, 0.0f, 1.0f);
     if ( m_bgmSource ) {
-        m_bgmSource->setvolume(m_mainTrackVolume * m_globalVolume);
+        m_bgmSource->setvolume(
+            m_mainTrackMuted ? 0.0f : m_mainTrackVolume * m_globalVolume);
     }
 }
 
 float AudioManager::getMainTrackVolume() const
 {
     return m_mainTrackVolume;
+}
+
+void AudioManager::setMainTrackMute(bool muted)
+{
+    m_mainTrackMuted = muted;
+    if ( m_bgmSource ) {
+        m_bgmSource->setvolume(
+            m_mainTrackMuted ? 0.0f : m_mainTrackVolume * m_globalVolume);
+    }
+}
+
+bool AudioManager::isMainTrackMuted() const
+{
+    return m_mainTrackMuted;
 }
 
 void AudioManager::setGlobalVolume(float volume)
@@ -220,7 +240,13 @@ void AudioManager::setGlobalVolume(float volume)
 
     // 重新应用全局音量到主音轨
     if ( m_bgmSource ) {
-        m_bgmSource->setvolume(m_mainTrackVolume * m_globalVolume);
+        m_bgmSource->setvolume(
+            m_mainTrackMuted ? 0.0f : m_mainTrackVolume * m_globalVolume);
+    }
+
+    // 重新应用全局音量到所有音效池
+    for ( auto& [key, pool] : m_sfxPools ) {
+        pool->updateEffectiveVolume(m_globalVolume, getSFXPoolMute(key));
     }
 }
 
@@ -256,6 +282,27 @@ void AudioManager::setSFXPoolVolume(const std::string& key, float volume,
             sfxCfg.permanentSfxVolumes[key] = volume;
             Config::AppConfig::instance().save();
         }
+
+        // 刷新实际音量 (考虑静音)
+        it->second->updateEffectiveVolume(m_globalVolume, getSFXPoolMute(key));
+    }
+}
+
+void AudioManager::setSFXPoolMute(const std::string& key, bool muted,
+                                  bool isPermanent)
+{
+    m_sfxMutes[key] = muted;
+
+    if ( isPermanent ) {
+        auto& sfxCfg =
+            Config::AppConfig::instance().getEditorSettings().sfxConfig;
+        sfxCfg.permanentSfxMutes[key] = muted;
+        Config::AppConfig::instance().save();
+    }
+
+    auto it = m_sfxPools.find(key);
+    if ( it != m_sfxPools.end() ) {
+        it->second->updateEffectiveVolume(m_globalVolume, muted);
     }
 }
 
@@ -266,6 +313,15 @@ float AudioManager::getSFXPoolVolume(const std::string& key) const
         return it->second->getVolume();
     }
     return 1.0f;
+}
+
+bool AudioManager::getSFXPoolMute(const std::string& key) const
+{
+    auto it = m_sfxMutes.find(key);
+    if ( it != m_sfxMutes.end() ) {
+        return it->second;
+    }
+    return false;
 }
 
 double AudioManager::getSFXDuration(const std::string& key) const
@@ -312,6 +368,7 @@ bool AudioManager::preloadSoundEffect(const std::string& key,
     auto pool = std::make_shared<SoundEffectPool>(track, m_mixer);
     pool->init(8);  // 预分配 8 个并发节点
     pool->setVolume(activeVolume);
+    pool->updateEffectiveVolume(m_globalVolume, getSFXPoolMute(key));
 
     m_sfxPools[key] = std::move(pool);
     return true;
@@ -319,6 +376,8 @@ bool AudioManager::preloadSoundEffect(const std::string& key,
 
 void AudioManager::playSoundEffect(const std::string& key, float volumeFactor)
 {
+    if ( getSFXPoolMute(key) ) return;
+
     auto it = m_sfxPools.find(key);
     if ( it == m_sfxPools.end() ) return;
 
@@ -329,6 +388,8 @@ void AudioManager::playSoundEffectScheduled(const std::string& key,
                                             double             targetTime,
                                             float              volumeFactor)
 {
+    if ( getSFXPoolMute(key) ) return;
+
     auto it = m_sfxPools.find(key);
     if ( it == m_sfxPools.end() ) return;
 

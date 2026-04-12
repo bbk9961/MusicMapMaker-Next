@@ -141,8 +141,16 @@ void SoundEffectPool::setVolume(float volume)
 {
     std::lock_guard<std::mutex> lock(m_mtx);
     m_volume = volume;
+    // 注意：此处不直接更新 node 音量，因为我们不知道当前的全局音量和静音状态。
+    // 实际音量更新应通过 updateEffectiveVolume 或在 play 时计算。
+}
+
+void SoundEffectPool::updateEffectiveVolume(float globalVolume, bool muted)
+{
+    std::lock_guard<std::mutex> lock(m_mtx);
+    float effectiveVolume = muted ? 0.0f : m_volume * globalVolume;
     for ( auto& node : m_allNodes ) {
-        node->setvolume(volume);
+        node->setvolume(effectiveVolume);
     }
 }
 

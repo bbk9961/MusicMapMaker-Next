@@ -73,6 +73,12 @@ public:
     /// @brief 获取主音轨当前音量
     float getMainTrackVolume() const;
 
+    /// @brief 设置主音轨静音状态
+    void setMainTrackMute(bool muted);
+
+    /// @brief 获取主音轨是否静音
+    bool isMainTrackMuted() const;
+
     /// @brief 设置全局音量 (0.0 ~ 1.0)
     void setGlobalVolume(float volume);
 
@@ -92,8 +98,15 @@ public:
     void setSFXPoolVolume(const std::string& key, float volume,
                           bool isPermanent = false);
 
+    /// @brief 设置特定 SFX 池的静音状态
+    void setSFXPoolMute(const std::string& key, bool muted,
+                        bool isPermanent = false);
+
     /// @brief 获取特定 SFX 池的音量
     float getSFXPoolVolume(const std::string& key) const;
+
+    /// @brief 获取特定 SFX 池是否静音
+    bool getSFXPoolMute(const std::string& key) const;
 
     /// @brief 获取特定 SFX 池的时长
     double getSFXDuration(const std::string& key) const;
@@ -138,8 +151,11 @@ private:
 
     PlaybackStatus m_status{ PlaybackStatus::Stopped };
     float          m_mainTrackVolume{ 0.5f };
+    bool           m_mainTrackMuted{ false };
     float          m_globalVolume{ 1.0f };
     double         m_speed{ 1.0 };
+
+    std::unordered_map<std::string, bool> m_sfxMutes;
 };
 
 }  // namespace MMM::Audio

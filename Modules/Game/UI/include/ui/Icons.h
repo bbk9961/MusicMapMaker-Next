@@ -56,6 +56,16 @@ constexpr const char* ICON_MMM_MAGNET = "\xef\x81\xb6";  ///< \uf076 magnet
 constexpr const char* ICON_MMM_BARS =
     "\xef\x83\x89";  ///< \uf0c9 bars (for beat divisor)
 
+// --- Audio Icons ---
+constexpr const char* ICON_MMM_VOLUME_HIGH =
+    "\xef\x80\xa8";  ///< \uf028 volume-high
+constexpr const char* ICON_MMM_VOLUME_LOW =
+    "\xef\x80\xa7";  ///< \uf027 volume-low
+constexpr const char* ICON_MMM_VOLUME_OFF =
+    "\xef\x80\xa6";  ///< \uf026 volume-off
+constexpr const char* ICON_MMM_VOLUME_MUTE =
+    "\xef\x80\xa6";  ///< \uf026 volume-off (Mute Fallback)
+
 // --- Window Control Icons ---
 constexpr const char* ICON_MMM_MINIMIZE =
     "\xef\x8b\x91";  ///< \uf2d1 window-minimize

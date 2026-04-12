@@ -88,6 +88,7 @@ void AudioManagerView::onUpdate(LayoutContext& layoutContext,
             res.m_path          = path.string();
             res.m_type          = AudioTrackType::Effect;
             res.m_config.volume = audioManager.getSFXPoolVolume(key);
+            res.m_config.muted  = audioManager.getSFXPoolMute(key);
 
             renderAudioItem(res, true);
         }
