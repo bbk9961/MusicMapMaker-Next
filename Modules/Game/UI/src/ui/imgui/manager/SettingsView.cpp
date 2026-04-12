@@ -315,6 +315,13 @@ void SettingsView::drawVisualSettings()
         1.0f,
         10.0f);
 
+    ImGui::SeparatorText(TR_CACHE("ui.settings.visual.beat_line").data());
+    changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.visual.beat_line_alpha").data(),
+        &visual.beatLineAlpha,
+        0.0f,
+        1.0f);
+
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.note").data());
     changed |=
         ImGui::SliderFloat(TR_CACHE("ui.settings.visual.note_scale_x").data(),

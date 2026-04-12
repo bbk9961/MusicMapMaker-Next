@@ -52,6 +52,8 @@ return {
 	["ui.settings.visual.judgeline"] = "判定线",
 	["ui.settings.visual.judgeline_pos"] = "判定线位置",
 	["ui.settings.visual.judgeline_width"] = "判定线线宽",
+	["ui.settings.visual.beat_line"] = "分拍线",
+	["ui.settings.visual.beat_line_alpha"] = "分拍线透明度",
 	["ui.settings.visual.note"] = "物件渲染",
 	["ui.settings.visual.note_scale_x"] = "物件横向缩放",
 	["ui.settings.visual.note_scale_y"] = "物件纵向缩放",

@@ -52,6 +52,8 @@ return {
 	["ui.settings.visual.judgeline"] = "Judge Line",
 	["ui.settings.visual.judgeline_pos"] = "Judge Line Position",
 	["ui.settings.visual.judgeline_width"] = "Judge Line Width",
+	["ui.settings.visual.beat_line"] = "Beat Line",
+	["ui.settings.visual.beat_line_alpha"] = "Beat Line Alpha",
 	["ui.settings.visual.note"] = "Note Rendering",
 	["ui.settings.visual.note_scale_x"] = "Note Horizontal Scale",
 	["ui.settings.visual.note_scale_y"] = "Note Vertical Scale",

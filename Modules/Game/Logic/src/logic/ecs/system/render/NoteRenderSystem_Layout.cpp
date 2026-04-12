@@ -196,9 +196,10 @@ void NoteRenderSystem::drawBeatLines(
 
     batcher.setTexture(TextureID::None);
 
-    auto& skin = Config::SkinManager::instance();
+    auto& skin        = Config::SkinManager::instance();
+    float globalAlpha = config.visual.beatLineAlpha;
     auto  getBeatLineConfig =
-        [&skin](int denominator) -> std::pair<glm::vec4, float> {
+        [&skin, globalAlpha](int denominator) -> std::pair<glm::vec4, float> {
         std::string   key = "beat_lines.beat_" + std::to_string(denominator);
         Config::Color c   = skin.getColor(key);
         if ( c.r == 1.0f && c.g == 0.0f && c.b == 1.0f && c.a == 1.0f ) {
@@ -209,7 +210,7 @@ void NoteRenderSystem::drawBeatLines(
         }
         float width =
             skin.getValue(key, skin.getValue("beat_lines_width.default", 2.0f));
-        return { glm::vec4(c.r, c.g, c.b, c.a), width };
+        return { glm::vec4(c.r, c.g, c.b, c.a * globalAlpha), width };
     };
 
     for ( size_t i = 0; i < bpmEvents.size(); ++i ) {
