@@ -49,6 +49,9 @@ struct PreviewAreaConfig {
     /// @brief 预览区视口范围相对主画布的倍率
     float areaRatio{ 5.f };
 
+    /// @brief 边缘自动滚动灵敏度倍率
+    float edgeScrollSensitivity{ 1.0f };
+
     /// @brief 预览区留白(px)
     struct AreaMargin {
         float left{ 4.f };
@@ -60,7 +63,8 @@ struct PreviewAreaConfig {
     };
     AreaMargin margin;
 
-    NLOHMANN_DEFINE_TYPE_INTRUSIVE(PreviewAreaConfig, areaRatio, margin)
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(PreviewAreaConfig, areaRatio,
+                                   edgeScrollSensitivity, margin)
 };
 
 /// @brief 视觉与渲染相关的整体配置

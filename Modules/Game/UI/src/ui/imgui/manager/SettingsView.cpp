@@ -355,6 +355,12 @@ void SettingsView::drawVisualSettings()
                            1.0f,
                            10.0f);
     changed |= ImGui::SliderFloat(
+        TR_CACHE("ui.settings.visual.preview_edge_scroll_sensitivity").data(),
+        &visual.previewConfig.edgeScrollSensitivity,
+        0.0f,
+        5.0f,
+        "%.2f");
+    changed |= ImGui::SliderFloat(
         TR_CACHE("ui.settings.visual.preview_margin_left").data(),
         &visual.previewConfig.margin.left,
         0.0f,

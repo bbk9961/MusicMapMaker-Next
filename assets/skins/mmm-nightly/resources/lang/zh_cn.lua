@@ -61,6 +61,7 @@ return {
 	["ui.settings.visual.bg_darken"] = "背景暗化程度",
 	["ui.settings.visual.preview"] = "预览区",
 	["ui.settings.visual.preview_ratio"] = "预览视口倍率",
+	["ui.settings.visual.preview_edge_scroll_sensitivity"] = "边缘自动滚动灵敏度",
 	["ui.settings.visual.preview_margin_left"] = "视口左留白",
 	["ui.settings.visual.preview_margin_top"] = "视口上留白",
 	["ui.settings.visual.preview_margin_right"] = "视口右留白",

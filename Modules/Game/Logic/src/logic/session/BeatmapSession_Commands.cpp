@@ -307,12 +307,17 @@ void BeatmapSession::processCommands()
 
                                     m_previewEdgeScrollVelocity = 0.0;
                                     if ( m_isDragging ) {
+                                        float sensitivity =
+                                            0.1f *
+                                            m_lastConfig.visual.previewConfig
+                                                .edgeScrollSensitivity;
                                         if ( m_mouseY < topM + threshold ) {
                                             float dist =
                                                 (topM + threshold) - m_mouseY;
                                             // 顶部边缘：向“之后（未来）”滚动
                                             m_previewEdgeScrollVelocity =
-                                                static_cast<double>(dist) * 0.1;
+                                                static_cast<double>(dist) *
+                                                sensitivity;
                                         } else if ( m_mouseY > viewH - bottomM -
                                                                    threshold ) {
                                             float dist =
@@ -321,7 +326,7 @@ void BeatmapSession::processCommands()
                                             // 底部边缘：向“之前（过去）”滚动
                                             m_previewEdgeScrollVelocity =
                                                 -static_cast<double>(dist) *
-                                                0.1;
+                                                sensitivity;
                                         }
                                     }
                                 }

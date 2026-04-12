@@ -61,6 +61,7 @@ return {
 	["ui.settings.visual.bg_darken"] = "Background Darken",
 	["ui.settings.visual.preview"] = "Preview Area",
 	["ui.settings.visual.preview_ratio"] = "Preview Viewport Ratio",
+	["ui.settings.visual.preview_edge_scroll_sensitivity"] = "Edge Auto-Scroll Sensitivity",
 	["ui.settings.visual.preview_margin_left"] = "Margin Left",
 	["ui.settings.visual.preview_margin_top"] = "Margin Top",
 	["ui.settings.visual.preview_margin_right"] = "Margin Right",
