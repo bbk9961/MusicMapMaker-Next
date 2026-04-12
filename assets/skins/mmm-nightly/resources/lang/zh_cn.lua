@@ -149,5 +149,6 @@ return {
 	["ui.canvas.note_fraction"] = "物件位置",
 	["ui.canvas.note_time"] = "精确时间",
 
+	["canvas.preview.jump_to"] = "跳转至: %.3f s",
 	["tips.welcome"] = "欢迎使用MusicMapMaker!",
 }

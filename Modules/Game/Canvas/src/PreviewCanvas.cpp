@@ -60,6 +60,13 @@ void PreviewCanvas::update(UI::UIManager* sourceManager)
                                                              isHovered,
                                                              isDragging }));
 
+    // --- 拖拽提示：告知用户松手时跳转的位置 ---
+    if ( isDragging && m_currentSnapshot &&
+         m_currentSnapshot->isPreviewDragging ) {
+        ImGui::SetTooltip(TR("canvas.preview.jump_to"),
+                          m_currentSnapshot->previewHoverTime);
+    }
+
     // --- 跳转时间逻辑 ---
     if ( m_currentSnapshot && isHovered ) {
         // 核心修复：仅在鼠标松开时触发跳转。

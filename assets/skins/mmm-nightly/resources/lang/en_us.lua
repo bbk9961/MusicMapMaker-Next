@@ -149,5 +149,6 @@ return {
 	["ui.canvas.note_fraction"] = "Note Position",
 	["ui.canvas.note_time"] = "Exact Time",
 
+	["canvas.preview.jump_to"] = "Jump to: %.3f s",
 	["tips.welcome"] = "Welcome to MusicMapMaker!",
 }
