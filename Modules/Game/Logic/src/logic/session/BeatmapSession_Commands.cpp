@@ -310,18 +310,18 @@ void BeatmapSession::processCommands()
                                         if ( m_mouseY < topM + threshold ) {
                                             float dist =
                                                 (topM + threshold) - m_mouseY;
-                                            // 速度随距离边缘越近而越快，系数
-                                            // 0.1 左右比较平滑
+                                            // 顶部边缘：向“之后（未来）”滚动
                                             m_previewEdgeScrollVelocity =
-                                                -static_cast<double>(dist) *
-                                                0.1;
+                                                static_cast<double>(dist) * 0.1;
                                         } else if ( m_mouseY > viewH - bottomM -
                                                                    threshold ) {
                                             float dist =
                                                 m_mouseY -
                                                 (viewH - bottomM - threshold);
+                                            // 底部边缘：向“之前（过去）”滚动
                                             m_previewEdgeScrollVelocity =
-                                                static_cast<double>(dist) * 0.1;
+                                                -static_cast<double>(dist) *
+                                                0.1;
                                         }
                                     }
                                 }
