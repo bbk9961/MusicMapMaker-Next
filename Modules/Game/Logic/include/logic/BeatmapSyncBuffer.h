@@ -4,7 +4,6 @@
 #include "graphic/imguivk/mesh/VKBasicVertex.h"
 #include "logic/ecs/system/ScrollCache.h"
 #include "ui/brush/BrushDrawCmd.h"
-#include <atomic>
 #include <concurrentqueue.h>
 #include <cstdint>
 #include <entt/entt.hpp>

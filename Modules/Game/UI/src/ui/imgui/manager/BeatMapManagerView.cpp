@@ -1,7 +1,6 @@
 #include "ui/imgui/manager/BeatMapManagerView.h"
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
-#include "event/core/EventBus.h"
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "logic/EditorEngine.h"
@@ -102,12 +101,15 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
                                   false,
                                   ImGuiWindowFlags_HorizontalScrollbar);
 
-                // 统一处理 LayoutContext 的重映射，由于是在子窗口绘制，需要重定向
+                // 统一处理 LayoutContext
+                // 的重映射，由于是在子窗口绘制，需要重定向
                 ImVec2 oldStartPos = layoutContext.m_startPos;
                 ImVec2 oldAvail    = layoutContext.m_avail;
 
                 layoutContext.m_startPos = ImGui::GetCursorScreenPos();
-                layoutContext.m_avail    = { 2000.0f, 10000.0f }; // 给予极大的垂直/水平空间以便显示滚动条
+                layoutContext.m_avail    = {
+                    2000.0f, 10000.0f
+                };  // 给予极大的垂直/水平空间以便显示滚动条
 
                 listVBox.render(layoutContext);
 

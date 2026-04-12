@@ -1,6 +1,5 @@
 #include "ui/imgui/MainDockSpaceUI.h"
 #include "config/skin/SkinConfig.h"
-#include "config/skin/translation/Translation.h"
 #include "event/core/EventBus.h"
 #include "event/logic/LogicCommandEvent.h"
 #include "event/ui/menu/OpenProjectEvent.h"
@@ -21,33 +20,36 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
 
     if ( !m_initializedWindow && viewport->PlatformHandle ) {
         if ( GLFWwindow* nativeWin = (GLFWwindow*)viewport->PlatformHandle ) {
-            m_isMaximized       = glfwGetWindowAttrib(nativeWin, GLFW_MAXIMIZED);
+            m_isMaximized = glfwGetWindowAttrib(nativeWin, GLFW_MAXIMIZED);
             m_initializedWindow = true;
         }
     }
 
-    float sidebarBaseWidth = std::stof(skinCfg.getLayoutConfig("side_bar.width"));
+    float sidebarBaseWidth =
+        std::stof(skinCfg.getLayoutConfig("side_bar.width"));
     float sidebarWidth     = std::floor(sidebarBaseWidth * dpiScale);
     float toolbarBaseWidth = 32.0f;
     float toolbarWidth     = std::floor(toolbarBaseWidth * dpiScale);
 
-    float extraPaddingBaseY = 4.0f;
-    float extraPaddingY     = std::floor(extraPaddingBaseY * dpiScale);
-    ImGuiStyle& style       = ImGui::GetStyle();
+    float       extraPaddingBaseY = 4.0f;
+    float       extraPaddingY     = std::floor(extraPaddingBaseY * dpiScale);
+    ImGuiStyle& style             = ImGui::GetStyle();
     float       menuBarHeight =
         ImGui::GetFontSize() + (style.FramePadding.y + extraPaddingY) * 2.0f;
 
     // --- 1. 顶部菜单栏 ---
-    renderMenuBar(sourceManager, menuBarHeight, sidebarWidth, toolbarWidth, dpiScale);
+    renderMenuBar(
+        sourceManager, menuBarHeight, sidebarWidth, toolbarWidth, dpiScale);
 
     // --- 2. 停靠空间 ---
-    renderDockingSpace(sourceManager, menuBarHeight, sidebarWidth, toolbarWidth);
+    renderDockingSpace(
+        sourceManager, menuBarHeight, sidebarWidth, toolbarWidth);
 
     // --- 3. 右侧工具栏 (保持原样调用的简易块) ---
     {
-        ImGui::SetNextWindowPos(ImVec2(
-            viewport->WorkPos.x + viewport->WorkSize.x - toolbarWidth,
-            viewport->WorkPos.y + menuBarHeight));
+        ImGui::SetNextWindowPos(
+            ImVec2(viewport->WorkPos.x + viewport->WorkSize.x - toolbarWidth,
+                   viewport->WorkPos.y + menuBarHeight));
         ImGui::SetNextWindowSize(
             ImVec2(toolbarWidth, viewport->WorkSize.y - menuBarHeight));
         ImGui::SetNextWindowViewport(viewport->ID);
@@ -62,7 +64,8 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
                                               ImGuiWindowFlags_NoCollapse,
                                               { 600, 400 }) ) {
         if ( ImGuiFileDialog::Instance()->IsOk() ) {
-            std::string folderPath = ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string folderPath =
+                ImGuiFileDialog::Instance()->GetFilePathName();
             if ( folderPath.empty() ) {
                 folderPath = ImGuiFileDialog::Instance()->GetCurrentPath();
             }
@@ -77,7 +80,8 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
          ImGuiFileDialog::Instance()->Display(
              "PackFilePicker", ImGuiWindowFlags_NoCollapse, { 600, 400 }) ) {
         if ( ImGuiFileDialog::Instance()->IsOk() ) {
-            std::string filePath = ImGuiFileDialog::Instance()->GetFilePathName();
+            std::string filePath =
+                ImGuiFileDialog::Instance()->GetFilePathName();
             Event::EventBus::instance().publish(
                 Event::LogicCommandEvent(Logic::CmdPackBeatmap{ filePath }));
         }
@@ -91,7 +95,7 @@ bool MainDockSpaceUI::needReload()
 }
 
 void MainDockSpaceUI::reloadTextures(vk::PhysicalDevice& physicalDevice,
-                                     vk::Device& logicalDevice,
+                                     vk::Device&         logicalDevice,
                                      vk::CommandPool& cmdPool, vk::Queue& queue)
 {
     m_logo_texture = loadTextureResource(
@@ -104,4 +108,4 @@ void MainDockSpaceUI::reloadTextures(vk::PhysicalDevice& physicalDevice,
         { { .83f, .83f, .83f, .83f } });
 }
 
-}; // namespace MMM::UI
+};  // namespace MMM::UI

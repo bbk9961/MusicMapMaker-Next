@@ -1,7 +1,6 @@
 #pragma once
 
 #include "common/LogicCommands.h"
-#include "config/AppConfig.h"
 #include "logic/BeatmapSession.h"
 #include "logic/BeatmapSyncBuffer.h"
 #include "mmm/project/Project.h"

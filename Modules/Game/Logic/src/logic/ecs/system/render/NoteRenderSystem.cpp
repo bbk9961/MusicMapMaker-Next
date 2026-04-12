@@ -1,8 +1,6 @@
 #include "logic/ecs/system/NoteRenderSystem.h"
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
-#include "imgui.h"
-#include "log/colorful-log.h"
-#include "logic/EditorEngine.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/BackgroundRenderSystem.h"
 #include "logic/ecs/system/ScrollCache.h"
@@ -219,9 +217,9 @@ void NoteRenderSystem::renderMarquee(Batcher& batcher, RenderSnapshot* snapshot,
 
     if ( w < 1.0f || h < 1.0f ) return;
 
-    auto& settings  = Config::AppConfig::instance().getEditorSettings();
-    float borderW   = settings.marqueeThickness;
-    float cornerR   = settings.marqueeRounding;
+    auto& settings = Config::AppConfig::instance().getEditorSettings();
+    float borderW  = settings.marqueeThickness;
+    float cornerR  = settings.marqueeRounding;
 
     // 重置 scissor 到全屏，确保框选矩形不被轨道裁剪掉
     batcher.setScissor(0, 0, viewportWidth, viewportHeight);

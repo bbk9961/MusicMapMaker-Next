@@ -1,9 +1,7 @@
 #include "logic/ecs/system/HitFXSystem.h"
 #include "audio/AudioManager.h"
 #include "config/skin/SkinConfig.h"
-#include "log/colorful-log.h"
 #include "logic/ecs/system/render/Batcher.h"
-#include <algorithm>
 #include <cmath>
 
 namespace MMM::Logic::System
