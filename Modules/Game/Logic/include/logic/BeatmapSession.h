@@ -84,6 +84,7 @@ public:
      */
     void syncHitIndex();
     void rebuildHitEvents();
+    void syncBeatmap();
 
     struct SnapResult {
         bool   isSnapped{ false };
@@ -198,8 +199,8 @@ private:
     int32_t      m_hoveredPart{ 0 };
     bool         m_isMouseInCanvas{ false };
     bool         m_isDragging{ false };
-    double      m_previewHoverTime{ 0.0 };
-    double      m_previewEdgeScrollVelocity{ 0.0 };
+    double       m_previewHoverTime{ 0.0 };
+    double       m_previewEdgeScrollVelocity{ 0.0 };
 
     /// @brief 当前轨道数
     int32_t m_trackCount{ 12 };

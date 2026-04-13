@@ -41,46 +41,24 @@ public:
     /**
      * @brief 执行并推送新操作到栈中，同时清空重做栈
      */
-    void pushAndExecute(std::unique_ptr<IEditorAction> action, BeatmapSession& session)
-    {
-        action->execute(session);
-        m_undoStack.push_back(std::move(action));
-        m_redoStack.clear();
-    }
+    void pushAndExecute(std::unique_ptr<IEditorAction> action,
+                        BeatmapSession&                session);
 
     /**
      * @brief 撤销
      */
-    void undo(BeatmapSession& session)
-    {
-        if ( m_undoStack.empty() ) return;
-        auto action = std::move(m_undoStack.back());
-        m_undoStack.pop_back();
-        action->undo(session);
-        m_redoStack.push_back(std::move(action));
-    }
+    void undo(BeatmapSession& session);
 
     /**
      * @brief 重做
      */
-    void redo(BeatmapSession& session)
-    {
-        if ( m_redoStack.empty() ) return;
-        auto action = std::move(m_redoStack.back());
-        m_redoStack.pop_back();
-        action->redo(session);
-        m_undoStack.push_back(std::move(action));
-    }
+    void redo(BeatmapSession& session);
 
-    void clear()
-    {
-        m_undoStack.clear();
-        m_redoStack.clear();
-    }
+    void clear();
 
 private:
     std::vector<std::unique_ptr<IEditorAction>> m_undoStack;
     std::vector<std::unique_ptr<IEditorAction>> m_redoStack;
 };
 
-} // namespace MMM::Logic
+}  // namespace MMM::Logic

@@ -285,4 +285,161 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
         beatmap->m_timings.size());
 }
 
+
+void BeatmapSession::syncBeatmap()
+{
+    if ( !m_currentBeatmap ) return;
+
+    // 1. 清空原始数据
+    m_currentBeatmap->m_allNotes.clear();
+    m_currentBeatmap->m_noteData.notes.clear();
+    m_currentBeatmap->m_noteData.holds.clear();
+    m_currentBeatmap->m_noteData.flicks.clear();
+    m_currentBeatmap->m_noteData.polylines.clear();
+    m_currentBeatmap->m_timings.clear();
+
+    // 2. 同步时间线
+    auto tlView = m_timelineRegistry.view<TimelineComponent>();
+    for ( auto entity : tlView ) {
+        const auto& tc = tlView.get<TimelineComponent>(entity);
+        Timing      timing;
+        timing.m_timestamp             = tc.m_timestamp * 1000.0;
+        timing.m_timingEffect          = tc.m_effect;
+        timing.m_timingEffectParameter = tc.m_value;
+        m_currentBeatmap->m_timings.push_back(timing);
+    }
+    std::sort(m_currentBeatmap->m_timings.begin(),
+              m_currentBeatmap->m_timings.end(),
+              [](const Timing& a, const Timing& b) {
+                  return a.m_timestamp < b.m_timestamp;
+              });
+
+    // 3. 同步物体
+    auto noteView = m_noteRegistry.view<NoteComponent>();
+
+    // 第一遍：创建所有非折线物件（包含折线子物件在 notedata 中的独立副本）
+    std::unordered_map<entt::entity, std::reference_wrapper<Note>> entityToRef;
+
+    for ( auto entity : noteView ) {
+        const auto& nc = noteView.get<NoteComponent>(entity);
+        if ( nc.m_type == ::MMM::NoteType::POLYLINE ) continue;
+
+        if ( nc.m_type == ::MMM::NoteType::NOTE ) {
+            Note n;
+            n.m_timestamp = nc.m_timestamp * 1000.0;
+            n.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
+            m_currentBeatmap->m_noteData.notes.push_back(std::move(n));
+            auto& ref = m_currentBeatmap->m_noteData.notes.back();
+            entityToRef.emplace(entity, ref);
+            m_currentBeatmap->m_allNotes.push_back(ref);
+        } else if ( nc.m_type == ::MMM::NoteType::HOLD ) {
+            Hold h;
+            h.m_timestamp = nc.m_timestamp * 1000.0;
+            h.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
+            h.m_duration  = nc.m_duration * 1000.0;
+            m_currentBeatmap->m_noteData.holds.push_back(std::move(h));
+            auto& ref = m_currentBeatmap->m_noteData.holds.back();
+            entityToRef.emplace(entity, ref);
+            m_currentBeatmap->m_allNotes.push_back(ref);
+        } else if ( nc.m_type == ::MMM::NoteType::FLICK ) {
+            Flick f;
+            f.m_timestamp = nc.m_timestamp * 1000.0;
+            f.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
+            f.m_dtrack    = nc.m_dtrack;
+            m_currentBeatmap->m_noteData.flicks.push_back(std::move(f));
+            auto& ref = m_currentBeatmap->m_noteData.flicks.back();
+            entityToRef.emplace(entity, ref);
+            m_currentBeatmap->m_allNotes.push_back(ref);
+        }
+    }
+
+    // 第二遍：处理 Polyline
+    for ( auto entity : noteView ) {
+        const auto& nc = noteView.get<NoteComponent>(entity);
+        if ( nc.m_type != ::MMM::NoteType::POLYLINE ) continue;
+
+        Polyline p;
+        p.m_timestamp = nc.m_timestamp * 1000.0;
+        p.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
+
+        // 查找子实体
+        struct TempSub {
+            entt::entity e;
+            double       t;
+        };
+        std::vector<TempSub> subEntities;
+        for ( auto subEnt : noteView ) {
+            const auto& snc = noteView.get<NoteComponent>(subEnt);
+            if ( snc.m_isSubNote && snc.m_parentPolyline == entity ) {
+                subEntities.push_back({ subEnt, snc.m_timestamp });
+            }
+        }
+
+        if ( !subEntities.empty() ) {
+            std::sort(subEntities.begin(),
+                      subEntities.end(),
+                      [](const auto& a, const auto& b) { return a.t < b.t; });
+            for ( const auto& te : subEntities ) {
+                auto it = entityToRef.find(te.e);
+                if ( it != entityToRef.end() ) {
+                    p.m_subNotes.push_back(it->second);
+                    if ( it->second.get().m_type == ::MMM::NoteType::HOLD ) {
+                        p.m_subHolds.push_back(
+                            static_cast<Hold&>(it->second.get()));
+                    } else if ( it->second.get().m_type ==
+                                ::MMM::NoteType::FLICK ) {
+                        p.m_subFlicks.push_back(
+                            static_cast<Flick&>(it->second.get()));
+                    }
+                }
+            }
+        } else {
+            // 回退方案：根据 m_subNotes 向量重建
+            for ( const auto& sn : nc.m_subNotes ) {
+                if ( sn.type == ::MMM::NoteType::NOTE ) {
+                    Note n;
+                    n.m_timestamp = sn.timestamp * 1000.0;
+                    n.m_track     = static_cast<uint32_t>(sn.trackIndex);
+                    m_currentBeatmap->m_noteData.notes.push_back(std::move(n));
+                    auto& ref = m_currentBeatmap->m_noteData.notes.back();
+                    p.m_subNotes.push_back(ref);
+                    m_currentBeatmap->m_allNotes.push_back(ref);
+                } else if ( sn.type == ::MMM::NoteType::HOLD ) {
+                    Hold h;
+                    h.m_timestamp = sn.timestamp * 1000.0;
+                    h.m_track     = static_cast<uint32_t>(sn.trackIndex);
+                    h.m_duration  = sn.duration * 1000.0;
+                    m_currentBeatmap->m_noteData.holds.push_back(std::move(h));
+                    auto& ref = m_currentBeatmap->m_noteData.holds.back();
+                    p.m_subNotes.push_back(ref);
+                    p.m_subHolds.push_back(ref);
+                    m_currentBeatmap->m_allNotes.push_back(ref);
+                } else if ( sn.type == ::MMM::NoteType::FLICK ) {
+                    Flick f;
+                    f.m_timestamp = sn.timestamp * 1000.0;
+                    f.m_track     = static_cast<uint32_t>(sn.trackIndex);
+                    f.m_dtrack    = sn.dtrack;
+                    m_currentBeatmap->m_noteData.flicks.push_back(std::move(f));
+                    auto& ref = m_currentBeatmap->m_noteData.flicks.back();
+                    p.m_subNotes.push_back(ref);
+                    p.m_subFlicks.push_back(ref);
+                    m_currentBeatmap->m_allNotes.push_back(ref);
+                }
+            }
+        }
+
+        m_currentBeatmap->m_noteData.polylines.push_back(std::move(p));
+        m_currentBeatmap->m_allNotes.push_back(
+            m_currentBeatmap->m_noteData.polylines.back());
+    }
+
+    // 最后对所有物件按时间排序
+    std::sort(m_currentBeatmap->m_allNotes.begin(),
+              m_currentBeatmap->m_allNotes.end(),
+              [](const std::reference_wrapper<Note>& a,
+                 const std::reference_wrapper<Note>& b) {
+                  return a.get().m_timestamp < b.get().m_timestamp;
+              });
+}
+
 }  // namespace MMM::Logic

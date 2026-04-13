@@ -81,10 +81,32 @@ void BeatmapSession::handleCommand(const CmdUpdateDrag& cmd)
         if ( it != m_cameras.end() ) {
             float judgmentLineY =
                 it->second.viewportHeight * m_lastConfig.visual.judgeline_pos;
+
+            float renderScaleY = 1.0f;
+            if ( cmd.cameraId == "Preview" ) {
+                auto  itMain             = m_cameras.find("Basic2DCanvas");
+                float mainViewportHeight = itMain != m_cameras.end()
+                                               ? itMain->second.viewportHeight
+                                               : it->second.viewportHeight;
+
+                float mainEffectiveH = (m_lastConfig.visual.trackLayout.bottom -
+                                        m_lastConfig.visual.trackLayout.top) *
+                                       mainViewportHeight;
+                float ty = m_lastConfig.visual.previewConfig.margin.top;
+                float by = it->second.viewportHeight -
+                           m_lastConfig.visual.previewConfig.margin.bottom;
+                float previewDrawH = by - ty;
+
+                renderScaleY = previewDrawH / (mainEffectiveH *
+                                               m_lastConfig.visual.previewConfig.areaRatio);
+            } else {
+                renderScaleY = m_lastConfig.visual.noteScaleY;
+            }
+
             auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>();
             if ( cache ) {
                 double currentAbsY = cache->getAbsY(m_visualTime);
-                double targetAbsY  = currentAbsY + (judgmentLineY - cmd.mouseY);
+                double targetAbsY  = currentAbsY + (judgmentLineY - cmd.mouseY) / renderScaleY;
                 double targetTime  = cache->getTime(targetAbsY);
 
                 std::vector<const TimelineComponent*> bpmEvents;
@@ -190,7 +212,7 @@ void BeatmapSession::handleCommand(const CmdSetMousePosition& cmd)
         }
 
         // 预览区边缘滚动
-        if ( cmd.cameraId == "Preview" ) {
+        if ( cmd.cameraId == "Preview" && cmd.isDragging ) {
             auto it = m_cameras.find(cmd.cameraId);
             if ( it != m_cameras.end() ) {
                 float margin = 20.0f;
@@ -205,6 +227,8 @@ void BeatmapSession::handleCommand(const CmdSetMousePosition& cmd)
                 m_previewEdgeScrollVelocity =
                     static_cast<double>(dist) * sensitivity;
             }
+        } else if ( cmd.cameraId == "Preview" ) {
+            m_previewEdgeScrollVelocity = 0.0;
         }
     } else {
         m_previewEdgeScrollVelocity = 0.0;
