@@ -10,6 +10,7 @@
 #include "logic/session/EditorAction.h"
 #include "mmm/note/Note.h"
 #include "mmm/timing/Timing.h"
+#include "logic/session/tool/IEditTool.h"
 #include <concurrentqueue.h>
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
@@ -94,6 +95,11 @@ public:
     };
 
 private:
+    friend class GrabTool;
+    friend class MarqueeTool;
+    friend class DrawTool;
+    friend class CutTool;
+
     /**
      * @brief 计算给定时间点在特定视口下的磁吸结果
      * @param rawTime 原始时间点
@@ -107,6 +113,14 @@ private:
         double rawTime, float mouseY, const CameraInfo& camera,
         const Config::EditorConfig&                  config,
         const std::vector<const TimelineComponent*>& bpmEvents) const;
+
+    struct MarqueeBox {
+        double      startTime{ 0.0 };
+        double      endTime{ 0.0 };
+        float       startTrack{ 0.0f };
+        float       endTrack{ 0.0f };
+        std::string cameraId;
+    };
 
     /**
      * @brief 加载新谱面数据到 ECS 中
@@ -125,11 +139,10 @@ private:
     void updateECSAndRender(const Config::EditorConfig& config);
 
     /**
-     * @brief 更新框选状态 (仅在 m_isSelecting 为 true 时执行)
+     * @brief 更新框选状态 (根据所有框选区域计算)
      */
-    void updateMarqueeSelection();
+    void updateMarqueeSelection(bool forceFullSync = false);
 
-    // --- 指令处理器 (Command Handlers) ---
     void handleCommand(const CmdUpdateEditorConfig& cmd);
     void handleCommand(const CmdUpdateViewport& cmd);
     void handleCommand(const CmdSetPlayState& cmd);
@@ -148,6 +161,7 @@ private:
     void handleCommand(const CmdStartMarquee& cmd);
     void handleCommand(const CmdUpdateMarquee& cmd);
     void handleCommand(const CmdEndMarquee& cmd);
+    void handleCommand(const CmdRemoveMarqueeAt& cmd);
     void handleCommand(const CmdUndo& cmd);
     void handleCommand(const CmdRedo& cmd);
     void handleCommand(const CmdCopy& cmd);
@@ -192,6 +206,9 @@ private:
     /// @brief 当前激活的编辑工具
     EditTool m_currentTool{ EditTool::Move };
 
+    /// @brief 工具实例映射表
+    std::unordered_map<EditTool, std::unique_ptr<IEditTool>> m_tools;
+
     /// @brief 当前鼠标在视口中的状态
     std::string  m_mouseCameraId;
     glm::vec2    m_lastMousePos{ 0.0f, 0.0f };
@@ -227,13 +244,10 @@ private:
     std::string m_dragCameraId;
 
     /// @brief 框选状态
-    bool        m_isSelecting{ false };
-    bool        m_hasMarqueeSelection{ false };
-    std::string m_selectionCameraId;
-    double      m_selectionStartTime{ 0.0 };
-    float       m_selectionStartTrack{ 0.0f };
-    double      m_selectionEndTime{ 0.0 };
-    float       m_selectionEndTrack{ 0.0f };
+    bool                    m_isSelecting{ false };
+    bool                    m_hasMarqueeSelection{ false };
+    bool                    m_marqueeIsAdditive{ false };
+    std::vector<MarqueeBox> m_marqueeBoxes;
 
     /// @brief 剪切板内容
     struct ClipboardItem {

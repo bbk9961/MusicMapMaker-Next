@@ -99,9 +99,22 @@ struct RenderSnapshot {
     double currentTime{ 0.0 };
     double totalTime{ 0.0 };
 
+    // 框选盒子快照
+    struct MarqueeBoxSnapshot {
+        double      startTime{ 0.0 };
+        double      endTime{ 0.0 };
+        float       startTrack{ 0.0f };
+        float       endTrack{ 0.0f };
+        std::string cameraId;
+    };
+
     // 交互状态
     EditTool currentTool{ EditTool::Move };
     bool     isHoveringCanvas{ false };
+    bool     isSelecting{ false };
+    std::vector<MarqueeBoxSnapshot> marqueeBoxes;
+    std::string                     activeSelectionCameraId; // 只有在 isSelecting 为 true 时有效
+
     double   hoveredTime{ 0.0 };
     double   snappedTime{ 0.0 };  // 磁吸后的精确拍线时间
     bool     isSnapped{ false };  // 是否磁吸到了拍线
@@ -120,13 +133,6 @@ struct RenderSnapshot {
     float  previewHoverY{ 0.0f };
     double previewHoverTime{ 0.0f };
     bool   isPreviewDragging{ false };
-
-    // 框选状态
-    bool   isSelecting{ false };
-    double selectionStartTime{ 0.0 };
-    float  selectionStartTrack{ 0.0f };
-    double selectionEndTime{ 0.0 };
-    float  selectionEndTrack{ 0.0f };
 
     // 是否已加载谱面
     bool hasBeatmap{ false };
@@ -149,6 +155,9 @@ struct RenderSnapshot {
         totalTime              = 0.0;
         currentTool            = EditTool::Move;
         isHoveringCanvas       = false;
+        isSelecting            = false;
+        marqueeBoxes.clear();
+        activeSelectionCameraId.clear();
         hoveredTime            = 0.0;
         snappedTime            = 0.0;
         isSnapped              = false;
@@ -158,17 +167,12 @@ struct RenderSnapshot {
         hoveredTrack           = 0;
         hoveredNoteNumerator   = 0;
         hoveredNoteDenominator = 1;
-        hoveredNoteTime        = 0.0;
         hoveredBeatIndex       = 0;
+        hoveredNoteTime        = 0.0;
         isPreviewHovered       = false;
         previewHoverY          = 0.0f;
         previewHoverTime       = 0.0;
         isPreviewDragging      = false;
-        isSelecting            = false;
-        selectionStartTime     = 0.0;
-        selectionStartTrack    = 0.0f;
-        selectionEndTime       = 0.0;
-        selectionEndTrack      = 0.0f;
         hasBeatmap             = false;
     }
 };

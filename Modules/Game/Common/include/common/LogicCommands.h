@@ -105,6 +105,7 @@ struct CmdStartMarquee {
     std::string cameraId;
     float       mouseX;
     float       mouseY;
+    bool        isCtrlDown{ false };
 };
 
 /**
@@ -119,6 +120,15 @@ struct CmdUpdateMarquee {
  * @brief 结束框选指令
  */
 struct CmdEndMarquee {
+};
+
+/**
+ * @brief 移除指定位置的框选区域
+ */
+struct CmdRemoveMarqueeAt {
+    std::string cameraId;
+    float       mouseX;
+    float       mouseY;
 };
 
 /**
@@ -246,6 +256,6 @@ using LogicCommand = std::variant<
     CmdChangeTool, CmdSetMousePosition, CmdUndo, CmdRedo, CmdCopy, CmdPaste,
     CmdCut, CmdSaveBeatmap, CmdPackBeatmap, CmdScroll, CmdUpdateTimelineEvent,
     CmdDeleteTimelineEvent, CmdCreateTimelineEvent, CmdStartMarquee,
-    CmdUpdateMarquee, CmdEndMarquee>;
+    CmdUpdateMarquee, CmdEndMarquee, CmdRemoveMarqueeAt>;
 
 }  // namespace MMM::Logic

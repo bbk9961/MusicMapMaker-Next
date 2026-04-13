@@ -37,8 +37,8 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
             return a->m_timestamp < b->m_timestamp;
         });
 
-    // 0. 如果正在框选，更新选中状态 (每帧只执行一次，避免 Command 堆积)
-    if ( m_isSelecting ) {
+    // 0. 如果存在框选区域，更新选中状态
+    if ( m_isSelecting || !m_marqueeBoxes.empty() ) {
         updateMarqueeSelection();
     }
 
@@ -81,12 +81,20 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
         snapshot->previewHoverTime = m_previewHoverTime;
 
         // --- 注入框选状态 ---
-        snapshot->isSelecting =
-            m_hasMarqueeSelection && (m_selectionCameraId == cameraId);
-        snapshot->selectionStartTime  = m_selectionStartTime;
-        snapshot->selectionStartTrack = m_selectionStartTrack;
-        snapshot->selectionEndTime    = m_selectionEndTime;
-        snapshot->selectionEndTrack   = m_selectionEndTrack;
+        snapshot->isSelecting = m_isSelecting;
+        if ( m_isSelecting && !m_marqueeBoxes.empty() ) {
+            snapshot->activeSelectionCameraId = m_marqueeBoxes.back().cameraId;
+        }
+
+        for ( const auto& box : m_marqueeBoxes ) {
+            RenderSnapshot::MarqueeBoxSnapshot boxSnap;
+            boxSnap.startTime  = box.startTime;
+            boxSnap.endTime    = box.endTime;
+            boxSnap.startTrack = box.startTrack;
+            boxSnap.endTrack   = box.endTrack;
+            boxSnap.cameraId   = box.cameraId;
+            snapshot->marqueeBoxes.push_back(boxSnap);
+        }
 
         if ( snapshot->isHoveringCanvas ) {
             auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>();
@@ -304,13 +312,9 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
     }
 }
 
-void BeatmapSession::updateMarqueeSelection()
+void BeatmapSession::updateMarqueeSelection(bool forceFullSync)
 {
-    // 获取当前时间戳和轨道范围
-    double minTime  = std::min(m_selectionStartTime, m_selectionEndTime);
-    double maxTime  = std::max(m_selectionStartTime, m_selectionEndTime);
-    float  minTrack = std::min(m_selectionStartTrack, m_selectionEndTrack);
-    float  maxTrack = std::max(m_selectionStartTrack, m_selectionEndTrack);
+    if ( m_marqueeBoxes.empty() ) return;
 
     auto mode = m_lastConfig.settings.selectionMode;
     auto view = m_noteRegistry.view<NoteComponent>();
@@ -319,49 +323,69 @@ void BeatmapSession::updateMarqueeSelection()
         const auto& note = view.get<NoteComponent>(entity);
         if ( note.m_isSubNote ) continue;
 
-        bool isSelected = false;
-        if ( mode == Config::SelectionMode::Strict ) {
-            // 严格模式：物件必须完全在框内
-            double noteEnd = note.m_timestamp + note.m_duration;
-            float  trackL  = static_cast<float>(note.m_trackIndex);
-            float  trackR  = trackL + 1.0f;
-            if ( note.m_type == ::MMM::NoteType::FLICK ) {
-                if ( note.m_dtrack > 0 )
-                    trackR += note.m_dtrack;
-                else
-                    trackL += note.m_dtrack;
+        bool isSelectedInAny = false;
+        for ( const auto& box : m_marqueeBoxes ) {
+            double minTime  = std::min(box.startTime, box.endTime);
+            double maxTime  = std::max(box.startTime, box.endTime);
+            float  minTrack = std::min(box.startTrack, box.endTrack);
+            float  maxTrack = std::max(box.startTrack, box.endTrack);
+
+            bool insideThis = false;
+            if ( mode == Config::SelectionMode::Strict ) {
+                // 严格模式：物件必须完全在框内
+                double noteEnd = note.m_timestamp + note.m_duration;
+                float  trackL  = static_cast<float>(note.m_trackIndex);
+                float  trackR  = trackL + 1.0f;
+                if ( note.m_type == ::MMM::NoteType::FLICK ) {
+                    if ( note.m_dtrack > 0 )
+                        trackR += note.m_dtrack;
+                    else
+                        trackL += note.m_dtrack;
+                }
+
+                if ( note.m_timestamp >= minTime && noteEnd <= maxTime &&
+                     trackL >= minTrack && trackR <= maxTrack ) {
+                    insideThis = true;
+                }
+            } else {
+                // 相交模式
+                double noteEnd = note.m_timestamp + note.m_duration;
+                float  trackL  = static_cast<float>(note.m_trackIndex);
+                float  trackR  = trackL + 1.0f;
+                if ( note.m_type == ::MMM::NoteType::FLICK ) {
+                    if ( note.m_dtrack > 0 )
+                        trackR += note.m_dtrack;
+                    else
+                        trackL += note.m_dtrack;
+                }
+
+                bool timeOverlap = std::max(note.m_timestamp, minTime) <=
+                                   std::min(noteEnd, maxTime);
+                bool trackOverlap =
+                    std::max(trackL, minTrack) <= std::min(trackR, maxTrack);
+                if ( timeOverlap && trackOverlap ) {
+                    insideThis = true;
+                }
             }
 
-            if ( note.m_timestamp >= minTime && noteEnd <= maxTime &&
-                 trackL >= minTrack && trackR <= maxTrack ) {
-                isSelected = true;
-            }
-        } else {
-            // 相交模式
-            double noteEnd = note.m_timestamp + note.m_duration;
-            float  trackL  = static_cast<float>(note.m_trackIndex);
-            float  trackR  = trackL + 1.0f;
-            if ( note.m_type == ::MMM::NoteType::FLICK ) {
-                if ( note.m_dtrack > 0 )
-                    trackR += note.m_dtrack;
-                else
-                    trackL += note.m_dtrack;
-            }
-
-            bool timeOverlap = std::max(note.m_timestamp, minTime) <=
-                               std::min(noteEnd, maxTime);
-            bool trackOverlap =
-                std::max(trackL, minTrack) <= std::min(trackR, maxTrack);
-            if ( timeOverlap && trackOverlap ) {
-                isSelected = true;
+            if ( insideThis ) {
+                isSelectedInAny = true;
+                break;
             }
         }
 
         if ( !m_noteRegistry.all_of<InteractionComponent>(entity) ) {
             m_noteRegistry.emplace<InteractionComponent>(entity);
         }
-        m_noteRegistry.get<InteractionComponent>(entity).isSelected =
-            isSelected;
+
+        auto& ic = m_noteRegistry.get<InteractionComponent>(entity);
+        if ( m_marqueeIsAdditive && !forceFullSync ) {
+            if ( isSelectedInAny ) {
+                ic.isSelected = true;
+            }
+        } else {
+            ic.isSelected = isSelectedInAny;
+        }
     }
 }
 

@@ -205,11 +205,12 @@ private:
         const Config::EditorConfig& config, entt::entity entity,
         bool generateHitboxes, HoverPart glowPart, int glowSubIndex);
 
-    static void renderMarquee(Batcher& batcher, RenderSnapshot* snapshot,
-                              float judgmentLineY, float leftX,
-                              float singleTrackW, float renderScaleY,
-                              const ScrollCache* cache, double renderTime,
-                              float viewportWidth, float viewportHeight);
+    static void renderMarqueeBox(Batcher& batcher,
+                                 const RenderSnapshot::MarqueeBoxSnapshot& box,
+                                 float judgmentLineY, float leftX,
+                                 float singleTrackW, float renderScaleY,
+                                 const ScrollCache* cache, double renderTime,
+                                 float viewportWidth, float viewportHeight);
 };
 
 }  // namespace MMM::Logic::System

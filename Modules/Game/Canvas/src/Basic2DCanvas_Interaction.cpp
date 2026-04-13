@@ -264,19 +264,25 @@ void Basic2DCanvas::handleInteractions()
     if ( ImGui::IsMouseClicked(0) ) {
         if ( isHovered ) {
             if ( m_currentSnapshot->currentTool == Logic::EditTool::Marquee ) {
-                Event::EventBus::instance().publish(
-                    Event::LogicCommandEvent(Logic::CmdStartMarquee{
-                        m_cameraId, localMousePos.x, localMousePos.y }));
-            } else if ( hoveredEntity != entt::null ) {
-                Event::EventBus::instance().publish(
-                    Event::LogicCommandEvent(Logic::CmdSelectEntity{
-                        hoveredEntity, !ImGui::GetIO().KeyCtrl }));
-
-                Event::EventBus::instance().publish(Event::LogicCommandEvent(
-                    Logic::CmdStartDrag{ hoveredEntity, m_cameraId }));
-            } else {
-                Event::EventBus::instance().publish(Event::LogicCommandEvent(
-                    Logic::CmdSelectEntity{ entt::null, true }));
+                if ( hoveredEntity != entt::null ) {
+                    Event::EventBus::instance().publish(
+                        Event::LogicCommandEvent(Logic::CmdSelectEntity{
+                            hoveredEntity, !ImGui::GetIO().KeyCtrl }));
+                } else {
+                    Event::EventBus::instance().publish(
+                        Event::LogicCommandEvent(Logic::CmdStartMarquee{
+                            m_cameraId, localMousePos.x, localMousePos.y, ImGui::GetIO().KeyCtrl }));
+                }
+            } else if ( m_currentSnapshot->currentTool == Logic::EditTool::Move ) {
+                if ( hoveredEntity != entt::null ) {
+                    // 抓取工具不再负责选中，只负责发起拖拽
+                    Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                        Logic::CmdStartDrag{ hoveredEntity, m_cameraId }));
+                } else {
+                    // 抓取工具点击空白处不再清除选中（只有框选工具可以管理选中）
+                }
+            } else if ( m_currentSnapshot->currentTool == Logic::EditTool::Draw ) {
+                // TODO: 绘制工具点击逻辑
             }
         }
     }
@@ -300,6 +306,11 @@ void Basic2DCanvas::handleInteractions()
             Event::EventBus::instance().publish(
                 Event::LogicCommandEvent(Logic::CmdEndDrag{ m_cameraId }));
         }
+    }
+
+    if ( ImGui::IsMouseClicked(1) && ImGui::GetIO().KeyCtrl ) {
+        Event::EventBus::instance().publish(Event::LogicCommandEvent(
+            Logic::CmdRemoveMarqueeAt{ m_cameraId, localMousePos.x, localMousePos.y }));
     }
 
     // --- 交互：鼠标滚轮控制时间跳转与属性修改 ---

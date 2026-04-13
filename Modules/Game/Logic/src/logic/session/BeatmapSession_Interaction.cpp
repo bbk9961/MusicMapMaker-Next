@@ -46,6 +46,9 @@ void BeatmapSession::handleCommand(const CmdSetHoveredEntity& cmd)
 
 void BeatmapSession::handleCommand(const CmdSelectEntity& cmd)
 {
+    // 只有在框选工具模式下才允许修改选中状态
+    if ( m_currentTool != EditTool::Marquee ) return;
+
     // 如果清空其他选中，则也清空当前可能的框选留存
     if ( cmd.clearOthers ) {
         m_hasMarqueeSelection = false;
@@ -65,167 +68,23 @@ void BeatmapSession::handleCommand(const CmdSelectEntity& cmd)
 
 void BeatmapSession::handleCommand(const CmdStartDrag& cmd)
 {
-    // 只有在抓取工具模式下才允许发起拖拽
-    if ( m_currentTool != EditTool::Move ) return;
-
-    if ( cmd.entity != entt::null && m_noteRegistry.valid(cmd.entity) ) {
-        m_draggedEntity   = cmd.entity;
-        m_dragCameraId    = cmd.cameraId;
-        m_draggedPart     = static_cast<HoverPart>(m_hoveredPart);
-        m_draggedSubIndex = m_hoveredSubIndex;
-
-        if ( !m_noteRegistry.all_of<InteractionComponent>(cmd.entity) ) {
-            m_noteRegistry.emplace<InteractionComponent>(cmd.entity);
-        }
-        m_noteRegistry.get<InteractionComponent>(cmd.entity).isDragging = true;
-
-        if ( auto* note = m_noteRegistry.try_get<NoteComponent>(cmd.entity) ) {
-            m_dragInitialNote = *note;
-        }
+    if ( m_tools.count(m_currentTool) ) {
+        m_tools[m_currentTool]->handleStartDrag(*this, cmd);
     }
 }
 
 void BeatmapSession::handleCommand(const CmdUpdateDrag& cmd)
 {
-    if ( m_draggedEntity != entt::null &&
-         m_noteRegistry.valid(m_draggedEntity) ) {
-        auto it = m_cameras.find(cmd.cameraId);
-        if ( it != m_cameras.end() ) {
-            float judgmentLineY =
-                it->second.viewportHeight * m_lastConfig.visual.judgeline_pos;
-
-            float renderScaleY = 1.0f;
-            if ( cmd.cameraId == "Preview" ) {
-                auto  itMain             = m_cameras.find("Basic2DCanvas");
-                float mainViewportHeight = itMain != m_cameras.end()
-                                               ? itMain->second.viewportHeight
-                                               : it->second.viewportHeight;
-
-                float mainEffectiveH = (m_lastConfig.visual.trackLayout.bottom -
-                                        m_lastConfig.visual.trackLayout.top) *
-                                       mainViewportHeight;
-                float ty = m_lastConfig.visual.previewConfig.margin.top;
-                float by = it->second.viewportHeight -
-                           m_lastConfig.visual.previewConfig.margin.bottom;
-                float previewDrawH = by - ty;
-
-                renderScaleY = previewDrawH /
-                               (mainEffectiveH *
-                                m_lastConfig.visual.previewConfig.areaRatio);
-            } else {
-                renderScaleY = m_lastConfig.visual.noteScaleY;
-            }
-
-            auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>();
-            if ( cache ) {
-                double currentAbsY = cache->getAbsY(m_visualTime);
-                double targetAbsY =
-                    currentAbsY + (judgmentLineY - cmd.mouseY) / renderScaleY;
-                double targetTime = cache->getTime(targetAbsY);
-
-                std::vector<const TimelineComponent*> bpmEvents;
-                auto                                  tlView =
-                    m_timelineRegistry.view<const TimelineComponent>();
-                for ( auto entity : tlView ) {
-                    const auto& tl =
-                        tlView.get<const TimelineComponent>(entity);
-                    if ( tl.m_effect == ::MMM::TimingEffect::BPM ) {
-                        bpmEvents.push_back(&tl);
-                    }
-                }
-                std::stable_sort(bpmEvents.begin(),
-                                 bpmEvents.end(),
-                                 [](const auto* a, const auto* b) {
-                                     return a->m_timestamp < b->m_timestamp;
-                                 });
-
-                auto snap = getSnapResult(targetTime,
-                                          cmd.mouseY,
-                                          it->second,
-                                          m_lastConfig,
-                                          bpmEvents);
-                if ( snap.isSnapped ) {
-                    targetTime = snap.snappedTime;
-                }
-
-                if ( auto* note = m_noteRegistry.try_get<NoteComponent>(
-                         m_draggedEntity) ) {
-                    if ( note->m_type == ::MMM::NoteType::HOLD &&
-                         m_draggedPart == HoverPart::HoldEnd ) {
-                        // 1. 拖拽 Hold 尾部：调整持续时间 (Duration)
-                        double newDuration = targetTime - note->m_timestamp;
-                        if ( newDuration < 0.0 ) newDuration = 0.0;
-                        note->m_duration = newDuration;
-                    } else if ( note->m_type == ::MMM::NoteType::FLICK &&
-                                m_draggedPart == HoverPart::FlickArrow ) {
-                        // 2. 拖拽 Flick 箭头：调整偏移轨道数 (dtrack)
-                        float leftX = it->second.viewportWidth *
-                                      m_lastConfig.visual.trackLayout.left;
-                        float rightX = it->second.viewportWidth *
-                                       m_lastConfig.visual.trackLayout.right;
-                        float trackAreaW = rightX - leftX;
-                        float noteW      = trackAreaW / m_trackCount;
-
-                        int targetTrack = static_cast<int>(std::round(
-                            (cmd.mouseX - leftX - noteW / 2.0f) / noteW));
-                        targetTrack =
-                            std::clamp(targetTrack, 0, m_trackCount - 1);
-
-                        note->m_dtrack = targetTrack - note->m_trackIndex;
-                    } else {
-                        // 3. 拖拽音符头部或身体（或非 Hold/Flick 特殊部位）：移动整个音符
-                        note->m_timestamp = targetTime;
-
-                        float leftX  = it->second.viewportWidth *
-                                       m_lastConfig.visual.trackLayout.left;
-                        float rightX = it->second.viewportWidth *
-                                       m_lastConfig.visual.trackLayout.right;
-                        float trackAreaW = rightX - leftX;
-                        float noteW      = trackAreaW / m_trackCount;
-                        int   track      = static_cast<int>(std::round(
-                            (cmd.mouseX - leftX - noteW / 2.0f) / noteW));
-                        track = std::clamp(track, 0, m_trackCount - 1);
-                        note->m_trackIndex = track;
-
-                        if ( auto* trans =
-                                 m_noteRegistry.try_get<TransformComponent>(
-                                     m_draggedEntity) ) {
-                            trans->m_pos.x = leftX + track * noteW;
-                        }
-                    }
-                }
-            }
-        }
+    if ( m_tools.count(m_currentTool) ) {
+        m_tools[m_currentTool]->handleUpdateDrag(*this, cmd);
     }
 }
 
 void BeatmapSession::handleCommand(const CmdEndDrag& cmd)
 {
-    if ( m_draggedEntity != entt::null &&
-         m_noteRegistry.valid(m_draggedEntity) ) {
-        if ( m_noteRegistry.all_of<InteractionComponent>(m_draggedEntity) ) {
-            m_noteRegistry.get<InteractionComponent>(m_draggedEntity)
-                .isDragging = false;
-        }
-
-        // 提交撤销操作
-        if ( m_dragInitialNote.has_value() ) {
-            auto* currentNote =
-                m_noteRegistry.try_get<NoteComponent>(m_draggedEntity);
-            if ( currentNote ) {
-                auto action =
-                    std::make_unique<NoteAction>(NoteAction::Type::Update,
-                                                 m_draggedEntity,
-                                                 *m_dragInitialNote,
-                                                 *currentNote);
-                m_actionStack.pushAndExecute(std::move(action), *this);
-            }
-        }
-
-        rebuildHitEvents();
+    if ( m_tools.count(m_currentTool) ) {
+        m_tools[m_currentTool]->handleEndDrag(*this, cmd);
     }
-    m_draggedEntity   = entt::null;
-    m_dragInitialNote = std::nullopt;
 }
 
 void BeatmapSession::handleCommand(const CmdSetMousePosition& cmd)
@@ -298,107 +157,30 @@ void BeatmapSession::handleCommand(const CmdChangeTool& cmd)
 
 void BeatmapSession::handleCommand(const CmdStartMarquee& cmd)
 {
-    m_isSelecting         = true;
-    m_hasMarqueeSelection = true;
-    m_selectionCameraId   = cmd.cameraId;
-    auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>();
-    if ( cache ) {
-        auto it = m_cameras.find(cmd.cameraId);
-        if ( it != m_cameras.end() ) {
-            float judgmentLineY =
-                it->second.viewportHeight * m_lastConfig.visual.judgeline_pos;
-
-            float renderScaleY = 1.0f;
-            if ( cmd.cameraId == "Preview" ) {
-                auto  itMain             = m_cameras.find("Basic2DCanvas");
-                float mainViewportHeight = itMain != m_cameras.end()
-                                               ? itMain->second.viewportHeight
-                                               : it->second.viewportHeight;
-
-                float mainEffectiveH = (m_lastConfig.visual.trackLayout.bottom -
-                                        m_lastConfig.visual.trackLayout.top) *
-                                       mainViewportHeight;
-                float ty = m_lastConfig.visual.previewConfig.margin.top;
-                float by = it->second.viewportHeight -
-                           m_lastConfig.visual.previewConfig.margin.bottom;
-                float previewDrawH = by - ty;
-
-                renderScaleY = previewDrawH /
-                               (mainEffectiveH *
-                                m_lastConfig.visual.previewConfig.areaRatio);
-            } else {
-                renderScaleY = m_lastConfig.visual.noteScaleY;
-            }
-
-            double currentAbsY = cache->getAbsY(m_visualTime);
-            double targetAbsY =
-                currentAbsY + (judgmentLineY - cmd.mouseY) / renderScaleY;
-            m_selectionStartTime = cache->getTime(targetAbsY);
-            m_selectionEndTime   = m_selectionStartTime;
-
-            float leftX =
-                it->second.viewportWidth * m_lastConfig.visual.trackLayout.left;
-            float rightX     = it->second.viewportWidth *
-                               m_lastConfig.visual.trackLayout.right;
-            float trackAreaW = rightX - leftX;
-            m_selectionStartTrack =
-                (cmd.mouseX - leftX) / (trackAreaW / m_trackCount);
-            m_selectionEndTrack = m_selectionStartTrack;
-        }
+    if ( m_tools.count(m_currentTool) ) {
+        m_tools[m_currentTool]->handleStartMarquee(*this, cmd);
     }
 }
 
 void BeatmapSession::handleCommand(const CmdUpdateMarquee& cmd)
 {
-    if ( !m_isSelecting ) return;
-    auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>();
-    if ( cache ) {
-        auto it = m_cameras.find(m_selectionCameraId);
-        if ( it != m_cameras.end() ) {
-            float judgmentLineY =
-                it->second.viewportHeight * m_lastConfig.visual.judgeline_pos;
-
-            float renderScaleY = 1.0f;
-            if ( m_selectionCameraId == "Preview" ) {
-                auto  itMain             = m_cameras.find("Basic2DCanvas");
-                float mainViewportHeight = itMain != m_cameras.end()
-                                               ? itMain->second.viewportHeight
-                                               : it->second.viewportHeight;
-
-                float mainEffectiveH = (m_lastConfig.visual.trackLayout.bottom -
-                                        m_lastConfig.visual.trackLayout.top) *
-                                       mainViewportHeight;
-                float ty = m_lastConfig.visual.previewConfig.margin.top;
-                float by = it->second.viewportHeight -
-                           m_lastConfig.visual.previewConfig.margin.bottom;
-                float previewDrawH = by - ty;
-
-                renderScaleY = previewDrawH /
-                               (mainEffectiveH *
-                                m_lastConfig.visual.previewConfig.areaRatio);
-            } else {
-                renderScaleY = m_lastConfig.visual.noteScaleY;
-            }
-
-            double currentAbsY = cache->getAbsY(m_visualTime);
-            double targetAbsY =
-                currentAbsY + (judgmentLineY - cmd.mouseY) / renderScaleY;
-            m_selectionEndTime = cache->getTime(targetAbsY);
-
-            float leftX =
-                it->second.viewportWidth * m_lastConfig.visual.trackLayout.left;
-            float rightX     = it->second.viewportWidth *
-                               m_lastConfig.visual.trackLayout.right;
-            float trackAreaW = rightX - leftX;
-            m_selectionEndTrack =
-                (cmd.mouseX - leftX) / (trackAreaW / m_trackCount);
-        }
+    if ( m_tools.count(m_currentTool) ) {
+        m_tools[m_currentTool]->handleUpdateMarquee(*this, cmd);
     }
 }
 
 void BeatmapSession::handleCommand(const CmdEndMarquee& cmd)
 {
-    m_isSelecting = false;
+    if ( m_tools.count(m_currentTool) ) {
+        m_tools[m_currentTool]->handleEndMarquee(*this, cmd);
+    }
+}
+
+void BeatmapSession::handleCommand(const CmdRemoveMarqueeAt& cmd)
+{
+    if ( m_tools.count(m_currentTool) ) {
+        m_tools[m_currentTool]->handleRemoveMarqueeAt(*this, cmd);
+    }
 }
 
 }  // namespace MMM::Logic

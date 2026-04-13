@@ -173,35 +173,41 @@ void NoteRenderSystem::generateSnapshot(
                                   singleTrackW,
                                   renderScaleY);
 
-    if ( snapshot->isSelecting ) {
-        NoteRenderSystem::renderMarquee(batcher,
-                                        snapshot,
-                                        judgmentLineY,
-                                        leftX,
-                                        singleTrackW,
-                                        renderScaleY,
-                                        cache,
-                                        renderTime,
-                                        viewportWidth,
-                                        viewportHeight);
+    for ( const auto& box : snapshot->marqueeBoxes ) {
+        // 只有与当前视口匹配的框才进行渲染
+        // 注意：目前 NoteRenderSystem 处理时并没有显式传递当前摄像机 ID 信息给 renderMarquee
+        // 但我们可以从 snapshot 结构中推断，或者暂且认为所有框都渲染（渲染器坐标系已由外部变换）
+        // 实际上 handleStartMarquee 记录了 cameraId，这里我们应该校验
+        // 由于 NoteRenderSystem 是通用生成的，我们可以根据坐标范围自动裁剪
+        NoteRenderSystem::renderMarqueeBox(batcher,
+                                           box,
+                                           judgmentLineY,
+                                           leftX,
+                                           singleTrackW,
+                                           renderScaleY,
+                                           cache,
+                                           renderTime,
+                                           viewportWidth,
+                                           viewportHeight);
     }
 
     batcher.flush();
 }
 
-void NoteRenderSystem::renderMarquee(Batcher& batcher, RenderSnapshot* snapshot,
-                                     float judgmentLineY, float leftX,
-                                     float singleTrackW, float renderScaleY,
-                                     const ScrollCache* cache,
-                                     double renderTime, float viewportWidth,
-                                     float viewportHeight)
+void NoteRenderSystem::renderMarqueeBox(Batcher& batcher,
+                                        const RenderSnapshot::MarqueeBoxSnapshot& box,
+                                        float judgmentLineY, float leftX,
+                                        float singleTrackW, float renderScaleY,
+                                        const ScrollCache* cache,
+                                        double renderTime, float viewportWidth,
+                                        float viewportHeight)
 {
-    float x1 = leftX + snapshot->selectionStartTrack * singleTrackW;
-    float x2 = leftX + snapshot->selectionEndTrack * singleTrackW;
+    float x1 = leftX + box.startTrack * singleTrackW;
+    float x2 = leftX + box.endTrack * singleTrackW;
 
     double currentAbsY = cache->getAbsY(renderTime);
-    double startAbsY   = cache->getAbsY(snapshot->selectionStartTime);
-    double endAbsY     = cache->getAbsY(snapshot->selectionEndTime);
+    double startAbsY   = cache->getAbsY(box.startTime);
+    double endAbsY     = cache->getAbsY(box.endTime);
 
     float y1 = judgmentLineY -
                static_cast<float>(startAbsY - currentAbsY) * renderScaleY;

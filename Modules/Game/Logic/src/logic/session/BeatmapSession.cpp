@@ -1,4 +1,8 @@
 #include "logic/BeatmapSession.h"
+#include "logic/session/tool/GrabTool.h"
+#include "logic/session/tool/MarqueeTool.h"
+#include "logic/session/tool/DrawTool.h"
+#include "logic/session/tool/CutTool.h"
 #include "audio/AudioManager.h"
 #include "log/colorful-log.h"
 #include "logic/BeatmapSyncBuffer.h"
@@ -21,6 +25,11 @@ namespace MMM::Logic
 
 BeatmapSession::BeatmapSession()
 {
+    m_tools[EditTool::Move] = std::make_unique<GrabTool>();
+    m_tools[EditTool::Marquee] = std::make_unique<MarqueeTool>();
+    m_tools[EditTool::Draw] = std::make_unique<DrawTool>();
+    m_tools[EditTool::Cut] = std::make_unique<CutTool>();
+
     // 初始化时注册 TimelineComponent 的增删改信号，并注入 ScrollCache 上下文
     m_timelineRegistry.ctx().emplace<System::ScrollCache>();
     m_timelineRegistry.on_construct<TimelineComponent>()
