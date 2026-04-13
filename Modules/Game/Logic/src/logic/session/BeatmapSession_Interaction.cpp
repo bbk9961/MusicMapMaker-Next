@@ -156,8 +156,24 @@ void BeatmapSession::handleCommand(const CmdUpdateDrag& cmd)
                         double newDuration = targetTime - note->m_timestamp;
                         if ( newDuration < 0.0 ) newDuration = 0.0;
                         note->m_duration = newDuration;
+                    } else if ( note->m_type == ::MMM::NoteType::FLICK &&
+                                m_draggedPart == HoverPart::FlickArrow ) {
+                        // 2. 拖拽 Flick 箭头：调整偏移轨道数 (dtrack)
+                        float leftX = it->second.viewportWidth *
+                                      m_lastConfig.visual.trackLayout.left;
+                        float rightX = it->second.viewportWidth *
+                                       m_lastConfig.visual.trackLayout.right;
+                        float trackAreaW = rightX - leftX;
+                        float noteW      = trackAreaW / m_trackCount;
+
+                        int targetTrack = static_cast<int>(std::round(
+                            (cmd.mouseX - leftX - noteW / 2.0f) / noteW));
+                        targetTrack =
+                            std::clamp(targetTrack, 0, m_trackCount - 1);
+
+                        note->m_dtrack = targetTrack - note->m_trackIndex;
                     } else {
-                        // 2. 拖拽音符头部或身体（或非 Hold 物件）：移动整个音符
+                        // 3. 拖拽音符头部或身体（或非 Hold/Flick 特殊部位）：移动整个音符
                         note->m_timestamp = targetTime;
 
                         float leftX  = it->second.viewportWidth *
