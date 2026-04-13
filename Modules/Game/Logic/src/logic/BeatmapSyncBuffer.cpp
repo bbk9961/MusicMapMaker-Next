@@ -18,10 +18,24 @@ BeatmapSyncBuffer::BeatmapSyncBuffer()
 
 RenderSnapshot* BeatmapSyncBuffer::getWorkingSnapshot()
 {
-    // 如果没有空闲的缓冲，只能新建一个以保证1对1帧率不断裂
+    // 关键修复：防止 m_working 被覆盖导致原指针丢失
+    if ( m_working ) {
+        return m_working;
+    }
+
+    // 尝试从空闲队列获取
     if ( !m_freeQueue.try_dequeue(m_working) ) {
-        m_working = new RenderSnapshot();
-        m_storage.push_back(std::unique_ptr<RenderSnapshot>(m_working));
+        const size_t MAX_SNAPSHOTS = 64; // 单个 Buffer 最大允许的快照数
+        if ( m_storage.size() < MAX_SNAPSHOTS ) {
+            m_working = new RenderSnapshot();
+            m_storage.push_back(std::unique_ptr<RenderSnapshot>(m_working));
+        } else {
+            // 已达上限，强行从就绪队列抢夺一个最旧的回来（虽然这会导致跳帧，但总比内存爆炸好）
+            if ( !m_readyQueue.try_dequeue(m_working) ) {
+                // 如果就绪队列也空（极罕见），则只能回退到第一个
+                m_working = m_storage[0].get();
+            }
+        }
     }
     return m_working;
 }
@@ -29,6 +43,15 @@ RenderSnapshot* BeatmapSyncBuffer::getWorkingSnapshot()
 void BeatmapSyncBuffer::pushWorkingSnapshot()
 {
     if ( m_working ) {
+        // 积压保护：如果就绪队列太长（说明 UI 线程卡住或没在读），丢弃最旧的快照以防内存膨胀
+        const size_t MAX_READY = 16;
+        if ( m_readyQueue.size_approx() > MAX_READY ) {
+            RenderSnapshot* stale = nullptr;
+            if ( m_readyQueue.try_dequeue(stale) ) {
+                m_freeQueue.enqueue(stale);
+            }
+        }
+
         m_readyQueue.enqueue(m_working);
         m_working = nullptr;
     }
