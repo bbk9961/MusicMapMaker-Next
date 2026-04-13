@@ -65,6 +65,9 @@ void BeatmapSession::handleCommand(const CmdSelectEntity& cmd)
 
 void BeatmapSession::handleCommand(const CmdStartDrag& cmd)
 {
+    // 只有在抓取工具模式下才允许发起拖拽
+    if ( m_currentTool != EditTool::Move ) return;
+
     if ( cmd.entity != entt::null && m_noteRegistry.valid(cmd.entity) ) {
         m_draggedEntity   = cmd.entity;
         m_dragCameraId    = cmd.cameraId;
