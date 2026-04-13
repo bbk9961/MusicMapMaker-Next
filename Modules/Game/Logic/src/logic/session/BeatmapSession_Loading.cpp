@@ -16,6 +16,7 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
 {
     m_noteRegistry.clear();
     m_timelineRegistry.clear();
+    m_actionStack.clear();
     Audio::AudioManager::instance().stop();
 
     // m_isPlaying      = true;
