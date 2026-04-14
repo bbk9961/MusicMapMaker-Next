@@ -1,14 +1,14 @@
-#include "logic/session/SessionUtils.h"
-#include "logic/session/context/SessionContext.h"
 #include "logic/session/tool/MarqueeTool.h"
 #include "logic/BeatmapSession.h"
 #include "logic/ecs/components/InteractionComponent.h"
 #include "logic/ecs/system/ScrollCache.h"
+#include "logic/session/SessionUtils.h"
+#include "logic/session/context/SessionContext.h"
 
 namespace MMM::Logic
 {
 
-void MarqueeTool::handleStartMarquee(SessionContext& ctx,
+void MarqueeTool::handleStartMarquee(SessionContext&        ctx,
                                      const CmdStartMarquee& cmd)
 {
     ctx.isSelecting         = true;
@@ -20,8 +20,8 @@ void MarqueeTool::handleStartMarquee(SessionContext& ctx,
         ctx.marqueeBoxes.clear();
         auto view = ctx.noteRegistry.view<InteractionComponent>();
         for ( auto entity : view ) {
-            ctx.noteRegistry.get<InteractionComponent>(entity)
-                .isSelected = false;
+            ctx.noteRegistry.get<InteractionComponent>(entity).isSelected =
+                false;
         }
     }
 
@@ -32,12 +32,12 @@ void MarqueeTool::handleStartMarquee(SessionContext& ctx,
             MarqueeBox newBox;
             newBox.cameraId = cmd.cameraId;
 
-            float judgmentLineY = it->second.viewportHeight *
-                                  ctx.lastConfig.visual.judgeline_pos;
+            float judgmentLineY =
+                it->second.viewportHeight * ctx.lastConfig.visual.judgeline_pos;
 
             float renderScaleY = 1.0f;
             if ( cmd.cameraId == "Preview" ) {
-                auto  itMain = ctx.cameras.find("Basic2DCanvas");
+                auto  itMain             = ctx.cameras.find("Basic2DCanvas");
                 float mainViewportHeight = itMain != ctx.cameras.end()
                                                ? itMain->second.viewportHeight
                                                : it->second.viewportHeight;
@@ -47,15 +47,13 @@ void MarqueeTool::handleStartMarquee(SessionContext& ctx,
                      ctx.lastConfig.visual.trackLayout.top) *
                     mainViewportHeight;
                 float ty = ctx.lastConfig.visual.previewConfig.margin.top;
-                float by =
-                    it->second.viewportHeight -
-                    ctx.lastConfig.visual.previewConfig.margin.bottom;
+                float by = it->second.viewportHeight -
+                           ctx.lastConfig.visual.previewConfig.margin.bottom;
                 float previewDrawH = by - ty;
 
-                renderScaleY =
-                    previewDrawH /
-                    (mainEffectiveH *
-                     ctx.lastConfig.visual.previewConfig.areaRatio);
+                renderScaleY = previewDrawH /
+                               (mainEffectiveH *
+                                ctx.lastConfig.visual.previewConfig.areaRatio);
             } else {
                 renderScaleY = ctx.lastConfig.visual.noteScaleY;
             }
@@ -80,7 +78,7 @@ void MarqueeTool::handleStartMarquee(SessionContext& ctx,
     }
 }
 
-void MarqueeTool::handleUpdateMarquee(SessionContext& ctx,
+void MarqueeTool::handleUpdateMarquee(SessionContext&         ctx,
                                       const CmdUpdateMarquee& cmd)
 {
     if ( !ctx.isSelecting || ctx.marqueeBoxes.empty() ) return;
@@ -90,12 +88,12 @@ void MarqueeTool::handleUpdateMarquee(SessionContext& ctx,
     if ( cache ) {
         auto it = ctx.cameras.find(currentBox.cameraId);
         if ( it != ctx.cameras.end() ) {
-            float judgmentLineY = it->second.viewportHeight *
-                                  ctx.lastConfig.visual.judgeline_pos;
+            float judgmentLineY =
+                it->second.viewportHeight * ctx.lastConfig.visual.judgeline_pos;
 
             float renderScaleY = 1.0f;
             if ( currentBox.cameraId == "Preview" ) {
-                auto  itMain = ctx.cameras.find("Basic2DCanvas");
+                auto  itMain             = ctx.cameras.find("Basic2DCanvas");
                 float mainViewportHeight = itMain != ctx.cameras.end()
                                                ? itMain->second.viewportHeight
                                                : it->second.viewportHeight;
@@ -105,15 +103,13 @@ void MarqueeTool::handleUpdateMarquee(SessionContext& ctx,
                      ctx.lastConfig.visual.trackLayout.top) *
                     mainViewportHeight;
                 float ty = ctx.lastConfig.visual.previewConfig.margin.top;
-                float by =
-                    it->second.viewportHeight -
-                    ctx.lastConfig.visual.previewConfig.margin.bottom;
+                float by = it->second.viewportHeight -
+                           ctx.lastConfig.visual.previewConfig.margin.bottom;
                 float previewDrawH = by - ty;
 
-                renderScaleY =
-                    previewDrawH /
-                    (mainEffectiveH *
-                     ctx.lastConfig.visual.previewConfig.areaRatio);
+                renderScaleY = previewDrawH /
+                               (mainEffectiveH *
+                                ctx.lastConfig.visual.previewConfig.areaRatio);
             } else {
                 renderScaleY = ctx.lastConfig.visual.noteScaleY;
             }
@@ -134,7 +130,7 @@ void MarqueeTool::handleUpdateMarquee(SessionContext& ctx,
     }
 }
 
-void MarqueeTool::handleEndMarquee(SessionContext& ctx,
+void MarqueeTool::handleEndMarquee(SessionContext&      ctx,
                                    const CmdEndMarquee& cmd)
 {
     ctx.isSelecting = false;
@@ -148,7 +144,7 @@ void MarqueeTool::handleEndMarquee(SessionContext& ctx,
     }
 }
 
-void MarqueeTool::handleRemoveMarqueeAt(SessionContext& ctx,
+void MarqueeTool::handleRemoveMarqueeAt(SessionContext&           ctx,
                                         const CmdRemoveMarqueeAt& cmd)
 {
     auto* cache = ctx.timelineRegistry.ctx().find<System::ScrollCache>();
@@ -167,16 +163,16 @@ void MarqueeTool::handleRemoveMarqueeAt(SessionContext& ctx,
         float mainViewportHeight = itMain != ctx.cameras.end()
                                        ? itMain->second.viewportHeight
                                        : it->second.viewportHeight;
-        float mainEffectiveH = (ctx.lastConfig.visual.trackLayout.bottom -
-                                ctx.lastConfig.visual.trackLayout.top) *
-                               mainViewportHeight;
-        float ty = ctx.lastConfig.visual.previewConfig.margin.top;
-        float by = it->second.viewportHeight -
-                   ctx.lastConfig.visual.previewConfig.margin.bottom;
+        float mainEffectiveH     = (ctx.lastConfig.visual.trackLayout.bottom -
+                                    ctx.lastConfig.visual.trackLayout.top) *
+                                   mainViewportHeight;
+        float ty           = ctx.lastConfig.visual.previewConfig.margin.top;
+        float by           = it->second.viewportHeight -
+                             ctx.lastConfig.visual.previewConfig.margin.bottom;
         float previewDrawH = by - ty;
-        renderScaleY = previewDrawH /
-                       (mainEffectiveH *
-                        ctx.lastConfig.visual.previewConfig.areaRatio);
+        renderScaleY =
+            previewDrawH /
+            (mainEffectiveH * ctx.lastConfig.visual.previewConfig.areaRatio);
     } else {
         renderScaleY = ctx.lastConfig.visual.noteScaleY;
     }
@@ -188,15 +184,13 @@ void MarqueeTool::handleRemoveMarqueeAt(SessionContext& ctx,
 
     float leftX =
         it->second.viewportWidth * ctx.lastConfig.visual.trackLayout.left;
-    float rightX     = it->second.viewportWidth *
-                       ctx.lastConfig.visual.trackLayout.right;
+    float rightX =
+        it->second.viewportWidth * ctx.lastConfig.visual.trackLayout.right;
     float trackAreaW = rightX - leftX;
-    float clickTrack =
-        (cmd.mouseX - leftX) / (trackAreaW / ctx.trackCount);
+    float clickTrack = (cmd.mouseX - leftX) / (trackAreaW / ctx.trackCount);
 
     // 2. 逆序查找被点击的框
-    for ( int i = static_cast<int>(ctx.marqueeBoxes.size()) - 1; i >= 0;
-          --i ) {
+    for ( int i = static_cast<int>(ctx.marqueeBoxes.size()) - 1; i >= 0; --i ) {
         auto& box = ctx.marqueeBoxes[i];
         if ( box.cameraId != cmd.cameraId ) continue;
 
@@ -218,7 +212,15 @@ void MarqueeTool::handleRemoveMarqueeAt(SessionContext& ctx,
                         .isSelected = false;
                 }
             } else {
-                /* TODO: trigger marquee update, it is handled in controller */;
+                ctx.marqueeIsAdditive =
+                    false;  // Reset additive to false to ensure a clean rebuild
+                            // of selection
+                auto view = ctx.noteRegistry.view<InteractionComponent>();
+                for ( auto entity : view ) {
+                    ctx.noteRegistry.get<InteractionComponent>(entity)
+                        .isSelected = false;
+                }
+                ctx.hasMarqueeSelection = true;
             }
             return;
         }
