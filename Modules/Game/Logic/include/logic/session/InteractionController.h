@@ -10,7 +10,7 @@ struct SessionContext;
 class InteractionController
 {
 public:
-    InteractionController(SessionContext& ctx) : m_ctx(ctx) {}
+    InteractionController(SessionContext& ctx);
 
     void handleCommand(const CmdSetHoveredEntity& cmd);
     void handleCommand(const CmdSelectEntity& cmd);
@@ -28,8 +28,8 @@ public:
     void updateMarqueeSelection(bool forceFullSync = false);
 
 private:
-    SessionContext& m_ctx;
+    SessionContext&                                          m_ctx;
     std::unordered_map<EditTool, std::unique_ptr<IEditTool>> m_tools;
 };
 
-} // namespace MMM::Logic
+}  // namespace MMM::Logic

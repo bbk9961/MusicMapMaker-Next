@@ -1,27 +1,41 @@
+#include "logic/session/InteractionController.h"
 #include "config/AppConfig.h"
 #include "event/core/EventBus.h"
 #include "event/logic/LogicCommandEvent.h"
 #include "log/colorful-log.h"
-#include "logic/session/InteractionController.h"
-#include "logic/session/context/SessionContext.h"
 #include "logic/ecs/components/InteractionComponent.h"
 #include "logic/ecs/components/NoteComponent.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/components/TransformComponent.h"
 #include "logic/ecs/system/render/Batcher.h"
 #include "logic/session/NoteAction.h"
+#include "logic/session/context/SessionContext.h"
+#include "logic/session/tool/CutTool.h"
+#include "logic/session/tool/DrawTool.h"
+#include "logic/session/tool/GrabTool.h"
+#include "logic/session/tool/MarqueeTool.h"
 #include "mmm/beatmap/BeatMap.h"
 
 namespace MMM::Logic
 {
 
+InteractionController::InteractionController(SessionContext& ctx) : m_ctx(ctx)
+{
+    m_tools[EditTool::Move]    = std::make_unique<GrabTool>();
+    m_tools[EditTool::Marquee] = std::make_unique<MarqueeTool>();
+    m_tools[EditTool::Cut]     = std::make_unique<CutTool>();
+    m_tools[EditTool::Draw]    = std::make_unique<DrawTool>();
+}
+
 // --- Interaction Handlers ---
 
 void InteractionController::handleCommand(const CmdSetHoveredEntity& cmd)
 {
-    if ( m_ctx.hoveredEntity != cmd.entity && m_ctx.hoveredEntity != entt::null ) {
+    if ( m_ctx.hoveredEntity != cmd.entity &&
+         m_ctx.hoveredEntity != entt::null ) {
         if ( m_ctx.noteRegistry.valid(m_ctx.hoveredEntity) &&
-             m_ctx.noteRegistry.all_of<InteractionComponent>(m_ctx.hoveredEntity) ) {
+             m_ctx.noteRegistry.all_of<InteractionComponent>(
+                 m_ctx.hoveredEntity) ) {
             m_ctx.noteRegistry.get<InteractionComponent>(m_ctx.hoveredEntity)
                 .isHovered = false;
             m_ctx.noteRegistry.get<InteractionComponent>(m_ctx.hoveredEntity)
@@ -35,10 +49,13 @@ void InteractionController::handleCommand(const CmdSetHoveredEntity& cmd)
 
     if ( m_ctx.hoveredEntity != entt::null &&
          m_ctx.noteRegistry.valid(m_ctx.hoveredEntity) ) {
-        if ( !m_ctx.noteRegistry.all_of<InteractionComponent>(m_ctx.hoveredEntity) ) {
-            m_ctx.noteRegistry.emplace<InteractionComponent>(m_ctx.hoveredEntity);
+        if ( !m_ctx.noteRegistry.all_of<InteractionComponent>(
+                 m_ctx.hoveredEntity) ) {
+            m_ctx.noteRegistry.emplace<InteractionComponent>(
+                m_ctx.hoveredEntity);
         }
-        auto& ic = m_ctx.noteRegistry.get<InteractionComponent>(m_ctx.hoveredEntity);
+        auto& ic =
+            m_ctx.noteRegistry.get<InteractionComponent>(m_ctx.hoveredEntity);
         ic.isHovered       = true;
         ic.hoveredPart     = cmd.part;
         ic.hoveredSubIndex = cmd.subIndex;
@@ -53,16 +70,17 @@ void InteractionController::handleCommand(const CmdSelectEntity& cmd)
     // 如果清空其他选中，则也清空当前可能的框选留存
     if ( cmd.clearOthers ) {
         m_ctx.hasMarqueeSelection = false;
-        auto view             = m_ctx.noteRegistry.view<InteractionComponent>();
+        auto view = m_ctx.noteRegistry.view<InteractionComponent>();
         for ( auto entity : view ) {
-            m_ctx.noteRegistry.get<InteractionComponent>(entity).isSelected = false;
+            m_ctx.noteRegistry.get<InteractionComponent>(entity).isSelected =
+                false;
         }
     }
     if ( cmd.entity != entt::null ) {
         if ( !m_ctx.noteRegistry.all_of<InteractionComponent>(cmd.entity) ) {
             m_ctx.noteRegistry.emplace<InteractionComponent>(cmd.entity);
         }
-        auto& ic      = m_ctx.noteRegistry.get<InteractionComponent>(cmd.entity);
+        auto& ic = m_ctx.noteRegistry.get<InteractionComponent>(cmd.entity);
         ic.isSelected = !ic.isSelected;
     }
 }
@@ -96,7 +114,7 @@ void InteractionController::handleCommand(const CmdSetMousePosition& cmd)
              m_ctx.mouseCameraId == "" ) {
             m_ctx.mouseCameraId   = cmd.cameraId;
             m_ctx.isMouseInCanvas = true;
-            canUpdate         = true;
+            canUpdate             = true;
         }
     } else if ( m_ctx.isDragging && m_ctx.mouseCameraId == cmd.cameraId ) {
         // 如果正在往外拖拽，依然允许更新坐标以便主画布跟随
@@ -261,4 +279,3 @@ void InteractionController::updateMarqueeSelection(bool forceFullSync)
 }
 
 }  // namespace MMM::Logic
-
