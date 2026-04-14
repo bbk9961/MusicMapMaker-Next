@@ -21,9 +21,9 @@ public:
                std::optional<NoteComponent> after)
         : m_type(type), m_entity(entity), m_before(before), m_after(after) {}
 
-    void execute(BeatmapSession& session) override;
-    void undo(BeatmapSession& session) override;
-    void redo(BeatmapSession& session) override;
+    void execute(SessionContext& ctx) override;
+    void undo(SessionContext& ctx) override;
+    void redo(SessionContext& ctx) override;
 
 private:
     Type m_type;
@@ -46,9 +46,9 @@ public:
 
     BatchNoteAction(std::vector<Entry> entries) : m_entries(std::move(entries)) {}
 
-    void execute(BeatmapSession& session) override;
-    void undo(BeatmapSession& session) override;
-    void redo(BeatmapSession& session) override;
+    void execute(SessionContext& ctx) override;
+    void undo(SessionContext& ctx) override;
+    void redo(SessionContext& ctx) override;
 
 private:
     std::vector<Entry> m_entries;

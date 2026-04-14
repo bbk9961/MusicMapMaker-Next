@@ -1,3 +1,4 @@
+#include "logic/session/context/SessionContext.h"
 #include "logic/EditorEngine.h"
 #include "audio/AudioManager.h"
 #include "config/AppConfig.h"
@@ -339,7 +340,7 @@ EditTool EditorEngine::getCurrentTool() const
 {
     std::lock_guard<std::recursive_mutex> lock(m_sessionMutex);
     if ( m_activeSession ) {
-        return m_activeSession->getCurrentTool();
+        return m_activeSession->getContext().currentTool;
     }
     return EditTool::Move;
 }

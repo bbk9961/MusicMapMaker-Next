@@ -1,3 +1,4 @@
+#include "logic/session/context/SessionContext.h"
 #include "logic/session/tool/CutTool.h"
 #include "logic/BeatmapSession.h"
 

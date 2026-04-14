@@ -1,34 +1,25 @@
-#include "logic/BeatmapSession.h"
+#include "logic/session/SessionUtils.h"
 #include "logic/ecs/components/NoteComponent.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/ScrollCache.h"
 #include <numeric>
 
-namespace MMM::Logic
+namespace MMM::Logic::SessionUtils
 {
 
-void BeatmapSession::syncHitIndex()
-{
-    auto it = std::lower_bound(
-        m_hitEvents.begin(),
-        m_hitEvents.end(),
-        System::HitFXSystem::HitEvent{ m_visualTime, ::MMM::NoteType::NOTE });
-    m_nextHitIndex = std::distance(m_hitEvents.begin(), it);
-
-    // 预测索引也同步到同样的位置（预测逻辑会自动往后扫）
-    m_nextPredictHitIndex = m_nextHitIndex;
-}
-
-BeatmapSession::SnapResult BeatmapSession::getSnapResult(
+SnapResult getSnapResult(
     double rawTime, float mouseY, const CameraInfo& camera,
     const Config::EditorConfig&                  config,
-    const std::vector<const TimelineComponent*>& bpmEvents) const
+    const std::vector<const TimelineComponent*>& bpmEvents,
+    entt::registry& timelineRegistry,
+    double visualTime,
+    const std::unordered_map<std::string, CameraInfo>& cameras)
 {
     SnapResult result;
     int        beatDivisor = config.settings.beatDivisor;
     if ( beatDivisor <= 0 ) beatDivisor = 4;
 
-    auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>();
+    auto* cache = timelineRegistry.ctx().find<System::ScrollCache>();
     if ( !cache ) return result;
 
     if ( bpmEvents.empty() ) return result;
@@ -37,12 +28,12 @@ BeatmapSession::SnapResult BeatmapSession::getSnapResult(
     if ( rawTime < bpmEvents[0]->m_timestamp ) return result;
 
     float  judgmentLineY = camera.viewportHeight * config.visual.judgeline_pos;
-    double currentAbsY   = cache->getAbsY(m_visualTime);
+    double currentAbsY   = cache->getAbsY(visualTime);
 
     float renderScaleY = config.visual.noteScaleY;
     if ( camera.id == "Preview" || camera.id == "PreviewCanvas" ) {
-        auto  itMain             = m_cameras.find("Basic2DCanvas");
-        float mainViewportHeight = itMain != m_cameras.end()
+        auto  itMain             = cameras.find("Basic2DCanvas");
+        float mainViewportHeight = itMain != cameras.end()
                                        ? itMain->second.viewportHeight
                                        : camera.viewportHeight;
 
@@ -108,18 +99,27 @@ BeatmapSession::SnapResult BeatmapSession::getSnapResult(
     return result;
 }
 
-void BeatmapSession::rebuildHitEvents()
-{
-    m_hitEvents.clear();
-    m_nextHitIndex = 0;
 
-    auto view     = m_noteRegistry.view<NoteComponent>();
+void syncHitIndex(SessionContext& ctx)
+{
+    auto it = std::lower_bound(
+        ctx.hitEvents.begin(),
+        ctx.hitEvents.end(),
+        System::HitFXSystem::HitEvent{ ctx.visualTime, ::MMM::NoteType::NOTE });
+    ctx.nextHitIndex = std::distance(ctx.hitEvents.begin(), it);
+    ctx.nextPredictHitIndex = ctx.nextHitIndex;
+}
+
+void rebuildHitEvents(SessionContext& ctx)
+{
+    ctx.hitEvents.clear();
+    ctx.nextHitIndex = 0;
+
+    auto view     = ctx.noteRegistry.view<NoteComponent>();
     using HitRole = System::HitFXSystem::HitEvent::Role;
 
     for ( auto entity : view ) {
         const auto& note = view.get<NoteComponent>(entity);
-
-        // 如果是子物件，它的发声逻辑在 Polyline 处理中进行（为了获取 Role）
         if ( note.m_isSubNote ) continue;
 
         if ( note.m_type == ::MMM::NoteType::POLYLINE ) {
@@ -137,7 +137,7 @@ void BeatmapSession::rebuildHitEvents()
                     span = std::abs(sn.dtrack) + 1;
                 }
 
-                m_hitEvents.push_back({ sn.timestamp,
+                ctx.hitEvents.push_back({ sn.timestamp,
                                         sn.type,
                                         role,
                                         span,
@@ -152,7 +152,7 @@ void BeatmapSession::rebuildHitEvents()
                 span = std::abs(note.m_dtrack) + 1;
             }
 
-            m_hitEvents.push_back({ note.m_timestamp,
+            ctx.hitEvents.push_back({ note.m_timestamp,
                                     note.m_type,
                                     HitRole::None,
                                     span,
@@ -162,9 +162,8 @@ void BeatmapSession::rebuildHitEvents()
                                     false });
         }
     }
-
-    std::sort(m_hitEvents.begin(), m_hitEvents.end());
-    syncHitIndex();
+    std::sort(ctx.hitEvents.begin(), ctx.hitEvents.end());
+    syncHitIndex(ctx);
 }
 
-} // namespace MMM::Logic
+} // namespace MMM::Logic::SessionUtils

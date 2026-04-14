@@ -1,5 +1,7 @@
 #include "log/colorful-log.h"
-#include "logic/BeatmapSession.h"
+#include "logic/session/ActionController.h"
+#include "logic/session/context/SessionContext.h"
+#include "logic/session/SessionUtils.h"
 #include "logic/ecs/components/TransformComponent.h"
 #include "logic/session/NoteAction.h"
 #include "logic/session/TimelineAction.h"
@@ -9,9 +11,9 @@ namespace MMM::Logic
 
 // --- TimelineAction Implementation ---
 
-void TimelineAction::execute(BeatmapSession& session)
+void TimelineAction::execute(SessionContext& ctx)
 {
-    auto& reg = session.getTimelineRegistry();
+    auto& reg = ctx.timelineRegistry;
     if ( m_type == Type::Create ) {
         if ( !reg.valid(m_entity) ) m_entity = reg.create();
         reg.emplace<TimelineComponent>(m_entity, *m_after);
@@ -40,9 +42,9 @@ void TimelineAction::execute(BeatmapSession& session)
     }
 }
 
-void TimelineAction::undo(BeatmapSession& session)
+void TimelineAction::undo(SessionContext& ctx)
 {
-    auto& reg = session.getTimelineRegistry();
+    auto& reg = ctx.timelineRegistry;
     XINFO("[Undo] TimelineAction Type={}", static_cast<int>(m_type));
     if ( m_type == Type::Create ) {
         if ( reg.valid(m_entity) ) reg.destroy(m_entity);
@@ -57,17 +59,17 @@ void TimelineAction::undo(BeatmapSession& session)
     }
 }
 
-void TimelineAction::redo(BeatmapSession& session)
+void TimelineAction::redo(SessionContext& ctx)
 {
     XINFO("[Redo] TimelineAction");
-    execute(session);
+    execute(ctx);
 }
 
 // --- NoteAction Implementation ---
 
-void NoteAction::execute(BeatmapSession& session)
+void NoteAction::execute(SessionContext& ctx)
 {
-    auto& reg = session.getNoteRegistry();
+    auto& reg = ctx.noteRegistry;
     if ( m_type == Type::Create ) {
         if ( !reg.valid(m_entity) ) m_entity = reg.create();
         reg.emplace<NoteComponent>(m_entity, *m_after);
@@ -95,12 +97,12 @@ void NoteAction::execute(BeatmapSession& session)
                                      [&](NoteComponent& n) { n = *m_after; });
         }
     }
-    session.rebuildHitEvents();
+    SessionUtils::rebuildHitEvents(ctx);
 }
 
-void NoteAction::undo(BeatmapSession& session)
+void NoteAction::undo(SessionContext& ctx)
 {
-    auto& reg = session.getNoteRegistry();
+    auto& reg = ctx.noteRegistry;
     XINFO("[Undo] NoteAction Type={}", static_cast<int>(m_type));
     if ( m_type == Type::Create ) {
         if ( reg.valid(m_entity) ) reg.destroy(m_entity);
@@ -113,20 +115,20 @@ void NoteAction::undo(BeatmapSession& session)
                                      [&](NoteComponent& n) { n = *m_before; });
         }
     }
-    session.rebuildHitEvents();
+    SessionUtils::rebuildHitEvents(ctx);
 }
 
-void NoteAction::redo(BeatmapSession& session)
+void NoteAction::redo(SessionContext& ctx)
 {
     XINFO("[Redo] NoteAction");
-    execute(session);
+    execute(ctx);
 }
 
 // --- BatchNoteAction Implementation ---
 
-void BatchNoteAction::execute(BeatmapSession& session)
+void BatchNoteAction::execute(SessionContext& ctx)
 {
-    auto& reg = session.getNoteRegistry();
+    auto& reg = ctx.noteRegistry;
     XINFO("[Action] BatchNoteAction: {} entries", m_entries.size());
     for ( auto& entry : m_entries ) {
         if ( entry.after.has_value() ) {
@@ -137,12 +139,12 @@ void BatchNoteAction::execute(BeatmapSession& session)
             if ( reg.valid(entry.entity) ) reg.destroy(entry.entity);
         }
     }
-    session.rebuildHitEvents();
+    SessionUtils::rebuildHitEvents(ctx);
 }
 
-void BatchNoteAction::undo(BeatmapSession& session)
+void BatchNoteAction::undo(SessionContext& ctx)
 {
-    auto& reg = session.getNoteRegistry();
+    auto& reg = ctx.noteRegistry;
     XINFO("[Undo] BatchNoteAction: {} entries", m_entries.size());
     for ( auto& entry : m_entries ) {
         if ( entry.before.has_value() ) {
@@ -153,13 +155,13 @@ void BatchNoteAction::undo(BeatmapSession& session)
             if ( reg.valid(entry.entity) ) reg.destroy(entry.entity);
         }
     }
-    session.rebuildHitEvents();
+    SessionUtils::rebuildHitEvents(ctx);
 }
 
-void BatchNoteAction::redo(BeatmapSession& session)
+void BatchNoteAction::redo(SessionContext& ctx)
 {
     XINFO("[Redo] BatchNoteAction");
-    execute(session);
+    execute(ctx);
 }
 
 }  // namespace MMM::Logic

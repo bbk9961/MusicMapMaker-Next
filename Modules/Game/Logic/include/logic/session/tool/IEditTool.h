@@ -4,7 +4,7 @@
 
 namespace MMM::Logic
 {
-class BeatmapSession;
+struct SessionContext;
 
 /**
  * @brief Base interface for editor tools.
@@ -16,37 +16,23 @@ class IEditTool
 public:
     virtual ~IEditTool() = default;
 
-    virtual void onSelected(BeatmapSession& session) {}
-    virtual void onDeselected(BeatmapSession& session) {}
+    virtual void onSelected(SessionContext& ctx) {}
+    virtual void onDeselected(SessionContext& ctx) {}
 
-    virtual void handleStartDrag(BeatmapSession&     session,
-                                 const CmdStartDrag& cmd)
-    {
-    }
-    virtual void handleUpdateDrag(BeatmapSession&      session,
-                                  const CmdUpdateDrag& cmd)
-    {
-    }
-    virtual void handleEndDrag(BeatmapSession& session, const CmdEndDrag& cmd)
-    {
-    }
+    virtual void handleStartDrag(SessionContext&     ctx,
+                                 const CmdStartDrag& cmd) {}
+    virtual void handleUpdateDrag(SessionContext&      ctx,
+                                  const CmdUpdateDrag& cmd) {}
+    virtual void handleEndDrag(SessionContext& ctx, const CmdEndDrag& cmd) {}
 
-    virtual void handleStartMarquee(BeatmapSession&        session,
-                                    const CmdStartMarquee& cmd)
-    {
-    }
-    virtual void handleUpdateMarquee(BeatmapSession&         session,
-                                     const CmdUpdateMarquee& cmd)
-    {
-    }
-    virtual void handleEndMarquee(BeatmapSession&      session,
-                                  const CmdEndMarquee& cmd)
-    {
-    }
-    virtual void handleRemoveMarqueeAt(BeatmapSession&           session,
-                                       const CmdRemoveMarqueeAt& cmd)
-    {
-    }
+    virtual void handleStartMarquee(SessionContext&        ctx,
+                                    const CmdStartMarquee& cmd) {}
+    virtual void handleUpdateMarquee(SessionContext&         ctx,
+                                     const CmdUpdateMarquee& cmd) {}
+    virtual void handleEndMarquee(SessionContext&      ctx,
+                                  const CmdEndMarquee& cmd) {}
+    virtual void handleRemoveMarqueeAt(SessionContext&           ctx,
+                                       const CmdRemoveMarqueeAt& cmd) {}
 };
 
 }  // namespace MMM::Logic

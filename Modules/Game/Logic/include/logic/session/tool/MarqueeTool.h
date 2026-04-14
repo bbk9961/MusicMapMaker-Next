@@ -8,13 +8,13 @@ namespace MMM::Logic
 class MarqueeTool : public IEditTool
 {
 public:
-    void handleStartMarquee(BeatmapSession&        session,
+    void handleStartMarquee(SessionContext& ctx,
                             const CmdStartMarquee& cmd) override;
-    void handleUpdateMarquee(BeatmapSession&         session,
+    void handleUpdateMarquee(SessionContext& ctx,
                              const CmdUpdateMarquee& cmd) override;
-    void handleEndMarquee(BeatmapSession&      session,
+    void handleEndMarquee(SessionContext& ctx,
                           const CmdEndMarquee& cmd) override;
-    void handleRemoveMarqueeAt(BeatmapSession&           session,
+    void handleRemoveMarqueeAt(SessionContext& ctx,
                                const CmdRemoveMarqueeAt& cmd) override;
 };
 

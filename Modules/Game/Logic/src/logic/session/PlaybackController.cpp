@@ -1,61 +1,63 @@
 #include "audio/AudioManager.h"
-#include "logic/BeatmapSession.h"
+#include "logic/session/PlaybackController.h"
+#include "logic/session/context/SessionContext.h"
+#include "logic/session/SessionUtils.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include <algorithm>
 
 namespace MMM::Logic
 {
 
-void BeatmapSession::handleCommand(const CmdSetPlayState& cmd)
+void PlaybackController::handleCommand(const CmdSetPlayState& cmd)
 {
-    m_isPlaying = cmd.isPlaying;
-    if ( m_isPlaying ) {
-        m_syncTimer        = 0.0;
-        m_lastAudioPos     = 0.0;
-        m_lastAudioSysTime = 0.0;
+    m_ctx.isPlaying = cmd.isPlaying;
+    if ( m_ctx.isPlaying ) {
+        m_ctx.syncTimer        = 0.0;
+        m_ctx.lastAudioPos     = 0.0;
+        m_ctx.lastAudioSysTime = 0.0;
         Audio::AudioManager::instance().play();
-        m_syncClock.reset(m_currentTime);
-        syncHitIndex();
-        m_hitFXSystem.clearActiveEffects();
+        m_ctx.syncClock.reset(m_ctx.currentTime);
+        SessionUtils::syncHitIndex(m_ctx);
+        m_ctx.hitFXSystem.clearActiveEffects();
     } else {
         Audio::AudioManager::instance().pause();
-        m_currentTime = Audio::AudioManager::instance().getCurrentTime();
+        m_ctx.currentTime = Audio::AudioManager::instance().getCurrentTime();
     }
 }
 
-void BeatmapSession::handleCommand(const CmdSeek& cmd)
+void PlaybackController::handleCommand(const CmdSeek& cmd)
 {
     double totalTime   = Audio::AudioManager::instance().getTotalTime();
-    m_currentTime      = std::clamp(cmd.time, 0.0, totalTime);
-    m_lastAudioPos     = 0.0;
-    m_lastAudioSysTime = 0.0;
-    m_syncClock.reset(m_currentTime);
-    Audio::AudioManager::instance().seek(m_currentTime);
-    syncHitIndex();
-    m_hitFXSystem.clearActiveEffects();
+    m_ctx.currentTime      = std::clamp(cmd.time, 0.0, totalTime);
+    m_ctx.lastAudioPos     = 0.0;
+    m_ctx.lastAudioSysTime = 0.0;
+    m_ctx.syncClock.reset(m_ctx.currentTime);
+    Audio::AudioManager::instance().seek(m_ctx.currentTime);
+    SessionUtils::syncHitIndex(m_ctx);
+    m_ctx.hitFXSystem.clearActiveEffects();
 }
 
-void BeatmapSession::handleCommand(const CmdSetPlaybackSpeed& cmd)
+void PlaybackController::handleCommand(const CmdSetPlaybackSpeed& cmd)
 {
     Audio::AudioManager::instance().setPlaybackSpeed(cmd.speed);
 }
 
-void BeatmapSession::handleCommand(const CmdScroll& cmd)
+void PlaybackController::handleCommand(const CmdScroll& cmd)
 {
     float wheel = cmd.wheel;
-    if ( m_lastConfig.settings.reverseScroll ) {
+    if ( m_ctx.lastConfig.settings.reverseScroll ) {
         wheel = -wheel;
     }
 
-    double targetTime   = m_currentTime;
-    double visualOffset = m_lastConfig.visual.visualOffset;
+    double targetTime   = m_ctx.currentTime;
+    double visualOffset = m_ctx.lastConfig.visual.visualOffset;
 
-    if ( m_lastConfig.settings.scrollSnap ) {
-        int beatDivisor = m_lastConfig.settings.beatDivisor;
+    if ( m_ctx.lastConfig.settings.scrollSnap ) {
+        int beatDivisor = m_ctx.lastConfig.settings.beatDivisor;
         if ( beatDivisor <= 0 ) beatDivisor = 4;
 
         std::vector<const TimelineComponent*> bpmEvents;
-        auto tlView = m_timelineRegistry.view<const TimelineComponent>();
+        auto tlView = m_ctx.timelineRegistry.view<const TimelineComponent>();
         for ( auto entity : tlView ) {
             const auto& tl = tlView.get<const TimelineComponent>(entity);
             if ( tl.m_effect == ::MMM::TimingEffect::BPM ) {
@@ -70,7 +72,7 @@ void BeatmapSession::handleCommand(const CmdScroll& cmd)
                           return a->m_timestamp < b->m_timestamp;
                       });
 
-            double visualCurrentTime = m_currentTime + visualOffset;
+            double visualCurrentTime = m_ctx.currentTime + visualOffset;
             size_t currentIdx        = 0;
             for ( size_t i = 0; i < bpmEvents.size(); ++i ) {
                 if ( visualCurrentTime >= bpmEvents[i]->m_timestamp ) {
@@ -106,24 +108,25 @@ void BeatmapSession::handleCommand(const CmdScroll& cmd)
         } else {
             double step = 0.25;
             if ( cmd.isShiftDown )
-                step *= m_lastConfig.settings.scrollSpeedMultiplier;
-            targetTime = m_currentTime - static_cast<double>(wheel) * step;
+                step *= m_ctx.lastConfig.settings.scrollSpeedMultiplier;
+            targetTime = m_ctx.currentTime - static_cast<double>(wheel) * step;
         }
     } else {
         double step = 0.25;
         if ( cmd.isShiftDown )
-            step *= m_lastConfig.settings.scrollSpeedMultiplier;
-        targetTime = m_currentTime - static_cast<double>(wheel) * step;
+            step *= m_ctx.lastConfig.settings.scrollSpeedMultiplier;
+        targetTime = m_ctx.currentTime - static_cast<double>(wheel) * step;
     }
 
     double totalTime   = Audio::AudioManager::instance().getTotalTime();
-    m_currentTime      = std::clamp(targetTime, 0.0, totalTime);
-    m_lastAudioPos     = 0.0;
-    m_lastAudioSysTime = 0.0;
-    m_syncClock.reset(m_currentTime);
-    Audio::AudioManager::instance().seek(m_currentTime);
-    syncHitIndex();
-    m_hitFXSystem.clearActiveEffects();
+    m_ctx.currentTime      = std::clamp(targetTime, 0.0, totalTime);
+    m_ctx.lastAudioPos     = 0.0;
+    m_ctx.lastAudioSysTime = 0.0;
+    m_ctx.syncClock.reset(m_ctx.currentTime);
+    Audio::AudioManager::instance().seek(m_ctx.currentTime);
+    SessionUtils::syncHitIndex(m_ctx);
+    m_ctx.hitFXSystem.clearActiveEffects();
 }
 
-} // namespace MMM::Logic
+
+}

@@ -1,3 +1,5 @@
+#include "logic/session/context/SessionContext.h"
+#include "logic/session/SessionUtils.h"
 #include "logic/session/EditorAction.h"
 #include "logic/BeatmapSession.h"
 
@@ -5,32 +7,32 @@ namespace MMM::Logic
 {
 
 void EditorActionStack::pushAndExecute(std::unique_ptr<IEditorAction> action,
-                                       BeatmapSession&                session)
+                                       SessionContext&                ctx)
 {
-    action->execute(session);
+    action->execute(ctx);
     m_undoStack.push_back(std::move(action));
     m_redoStack.clear();
-    session.syncBeatmap();
+    SessionUtils::syncBeatmap(ctx);
 }
 
-void EditorActionStack::undo(BeatmapSession& session)
+void EditorActionStack::undo(SessionContext& ctx)
 {
     if ( m_undoStack.empty() ) return;
     auto action = std::move(m_undoStack.back());
     m_undoStack.pop_back();
-    action->undo(session);
+    action->undo(ctx);
     m_redoStack.push_back(std::move(action));
-    session.syncBeatmap();
+    SessionUtils::syncBeatmap(ctx);
 }
 
-void EditorActionStack::redo(BeatmapSession& session)
+void EditorActionStack::redo(SessionContext& ctx)
 {
     if ( m_redoStack.empty() ) return;
     auto action = std::move(m_redoStack.back());
     m_redoStack.pop_back();
-    action->redo(session);
+    action->redo(ctx);
     m_undoStack.push_back(std::move(action));
-    session.syncBeatmap();
+    SessionUtils::syncBeatmap(ctx);
 }
 
 void EditorActionStack::clear()

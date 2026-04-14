@@ -1,6 +1,6 @@
 #include "audio/AudioManager.h"
 #include "log/colorful-log.h"
-#include "logic/BeatmapSession.h"
+#include "logic/session/SessionUtils.h"
 #include "logic/EditorEngine.h"
 #include "logic/ecs/components/NoteComponent.h"
 #include "logic/ecs/components/TimelineComponent.h"
@@ -12,25 +12,25 @@
 namespace MMM::Logic
 {
 
-void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
+void SessionUtils::loadBeatmap(SessionContext& ctx, std::shared_ptr<MMM::BeatMap> beatmap)
 {
-    m_noteRegistry.clear();
-    m_timelineRegistry.clear();
-    m_actionStack.clear();
+    ctx.noteRegistry.clear();
+    ctx.timelineRegistry.clear();
+    ctx.actionStack.clear();
     Audio::AudioManager::instance().stop();
 
     // m_isPlaying      = true;
-    m_currentTime    = 0.0;
-    m_currentBeatmap = beatmap;
+    ctx.currentTime    = 0.0;
+    ctx.currentBeatmap = beatmap;
 
     if ( !beatmap ) {
-        m_hitEvents.clear();
-        m_nextHitIndex = 0;
+        ctx.hitEvents.clear();
+        ctx.nextHitIndex = 0;
         return;
     }
 
     // 计算背景图片的绝对路径并获取尺寸
-    m_bgSize    = glm::vec2(0.0f);
+    ctx.bgSize    = glm::vec2(0.0f);
     auto bgPath = beatmap->m_baseMapMetadata.map_path.parent_path() /
                   beatmap->m_baseMapMetadata.main_cover_path;
 
@@ -38,12 +38,12 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
          std::filesystem::exists(bgPath) ) {
         int w = 0, h = 0, comp = 0;
         if ( stbi_info(bgPath.string().c_str(), &w, &h, &comp) ) {
-            m_bgSize = glm::vec2(static_cast<float>(w), static_cast<float>(h));
+            ctx.bgSize = glm::vec2(static_cast<float>(w), static_cast<float>(h));
         }
     }
 
-    m_trackCount = beatmap->m_baseMapMetadata.track_count;
-    if ( m_trackCount <= 0 ) m_trackCount = 12;  // 默认值
+    ctx.trackCount = beatmap->m_baseMapMetadata.track_count;
+    if ( ctx.trackCount <= 0 ) ctx.trackCount = 12;  // 默认值
 
     // 加载音频
     auto audioPath = beatmap->m_baseMapMetadata.map_path.parent_path() /
@@ -69,15 +69,15 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
     }
 
     // 清空缓存上下文，以确保重新构建
-    if ( auto* cache = m_timelineRegistry.ctx().find<System::ScrollCache>() ) {
+    if ( auto* cache = ctx.timelineRegistry.ctx().find<System::ScrollCache>() ) {
         cache->isDirty = true;
     }
 
     // 根据传入的 BeatMap 构建 ECS 实体
     // 1. 加载 Timing 点
     for ( const auto& timing : beatmap->m_timings ) {
-        auto entity = m_timelineRegistry.create();
-        m_timelineRegistry.emplace<TimelineComponent>(
+        auto entity = ctx.timelineRegistry.create();
+        ctx.timelineRegistry.emplace<TimelineComponent>(
             entity,
             timing.m_timestamp / 1000.0,  // 毫秒转秒
             timing.m_timingEffect,
@@ -89,19 +89,19 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
 
     // 2. 加载普通音符 (Notes)
     for ( const auto& note : beatmap->m_noteData.notes ) {
-        auto entity         = m_noteRegistry.create();
+        auto entity         = ctx.noteRegistry.create();
         noteToEntity[&note] = entity;
 
         int track = static_cast<int>(note.m_track);
 
-        m_noteRegistry.emplace<NoteComponent>(
+        ctx.noteRegistry.emplace<NoteComponent>(
             entity,
             note.m_type,
             note.m_timestamp / 1000.0,  // 毫秒转秒
             0.0,
             track);
 
-        m_noteRegistry.emplace<TransformComponent>(
+        ctx.noteRegistry.emplace<TransformComponent>(
             entity,
             glm::vec2(track * 60.0f + 20.0f, 0.0f),
             glm::vec2(50.0f, 20.0f));
@@ -109,19 +109,19 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
 
     // 3. 加载长键 (Holds)
     for ( const auto& hold : beatmap->m_noteData.holds ) {
-        auto entity         = m_noteRegistry.create();
+        auto entity         = ctx.noteRegistry.create();
         noteToEntity[&hold] = entity;
 
         int track = static_cast<int>(hold.m_track);
 
-        m_noteRegistry.emplace<NoteComponent>(
+        ctx.noteRegistry.emplace<NoteComponent>(
             entity,
             hold.m_type,
             hold.m_timestamp / 1000.0,  // 毫秒转秒
             hold.m_duration / 1000.0,   // 毫秒转秒
             track);
 
-        m_noteRegistry.emplace<TransformComponent>(
+        ctx.noteRegistry.emplace<TransformComponent>(
             entity,
             glm::vec2(track * 60.0f + 20.0f, 0.0f),
             glm::vec2(50.0f, 20.0f));
@@ -129,19 +129,19 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
 
     // 4. 加载滑键 (Flicks)
     for ( const auto& flick : beatmap->m_noteData.flicks ) {
-        auto entity          = m_noteRegistry.create();
+        auto entity          = ctx.noteRegistry.create();
         noteToEntity[&flick] = entity;
 
         int track = static_cast<int>(flick.m_track);
 
-        m_noteRegistry.emplace<NoteComponent>(entity,
+        ctx.noteRegistry.emplace<NoteComponent>(entity,
                                               flick.m_type,
                                               flick.m_timestamp / 1000.0,
                                               0.0,
                                               track,
                                               flick.m_dtrack);
 
-        m_noteRegistry.emplace<TransformComponent>(
+        ctx.noteRegistry.emplace<TransformComponent>(
             entity,
             glm::vec2(track * 60.0f + 20.0f, 0.0f),
             glm::vec2(50.0f, 20.0f));
@@ -149,11 +149,11 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
 
     // 5. 加载折线 (Polylines)
     for ( const auto& polyline : beatmap->m_noteData.polylines ) {
-        auto entity = m_noteRegistry.create();
+        auto entity = ctx.noteRegistry.create();
 
         int track = static_cast<int>(polyline.m_track);
 
-        auto& comp = m_noteRegistry.emplace<NoteComponent>(
+        auto& comp = ctx.noteRegistry.emplace<NoteComponent>(
             entity, polyline.m_type, polyline.m_timestamp / 1000.0, 0.0, track);
 
         // 填充子物件并标记它们为 SubNote
@@ -163,7 +163,7 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
             // 标记原始实体为 SubNote，防止独立绘制
             if ( auto it = noteToEntity.find(&subNote);
                  it != noteToEntity.end() ) {
-                auto& subComp = m_noteRegistry.get<NoteComponent>(it->second);
+                auto& subComp = ctx.noteRegistry.get<NoteComponent>(it->second);
                 subComp.m_isSubNote      = true;
                 subComp.m_parentPolyline = entity;
             }
@@ -185,15 +185,15 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
             comp.m_subNotes.push_back(sn);
         }
 
-        m_noteRegistry.emplace<TransformComponent>(
+        ctx.noteRegistry.emplace<TransformComponent>(
             entity,
             glm::vec2(track * 60.0f + 20.0f, 0.0f),
             glm::vec2(50.0f, 20.0f));
     }
 
     // 构建音效触发事件队列并排序
-    m_hitEvents.clear();
-    m_nextHitIndex = 0;
+    ctx.hitEvents.clear();
+    ctx.nextHitIndex = 0;
 
     // 收集所有的 subNote 引用，避免它们被重复加入普通音符的播放队列
     std::unordered_set<const ::MMM::Note*> subNotesSet;
@@ -207,7 +207,7 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
 
     for ( const auto& note : beatmap->m_noteData.notes ) {
         if ( subNotesSet.find(&note) != subNotesSet.end() ) continue;
-        m_hitEvents.push_back({ note.m_timestamp / 1000.0,
+        ctx.hitEvents.push_back({ note.m_timestamp / 1000.0,
                                 note.m_type,
                                 HitRole::None,
                                 1,
@@ -218,7 +218,7 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
     }
     for ( const auto& hold : beatmap->m_noteData.holds ) {
         if ( subNotesSet.find(&hold) != subNotesSet.end() ) continue;
-        m_hitEvents.push_back({ hold.m_timestamp / 1000.0,
+        ctx.hitEvents.push_back({ hold.m_timestamp / 1000.0,
                                 hold.m_type,
                                 HitRole::None,
                                 1,
@@ -230,7 +230,7 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
     for ( const auto& flick : beatmap->m_noteData.flicks ) {
         if ( subNotesSet.find(&flick) != subNotesSet.end() ) continue;
         int span = std::abs(flick.m_dtrack) + 1;
-        m_hitEvents.push_back({ flick.m_timestamp / 1000.0,
+        ctx.hitEvents.push_back({ flick.m_timestamp / 1000.0,
                                 flick.m_type,
                                 HitRole::None,
                                 span,
@@ -263,7 +263,7 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
                 duration      = h.m_duration / 1000.0;
             }
 
-            m_hitEvents.push_back({ subNote.m_timestamp / 1000.0,
+            ctx.hitEvents.push_back({ subNote.m_timestamp / 1000.0,
                                     subNote.m_type,
                                     role,
                                     span,
@@ -273,7 +273,7 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
                                     true });
         }
     }
-    std::sort(m_hitEvents.begin(), m_hitEvents.end());
+    std::sort(ctx.hitEvents.begin(), ctx.hitEvents.end());
 
     XINFO(
         "Loaded new BeatMap with {} notes, {} holds, {} flicks, {} polylines "
@@ -286,36 +286,36 @@ void BeatmapSession::loadBeatmap(std::shared_ptr<MMM::BeatMap> beatmap)
 }
 
 
-void BeatmapSession::syncBeatmap()
+void SessionUtils::syncBeatmap(SessionContext& ctx)
 {
-    if ( !m_currentBeatmap ) return;
+    if ( !ctx.currentBeatmap ) return;
 
     // 1. 清空原始数据
-    m_currentBeatmap->m_allNotes.clear();
-    m_currentBeatmap->m_noteData.notes.clear();
-    m_currentBeatmap->m_noteData.holds.clear();
-    m_currentBeatmap->m_noteData.flicks.clear();
-    m_currentBeatmap->m_noteData.polylines.clear();
-    m_currentBeatmap->m_timings.clear();
+    ctx.currentBeatmap->m_allNotes.clear();
+    ctx.currentBeatmap->m_noteData.notes.clear();
+    ctx.currentBeatmap->m_noteData.holds.clear();
+    ctx.currentBeatmap->m_noteData.flicks.clear();
+    ctx.currentBeatmap->m_noteData.polylines.clear();
+    ctx.currentBeatmap->m_timings.clear();
 
     // 2. 同步时间线
-    auto tlView = m_timelineRegistry.view<TimelineComponent>();
+    auto tlView = ctx.timelineRegistry.view<TimelineComponent>();
     for ( auto entity : tlView ) {
         const auto& tc = tlView.get<TimelineComponent>(entity);
         Timing      timing;
         timing.m_timestamp             = tc.m_timestamp * 1000.0;
         timing.m_timingEffect          = tc.m_effect;
         timing.m_timingEffectParameter = tc.m_value;
-        m_currentBeatmap->m_timings.push_back(timing);
+        ctx.currentBeatmap->m_timings.push_back(timing);
     }
-    std::sort(m_currentBeatmap->m_timings.begin(),
-              m_currentBeatmap->m_timings.end(),
+    std::sort(ctx.currentBeatmap->m_timings.begin(),
+              ctx.currentBeatmap->m_timings.end(),
               [](const Timing& a, const Timing& b) {
                   return a.m_timestamp < b.m_timestamp;
               });
 
     // 3. 同步物体
-    auto noteView = m_noteRegistry.view<NoteComponent>();
+    auto noteView = ctx.noteRegistry.view<NoteComponent>();
 
     // 第一遍：创建所有非折线物件（包含折线子物件在 notedata 中的独立副本）
     std::unordered_map<entt::entity, std::reference_wrapper<Note>> entityToRef;
@@ -328,28 +328,28 @@ void BeatmapSession::syncBeatmap()
             Note n;
             n.m_timestamp = nc.m_timestamp * 1000.0;
             n.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
-            m_currentBeatmap->m_noteData.notes.push_back(std::move(n));
-            auto& ref = m_currentBeatmap->m_noteData.notes.back();
+            ctx.currentBeatmap->m_noteData.notes.push_back(std::move(n));
+            auto& ref = ctx.currentBeatmap->m_noteData.notes.back();
             entityToRef.emplace(entity, ref);
-            m_currentBeatmap->m_allNotes.push_back(ref);
+            ctx.currentBeatmap->m_allNotes.push_back(ref);
         } else if ( nc.m_type == ::MMM::NoteType::HOLD ) {
             Hold h;
             h.m_timestamp = nc.m_timestamp * 1000.0;
             h.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
             h.m_duration  = nc.m_duration * 1000.0;
-            m_currentBeatmap->m_noteData.holds.push_back(std::move(h));
-            auto& ref = m_currentBeatmap->m_noteData.holds.back();
+            ctx.currentBeatmap->m_noteData.holds.push_back(std::move(h));
+            auto& ref = ctx.currentBeatmap->m_noteData.holds.back();
             entityToRef.emplace(entity, ref);
-            m_currentBeatmap->m_allNotes.push_back(ref);
+            ctx.currentBeatmap->m_allNotes.push_back(ref);
         } else if ( nc.m_type == ::MMM::NoteType::FLICK ) {
             Flick f;
             f.m_timestamp = nc.m_timestamp * 1000.0;
             f.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
             f.m_dtrack    = nc.m_dtrack;
-            m_currentBeatmap->m_noteData.flicks.push_back(std::move(f));
-            auto& ref = m_currentBeatmap->m_noteData.flicks.back();
+            ctx.currentBeatmap->m_noteData.flicks.push_back(std::move(f));
+            auto& ref = ctx.currentBeatmap->m_noteData.flicks.back();
             entityToRef.emplace(entity, ref);
-            m_currentBeatmap->m_allNotes.push_back(ref);
+            ctx.currentBeatmap->m_allNotes.push_back(ref);
         }
     }
 
@@ -400,42 +400,42 @@ void BeatmapSession::syncBeatmap()
                     Note n;
                     n.m_timestamp = sn.timestamp * 1000.0;
                     n.m_track     = static_cast<uint32_t>(sn.trackIndex);
-                    m_currentBeatmap->m_noteData.notes.push_back(std::move(n));
-                    auto& ref = m_currentBeatmap->m_noteData.notes.back();
+                    ctx.currentBeatmap->m_noteData.notes.push_back(std::move(n));
+                    auto& ref = ctx.currentBeatmap->m_noteData.notes.back();
                     p.m_subNotes.push_back(ref);
-                    m_currentBeatmap->m_allNotes.push_back(ref);
+                    ctx.currentBeatmap->m_allNotes.push_back(ref);
                 } else if ( sn.type == ::MMM::NoteType::HOLD ) {
                     Hold h;
                     h.m_timestamp = sn.timestamp * 1000.0;
                     h.m_track     = static_cast<uint32_t>(sn.trackIndex);
                     h.m_duration  = sn.duration * 1000.0;
-                    m_currentBeatmap->m_noteData.holds.push_back(std::move(h));
-                    auto& ref = m_currentBeatmap->m_noteData.holds.back();
+                    ctx.currentBeatmap->m_noteData.holds.push_back(std::move(h));
+                    auto& ref = ctx.currentBeatmap->m_noteData.holds.back();
                     p.m_subNotes.push_back(ref);
                     p.m_subHolds.push_back(ref);
-                    m_currentBeatmap->m_allNotes.push_back(ref);
+                    ctx.currentBeatmap->m_allNotes.push_back(ref);
                 } else if ( sn.type == ::MMM::NoteType::FLICK ) {
                     Flick f;
                     f.m_timestamp = sn.timestamp * 1000.0;
                     f.m_track     = static_cast<uint32_t>(sn.trackIndex);
                     f.m_dtrack    = sn.dtrack;
-                    m_currentBeatmap->m_noteData.flicks.push_back(std::move(f));
-                    auto& ref = m_currentBeatmap->m_noteData.flicks.back();
+                    ctx.currentBeatmap->m_noteData.flicks.push_back(std::move(f));
+                    auto& ref = ctx.currentBeatmap->m_noteData.flicks.back();
                     p.m_subNotes.push_back(ref);
                     p.m_subFlicks.push_back(ref);
-                    m_currentBeatmap->m_allNotes.push_back(ref);
+                    ctx.currentBeatmap->m_allNotes.push_back(ref);
                 }
             }
         }
 
-        m_currentBeatmap->m_noteData.polylines.push_back(std::move(p));
-        m_currentBeatmap->m_allNotes.push_back(
-            m_currentBeatmap->m_noteData.polylines.back());
+        ctx.currentBeatmap->m_noteData.polylines.push_back(std::move(p));
+        ctx.currentBeatmap->m_allNotes.push_back(
+            ctx.currentBeatmap->m_noteData.polylines.back());
     }
 
     // 最后对所有物件按时间排序
-    std::sort(m_currentBeatmap->m_allNotes.begin(),
-              m_currentBeatmap->m_allNotes.end(),
+    std::sort(ctx.currentBeatmap->m_allNotes.begin(),
+              ctx.currentBeatmap->m_allNotes.end(),
               [](const std::reference_wrapper<Note>& a,
                  const std::reference_wrapper<Note>& b) {
                   return a.get().m_timestamp < b.get().m_timestamp;

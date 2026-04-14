@@ -3,13 +3,13 @@
 add_library(Logic STATIC
 	src/logic/session/BeatmapSession.cpp
 	src/logic/session/BeatmapSession_Commands.cpp
-	src/logic/session/BeatmapSession_Interaction.cpp
-	src/logic/session/BeatmapSession_Playback.cpp
-	src/logic/session/BeatmapSession_Editing.cpp
-	src/logic/session/BeatmapSession_Loading.cpp
+	src/logic/session/InteractionController.cpp
+	src/logic/session/PlaybackController.cpp
+	src/logic/session/ActionController_Editing.cpp
+	src/logic/session/SessionUtils_Loading.cpp
 	src/logic/session/BeatmapSession_Rendering.cpp
-	src/logic/session/BeatmapSession_Utils.cpp
-	src/logic/session/BeatmapSession_Actions.cpp
+	src/logic/session/SessionUtils.cpp
+	src/logic/session/ActionController.cpp
 	src/logic/session/EditorAction.cpp
 	src/logic/session/tool/GrabTool.cpp
 	src/logic/session/tool/MarqueeTool.cpp
