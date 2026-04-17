@@ -177,8 +177,9 @@ void Basic2DCanvas::handleInteractions()
                 if ( m_currentSnapshot->hoveredNoteNumerator > 0 ) {
                     ImGui::TextColored(
                         ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
-                        "%s: %d/%d",
+                        "%s: %d + %d/%d",
                         TR("ui.canvas.note_fraction").data(),
+                        m_currentSnapshot->hoveredNoteBeatIndex,
                         m_currentSnapshot->hoveredNoteNumerator,
                         m_currentSnapshot->hoveredNoteDenominator);
                     ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),

@@ -1,8 +1,5 @@
 #include "audio/AudioManager.h"
 #include "logic/BeatmapSession.h"
-#include "logic/session/context/SessionContext.h"
-#include "logic/session/InteractionController.h"
-#include "logic/session/SessionUtils.h"
 #include "logic/BeatmapSyncBuffer.h"
 #include "logic/EditorEngine.h"
 #include "logic/ecs/components/InteractionComponent.h"
@@ -11,6 +8,9 @@
 #include "logic/ecs/system/NoteRenderSystem.h"
 #include "logic/ecs/system/NoteTransformSystem.h"
 #include "logic/ecs/system/ScrollCache.h"
+#include "logic/session/InteractionController.h"
+#include "logic/session/SessionUtils.h"
+#include "logic/session/context/SessionContext.h"
 #include "mmm/beatmap/BeatMap.h"
 #include <numeric>
 
@@ -21,8 +21,10 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
 {
     // 1. 调用 ECS System 更新全局物理位置 (Logical Transform)
     // 注意：物理位置更新应基于逻辑时间 m_ctx->currentTime
-    System::NoteTransformSystem::update(
-        m_ctx->noteRegistry, m_ctx->timelineRegistry, m_ctx->currentTime, config);
+    System::NoteTransformSystem::update(m_ctx->noteRegistry,
+                                        m_ctx->timelineRegistry,
+                                        m_ctx->currentTime,
+                                        config);
 
     // 筛选出所有 BPM 标记供后续视口处理（磁吸、智能拟合等）
     std::vector<const TimelineComponent*> bpmEvents;
@@ -65,7 +67,8 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
 
         if ( m_ctx->currentBeatmap ) {
             auto bgPath =
-                m_ctx->currentBeatmap->m_baseMapMetadata.map_path.parent_path() /
+                m_ctx->currentBeatmap->m_baseMapMetadata.map_path
+                    .parent_path() /
                 m_ctx->currentBeatmap->m_baseMapMetadata.main_cover_path;
             snapshot->backgroundPath = bgPath.string();
             snapshot->bgSize         = m_ctx->bgSize;
@@ -79,14 +82,15 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
         // 核心修复：预览区的拖拽状态广播
         // 如果预览区正在拖拽，所有视口的渲染快照都需要知道预览区当前的悬停时间点。
         snapshot->isPreviewDragging =
-            m_ctx->isDragging &&
-            (m_ctx->dragCameraId == "Preview" || m_ctx->mouseCameraId == "Preview");
+            m_ctx->isDragging && (m_ctx->dragCameraId == "Preview" ||
+                                  m_ctx->mouseCameraId == "Preview");
         snapshot->previewHoverTime = m_ctx->previewHoverTime;
 
         // --- 注入框选状态 ---
         snapshot->isSelecting = m_ctx->isSelecting;
         if ( m_ctx->isSelecting && !m_ctx->marqueeBoxes.empty() ) {
-            snapshot->activeSelectionCameraId = m_ctx->marqueeBoxes.back().cameraId;
+            snapshot->activeSelectionCameraId =
+                m_ctx->marqueeBoxes.back().cameraId;
         }
 
         for ( const auto& box : m_ctx->marqueeBoxes ) {
@@ -100,7 +104,8 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
         }
 
         if ( snapshot->isHoveringCanvas ) {
-            auto* cache = m_ctx->timelineRegistry.ctx().find<System::ScrollCache>();
+            auto* cache =
+                m_ctx->timelineRegistry.ctx().find<System::ScrollCache>();
             if ( cache ) {
                 float judgmentLineY =
                     camera.viewportHeight * config.visual.judgeline_pos;
@@ -112,7 +117,7 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
                 // 核心修复：预览区的坐标是经过压缩的，计算时间时需要除以缩放比例
                 if ( cameraId == "Preview" || cameraId == "PreviewCanvas" ) {
                     float previewMainHeight = 1000.0f;
-                    auto  itMainPreview     = m_ctx->cameras.find("Basic2DCanvas");
+                    auto  itMainPreview = m_ctx->cameras.find("Basic2DCanvas");
                     if ( itMainPreview != m_ctx->cameras.end() ) {
                         previewMainHeight =
                             itMainPreview->second.viewportHeight;
@@ -151,10 +156,18 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
 
                 int track = static_cast<int>(
                     std::floor((m_ctx->lastMousePos.x - leftX) / singleTrackW));
-                snapshot->hoveredTrack = std::clamp(track, 0, m_ctx->trackCount - 1);
+                snapshot->hoveredTrack =
+                    std::clamp(track, 0, m_ctx->trackCount - 1);
 
                 // --- 磁吸拍线时间戳预览 ---
-                auto snap = SessionUtils::getSnapResult(snapshot->hoveredTime, m_ctx->lastMousePos.y, camera, config, bpmEvents, m_ctx->timelineRegistry, m_ctx->visualTime, m_ctx->cameras);
+                auto snap = SessionUtils::getSnapResult(snapshot->hoveredTime,
+                                                        m_ctx->lastMousePos.y,
+                                                        camera,
+                                                        config,
+                                                        bpmEvents,
+                                                        m_ctx->timelineRegistry,
+                                                        m_ctx->visualTime,
+                                                        m_ctx->cameras);
                 if ( snap.isSnapped ) {
                     snapshot->isSnapped          = true;
                     snapshot->snappedTime        = snap.snappedTime;
@@ -171,16 +184,18 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
 
                     // 核心逻辑：拖动预览区时，主画布应该渲染拖拽处的内容
                     snapshot->previewHoverTime = snapshot->hoveredTime;
-                    m_ctx->previewHoverTime         = snapshot->hoveredTime;
+                    m_ctx->previewHoverTime    = snapshot->hoveredTime;
                 }
 
                 // --- 智能拟合：计算当前悬停物件的最简分拍 ---
-                auto interView = m_ctx->noteRegistry.view<InteractionComponent>();
+                auto interView =
+                    m_ctx->noteRegistry.view<InteractionComponent>();
                 for ( auto entity : interView ) {
                     const auto& inter =
                         interView.get<InteractionComponent>(entity);
-                    if ( inter.isHovered ) {
-                        if ( m_ctx->noteRegistry.all_of<NoteComponent>(entity) ) {
+                    if ( inter.isHovered || inter.isDragging ) {
+                        if ( m_ctx->noteRegistry.all_of<NoteComponent>(
+                                 entity) ) {
                             const auto& note =
                                 m_ctx->noteRegistry.get<NoteComponent>(entity);
                             double noteTime = note.m_timestamp;
@@ -202,12 +217,12 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
 
                                 // 尝试多个常用分母，找到误差最小且分母最小的拟合
                                 static const int denominators[] = {
-                                    1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64
+                                    1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11,
+                                    12, 13, 14, 15, 16, 24, 32, 48, 64, 96, 128
                                 };
                                 int    bestNum   = 0;
                                 int    bestDen   = 1;
-                                double bestError = 1.0;
-
+                                double bestScore = 1e9;
                                 for ( int den : denominators ) {
                                     double stepDuration = beatDuration / den;
                                     double relative =
@@ -218,34 +233,71 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
                                                      steps * stepDuration;
                                     double error = std::abs(noteTime - fitTime);
 
-                                    // 如果误差足够小 (小于
-                                    // 1ms)，或者显著优于之前的拟合
-                                    if ( error < 0.001 ||
-                                         error < bestError * 0.5 ) {
-                                        bestError = error;
-                                        // 归一化分数
-                                        int64_t totalSteps =
-                                            static_cast<int64_t>(steps);
-                                        int beatIndex = totalSteps % den;
-                                        if ( beatIndex < 0 ) beatIndex += den;
+                                    // 提取该分母下的分拍位
+                                    int64_t totalSteps =
+                                        static_cast<int64_t>(steps);
+                                    int beatIndex = totalSteps % den;
+                                    if ( beatIndex < 0 ) beatIndex += den;
 
-                                        if ( beatIndex == 0 ) {
-                                            bestNum = 1;
-                                            bestDen = 1;
-                                        } else {
-                                            int common =
-                                                std::gcd(beatIndex, den);
-                                            bestNum = beatIndex / common;
-                                            bestDen = den / common;
-                                        }
+                                    // 计算约分后的最简分母，用于权重计算
+                                    int finalNum, finalDen;
+                                    if ( beatIndex == 0 ) {
+                                        finalNum = 1;
+                                        finalDen = 1;
+                                    } else {
+                                        int common = std::gcd(beatIndex, den);
+                                        finalNum   = beatIndex / common;
+                                        finalDen   = den / common;
+                                    }
 
-                                        if ( error < 0.0001 )
-                                            break;  // 已经非常精确，停止搜索
+                                    // --- 核心评分逻辑 ---
+                                    // 目标：平衡“误差”与“分母复杂度”
+                                    // 惩罚项：每个分母单位增加 0.2ms
+                                    // 的“虚拟误差” 这样 3/5 (即使误差 3ms)
+                                    // 也会击败 77/128 (误差 0.5ms) 因为 3/5
+                                    // 的分母代价是 5*0.2 = 1ms，总分 4ms 而
+                                    // 77/128 的分母代价是 128*0.2
+                                    // = 25.6ms，总分 26.1ms
+                                    double score =
+                                        error + (double)finalDen * 0.0002;
+
+                                    if ( score < bestScore ) {
+                                        bestScore = score;
+                                        bestNum   = finalNum;
+                                        bestDen   = finalDen;
                                     }
                                 }
                                 snapshot->hoveredNoteNumerator   = bestNum;
                                 snapshot->hoveredNoteDenominator = bestDen;
                                 snapshot->hoveredNoteTime        = noteTime;
+
+                                // --- 计算物件的详细拍序 (Total Beat Index) ---
+                                int64_t totalBeatsPrefix = 0;
+                                for ( size_t i = 0; i < bpmEvents.size();
+                                      ++i ) {
+                                    const auto* bpmEv = bpmEvents[i];
+                                    if ( !bpmEv || bpmEv == activeBpm ) break;
+
+                                    double nextTime =
+                                        (i + 1 < bpmEvents.size())
+                                            ? bpmEvents[i + 1]->m_timestamp
+                                            : activeBpm->m_timestamp;
+                                    double dur = nextTime - bpmEv->m_timestamp;
+                                    if ( dur < 0 ) dur = 0;
+
+                                    double bVal = bpmEv->m_value > 0
+                                                      ? bpmEv->m_value
+                                                      : 120.0;
+                                    totalBeatsPrefix += static_cast<int64_t>(
+                                        std::round(dur / (60.0 / bVal)));
+                                }
+                                double rel = noteTime - activeBpm->m_timestamp;
+                                if ( rel < 0 ) rel = 0;
+                                int64_t beatsInActive = static_cast<int64_t>(
+                                    std::floor(rel / beatDuration + 1e-6));
+                                snapshot->hoveredNoteBeatIndex =
+                                    static_cast<int>(totalBeatsPrefix +
+                                                     beatsInActive + 1);
                             }
                         }
                         break;  // 只处理一个悬停物体
@@ -285,25 +337,27 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
             float leftX = camera.viewportWidth * config.visual.trackLayout.left;
             float rightX =
                 camera.viewportWidth * config.visual.trackLayout.right;
-            float trackAreaW   = rightX - leftX;
-            float singleTrackW = trackAreaW / static_cast<float>(m_ctx->trackCount);
+            float trackAreaW = rightX - leftX;
+            float singleTrackW =
+                trackAreaW / static_cast<float>(m_ctx->trackCount);
 
             // 针对预览区，布局参数略有不同
             if ( cameraId == "Preview" ) {
-                leftX        = config.visual.previewConfig.margin.left;
-                rightX       = camera.viewportWidth -
-                               config.visual.previewConfig.margin.right;
-                trackAreaW   = rightX - leftX;
-                singleTrackW = trackAreaW / static_cast<float>(m_ctx->trackCount);
+                leftX      = config.visual.previewConfig.margin.left;
+                rightX     = camera.viewportWidth -
+                             config.visual.previewConfig.margin.right;
+                trackAreaW = rightX - leftX;
+                singleTrackW =
+                    trackAreaW / static_cast<float>(m_ctx->trackCount);
             }
 
             m_ctx->hitFXSystem.generateSnapshot(snapshot,
-                                           m_ctx->visualTime,
-                                           config,
-                                           m_ctx->trackCount,
-                                           judgmentLineY,
-                                           leftX,
-                                           singleTrackW);
+                                                m_ctx->visualTime,
+                                                config,
+                                                m_ctx->trackCount,
+                                                judgmentLineY,
+                                                leftX,
+                                                singleTrackW);
         }
 
         // 5. 提交专属快照

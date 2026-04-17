@@ -6,6 +6,7 @@
 #include "event/logic/LogicCommandEvent.h"
 #include "event/ui/menu/OpenProjectEvent.h"
 #include "log/colorful-log.h"
+#include "logic/EditorEngine.h"
 #include "ui/Icons.h"
 #include <ImGuiFileDialog.h>
 #include <imgui.h>
@@ -57,7 +58,8 @@ void MainMenuView::handleHotkeys()
         }
     } else {
         if ( ImGui::IsKeyPressed(ImGuiKey_Space) ) {
-            // Toggle play state placeholder
+            bool playing = Logic::EditorEngine::instance().isPlaybackPlaying();
+            dispatchCommand(Logic::CmdSetPlayState{ !playing });
         }
     }
 }
@@ -303,8 +305,11 @@ void MainMenuView::update()
             dispatchCommand(Logic::CmdPaste{});
         }
         ImGui::Separator();
-        if ( MenuItemWithFontIcon(
-                 ICON_MMM_PLAY, TR("ui.edit.play_pause"), "Space") ) {}
+        bool playing      = Logic::EditorEngine::instance().isPlaybackPlaying();
+        const char* pIcon = playing ? ICON_MMM_PAUSE : ICON_MMM_PLAY;
+        if ( MenuItemWithFontIcon(pIcon, TR("ui.edit.play_pause"), "Space") ) {
+            dispatchCommand(Logic::CmdSetPlayState{ !playing });
+        }
         ImGui::EndMenu();
     }
 

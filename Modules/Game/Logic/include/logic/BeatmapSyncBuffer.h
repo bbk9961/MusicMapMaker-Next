@@ -128,6 +128,7 @@ struct RenderSnapshot {
     int     hoveredBeatIndex{
             0
     };  // 当前悬浮时间点所在的拍序 (从首个BPMTiming开始)
+    int hoveredNoteBeatIndex{ 0 };  // 悬浮物件所在的拍序
 
     bool   isPreviewHovered{ false };
     float  previewHoverY{ 0.0f };
@@ -168,6 +169,7 @@ struct RenderSnapshot {
         hoveredNoteNumerator   = 0;
         hoveredNoteDenominator = 1;
         hoveredBeatIndex       = 0;
+        hoveredNoteBeatIndex   = 0;
         hoveredNoteTime        = 0.0;
         isPreviewHovered       = false;
         previewHoverY          = 0.0f;

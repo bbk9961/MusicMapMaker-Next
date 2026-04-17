@@ -109,6 +109,11 @@ public:
     EditTool getCurrentTool() const;
 
     /**
+     * @brief 获取当前播放状态
+     */
+    bool isPlaybackPlaying() const;
+
+    /**
      * @brief 设置编辑器配置 (同时分发指令给 Session)
      */
     void setEditorConfig(const Config::EditorConfig& config);
@@ -148,9 +153,10 @@ private:
 
     /// @brief 各摄像机独立的图集 UV 映射表 (受 m_buffersMutex 保护)
     std::unordered_map<std::string, std::unordered_map<uint32_t, glm::vec4>>
-               m_cameraUVMaps;
+        m_cameraUVMaps;
 
-    /// @brief 保护 m_syncBuffers 和 m_cameraUVMaps 的独立锁（与 m_sessionMutex 无交叉，防止死锁）
+    /// @brief 保护 m_syncBuffers 和 m_cameraUVMaps 的独立锁（与 m_sessionMutex
+    /// 无交叉，防止死锁）
     mutable std::recursive_mutex m_buffersMutex;
 
     /// @brief 待处理的项目路径（由 EventBus 回调写入，由逻辑线程消费）

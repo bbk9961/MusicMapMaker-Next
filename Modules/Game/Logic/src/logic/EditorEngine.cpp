@@ -1,4 +1,3 @@
-#include "logic/session/context/SessionContext.h"
 #include "logic/EditorEngine.h"
 #include "audio/AudioManager.h"
 #include "config/AppConfig.h"
@@ -10,6 +9,7 @@
 #include "event/ui/menu/ProjectLoadedEvent.h"
 #include "log/colorful-log.h"
 #include "logic/BeatmapSyncBuffer.h"
+#include "logic/session/context/SessionContext.h"
 #include "mmm/beatmap/BeatMap.h"
 #include <chrono>
 #include <filesystem>
@@ -343,6 +343,15 @@ EditTool EditorEngine::getCurrentTool() const
         return m_activeSession->getContext().currentTool;
     }
     return EditTool::Move;
+}
+
+bool EditorEngine::isPlaybackPlaying() const
+{
+    std::lock_guard<std::recursive_mutex> lock(m_sessionMutex);
+    if ( m_activeSession ) {
+        return m_activeSession->getContext().isPlaying;
+    }
+    return false;
 }
 
 void EditorEngine::setEditorConfig(const Config::EditorConfig& config)
