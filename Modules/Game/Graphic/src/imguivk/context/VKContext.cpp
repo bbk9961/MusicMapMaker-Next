@@ -113,17 +113,6 @@ VKContext::VKContext()
                 setVSync(cmd.config.settings.vsync);
             }
         });
-
-
-    Event::EventBus::instance().subscribe<Event::LogicCommandEvent>(
-        [&](Event::LogicCommandEvent e) {
-            if ( std::holds_alternative<MMM::Logic::CmdUpdateEditorConfig>(
-                     e.command) ) {
-                auto& cmd =
-                    std::get<MMM::Logic::CmdUpdateEditorConfig>(e.command);
-                setVSync(cmd.config.settings.vsync);
-            }
-        });
 }
 
 VKContext::~VKContext()
