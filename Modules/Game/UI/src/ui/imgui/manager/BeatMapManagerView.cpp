@@ -75,7 +75,10 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
                 ImGui::Indent();
                 if ( ImGui::Selectable(beatmap.m_name.c_str()) ) {
                     XINFO("Request to load beatmap: {}", beatmap.m_name);
-                    auto fullPath = project->m_projectRoot / beatmap.m_filePath;
+                    auto fullPath =
+                        project->m_projectRoot /
+                        std::filesystem::path(reinterpret_cast<const char8_t*>(
+                            beatmap.m_filePath.c_str()));
                     auto loadedBeatmap = std::make_shared<MMM::BeatMap>(
                         MMM::BeatMap::loadFromFile(fullPath));
                     engine.pushCommand(Logic::CmdLoadBeatmap{ loadedBeatmap });

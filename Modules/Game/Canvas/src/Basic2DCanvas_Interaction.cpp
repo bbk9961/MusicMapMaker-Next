@@ -54,8 +54,10 @@ void Basic2DCanvas::handleDrops(UI::UIManager* sourceManager)
 
                 // 3. 如果是谱面文件，直接加载
                 if ( ext == ".osu" || ext == ".imd" || ext == ".mc" ) {
-                    XINFO("Auto-loading beatmap from drop: {}",
-                          p.filename().string());
+                    auto        u8 = p.filename().u8string();
+                    std::string u8_filename(
+                        reinterpret_cast<const char*>(u8.c_str()), u8.size());
+                    XINFO("Auto-loading beatmap from drop: {}", u8_filename);
                     try {
                         auto loadedBeatmap = std::make_shared<MMM::BeatMap>(
                             MMM::BeatMap::loadFromFile(p));

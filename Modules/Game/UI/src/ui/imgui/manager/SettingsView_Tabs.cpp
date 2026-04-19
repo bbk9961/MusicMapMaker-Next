@@ -310,9 +310,11 @@ void SettingsView::drawProjectSettings()
     ImGui::Text("%s: %s",
                 TR_CACHE("ui.settings.project.mapper").data(),
                 project->m_metadata.m_mapper.c_str());
+    auto        u8 = project->m_projectRoot.u8string();
+    std::string projPath(reinterpret_cast<const char*>(u8.c_str()), u8.size());
     ImGui::Text("%s: %s",
                 TR_CACHE("ui.settings.project.path").data(),
-                project->m_projectRoot.string().c_str());
+                projPath.c_str());
 }
 
 void SettingsView::drawEditorSettings()

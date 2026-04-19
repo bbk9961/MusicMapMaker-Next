@@ -73,7 +73,8 @@ void MainMenuView::openFolderPicker()
 
         if ( result == NFD_OKAY ) {
             Event::OpenProjectEvent ev;
-            ev.m_projectPath = outPath;
+            ev.m_projectPath = std::filesystem::path(
+                reinterpret_cast<const char8_t*>(outPath));
             Event::EventBus::instance().publish(ev);
             NFD_FreePath(outPath);
         }
@@ -245,11 +246,15 @@ void MainMenuView::update()
                 ImGui::MenuItem(TR("ui.file.no_recent"), nullptr, false, false);
             } else {
                 for ( const auto& path : recent ) {
-                    std::filesystem::path p(path);
-                    std::string           name = p.filename().string();
+                    std::filesystem::path p(
+                        reinterpret_cast<const char8_t*>(path.c_str()));
+                    auto        u8name = p.filename().u8string();
+                    std::string name(
+                        reinterpret_cast<const char*>(u8name.c_str()),
+                        u8name.size());
                     if ( ImGui::MenuItem(name.c_str(), path.c_str()) ) {
                         Event::OpenProjectEvent ev;
-                        ev.m_projectPath = path;
+                        ev.m_projectPath = p;
                         Event::EventBus::instance().publish(ev);
                     }
                 }

@@ -77,10 +77,21 @@ inline BeatMap loadRMMap(std::filesystem::path path)
     if ( basemeta.map_path.is_relative() ) {
         basemeta.map_path = std::filesystem::absolute(basemeta.map_path);
     }
-    XINFO("加载rm谱面路径:{}", basemeta.map_path.string());
+    // 将 path 转为 UTF-8 std::string 供日志使用
+    auto pathToStr = [](const std::filesystem::path& p) {
+        auto u8 = p.u8string();
+        return std::string(reinterpret_cast<const char*>(u8.c_str()),
+                           u8.size());
+    };
+    XINFO("加载rm谱面路径:{}", pathToStr(basemeta.map_path));
+
+    auto strToPath = [](const std::string& s) {
+        return std::filesystem::path(
+            reinterpret_cast<const char8_t*>(s.c_str()));
+    };
 
     // 文件名
-    auto fnamestr = basemeta.map_path.filename().generic_string();
+    auto fnamestr = pathToStr(basemeta.map_path.filename());
     // 文件名第一个下划线的位置
     auto first_pos = fnamestr.find('_');
     // 文件名第二个下划线的位置
@@ -109,14 +120,14 @@ inline BeatMap loadRMMap(std::filesystem::path path)
     bool has_audio{ true };
     // 前缀+.mp3作为音频文件名
     basemeta.main_audio_path =
-        basemeta.map_path.parent_path() / (file_presuffix + ".mp3");
+        basemeta.map_path.parent_path() / strToPath(file_presuffix + ".mp3");
     // 也可为wav,ogg
     if ( !std::filesystem::exists(basemeta.main_audio_path) ) {
-        basemeta.main_audio_path =
-            basemeta.map_path.parent_path() / (file_presuffix + ".wav");
+        basemeta.main_audio_path = basemeta.map_path.parent_path() /
+                                   strToPath(file_presuffix + ".wav");
         if ( !std::filesystem::exists(basemeta.main_audio_path) ) {
-            basemeta.main_audio_path =
-                basemeta.map_path.parent_path() / (file_presuffix + ".ogg");
+            basemeta.main_audio_path = basemeta.map_path.parent_path() /
+                                       strToPath(file_presuffix + ".ogg");
             if ( !std::filesystem::exists(basemeta.main_audio_path) ) {
                 has_audio = false;
             }
@@ -131,13 +142,13 @@ inline BeatMap loadRMMap(std::filesystem::path path)
     // 检查前缀+.png 或.jpg .jpeg有哪个用哪个作为bg
     bool has_bg{ true };
     basemeta.main_cover_path =
-        basemeta.map_path.parent_path() / (file_presuffix + ".png");
+        basemeta.map_path.parent_path() / strToPath(file_presuffix + ".png");
     if ( !std::filesystem::exists(basemeta.main_cover_path) ) {
-        basemeta.main_cover_path =
-            basemeta.map_path.parent_path() / (file_presuffix + ".jpg");
+        basemeta.main_cover_path = basemeta.map_path.parent_path() /
+                                   strToPath(file_presuffix + ".jpg");
         if ( !std::filesystem::exists(basemeta.main_cover_path) ) {
-            basemeta.main_cover_path =
-                basemeta.map_path.parent_path() / (file_presuffix + ".jpeg");
+            basemeta.main_cover_path = basemeta.map_path.parent_path() /
+                                       strToPath(file_presuffix + ".jpeg");
             if ( !std::filesystem::exists(basemeta.main_cover_path) ) {
                 has_bg = false;
             }

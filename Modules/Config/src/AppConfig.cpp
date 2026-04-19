@@ -95,7 +95,8 @@ bool AppConfig::save(const std::filesystem::path& path) const
     }
 }
 
-void AppConfig::addRecentProject(const std::string& path)
+void AppConfig::addRecentProject(
+    const std::string& path)  // path 必须为 UTF-8 编码
 {
     {
         std::lock_guard<std::mutex> lock(m_mutex);

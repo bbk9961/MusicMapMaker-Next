@@ -1,4 +1,3 @@
-#include "ui/imgui/manager/FileManagerView.h"
 #include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "event/core/EventBus.h"
@@ -9,6 +8,7 @@
 #include "log/colorful-log.h"
 #include "ui/UIManager.h"
 #include "ui/imgui/SideBarUI.h"
+#include "ui/imgui/manager/FileManagerView.h"
 #include "ui/layout/box/CLayBox.h"
 #include <ImGuiFileDialog.h>
 #include <nfd.h>
@@ -20,9 +20,9 @@ void FileManagerView::handleDragDrop(UIManager* sourceManager)
 {
     if ( m_pendingDrops.empty() ) return;
 
-    bool isHovered = ImGui::IsWindowHovered(
-        ImGuiHoveredFlags_RootAndChildWindows |
-        ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
+    bool isHovered =
+        ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows |
+                               ImGuiHoveredFlags_AllowWhenBlockedByActiveItem);
 
     if ( isHovered ) {
         for ( const auto& drop : m_pendingDrops ) {
@@ -32,7 +32,8 @@ void FileManagerView::handleDragDrop(UIManager* sourceManager)
                     std::filesystem::is_directory(p) ? p : p.parent_path();
 
                 XINFO("File dropped on FileManager: {}, opening project: {}",
-                      p.string(), projectPath.string());
+                      p.string(),
+                      projectPath.string());
 
                 Event::OpenProjectEvent ev;
                 ev.m_projectPath = projectPath;
@@ -42,8 +43,8 @@ void FileManagerView::handleDragDrop(UIManager* sourceManager)
                 SideBarTab targetTab = SideBarTab::FileExplorer;
                 if ( ext == ".osu" || ext == ".imd" || ext == ".mc" ) {
                     targetTab = SideBarTab::BeatMapExplorer;
-                } else if ( ext == ".mp3" || ext == ".ogg" ||
-                            ext == ".wav" || ext == ".flac" ) {
+                } else if ( ext == ".mp3" || ext == ".ogg" || ext == ".wav" ||
+                            ext == ".flac" ) {
                     targetTab = SideBarTab::AudioExplorer;
                 }
 
@@ -62,52 +63,71 @@ void FileManagerView::handleDragDrop(UIManager* sourceManager)
 
 void FileManagerView::renderEmptyProjectView(LayoutContext& layoutContext)
 {
-    auto& skinCfg = Config::SkinManager::instance();
+    auto&    skinCfg = Config::SkinManager::instance();
     CLayVBox rootVBox;
 
     CLayHBox labelHBox;
     auto     fh = ImGui::GetFrameHeight();
     labelHBox.addSpring()
-        .addElement("InitialHint", Sizing::Grow(), Sizing::Fixed(fh),
-            [=](Clay_BoundingBox r, bool isHovered) {
-                float offY = (r.height - ImGui::GetFontSize()) * 0.5f;
-                ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offY);
-                ImVec2 textSize = ImGui::CalcTextSize(TR("ui.file_manager.initial_hint"));
-                ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (r.width - textSize.x) * 0.5f);
-                ImGui::TextEx(TR("ui.file_manager.initial_hint"));
-            })
+        .addElement("InitialHint",
+                    Sizing::Grow(),
+                    Sizing::Fixed(fh),
+                    [=](Clay_BoundingBox r, bool isHovered) {
+                        float offY = (r.height - ImGui::GetFontSize()) * 0.5f;
+                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offY);
+                        ImVec2 textSize = ImGui::CalcTextSize(
+                            TR("ui.file_manager.initial_hint"));
+                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                                             (r.width - textSize.x) * 0.5f);
+                        ImGui::TextEx(TR("ui.file_manager.initial_hint"));
+                    })
         .addSpring();
 
     CLayHBox buttonHBox;
     buttonHBox.addSpring()
-        .addElement("OpenDirButton", Sizing::Grow(), Sizing::Fixed(fh),
-            [this](Clay_BoundingBox r, bool isHovered) {
-                if ( ImGui::Button(TR("ui.file_manager.open_directory"), { r.width, r.height }) ) {
-                    this->openFolderPicker();
-                }
-            })
+        .addElement("OpenDirButton",
+                    Sizing::Grow(),
+                    Sizing::Fixed(fh),
+                    [this](Clay_BoundingBox r, bool isHovered) {
+                        if ( ImGui::Button(TR("ui.file_manager.open_directory"),
+                                           { r.width, r.height }) ) {
+                            this->openFolderPicker();
+                        }
+                    })
         .addSpring();
 
     CLayVBox    recentVBox;
-    const auto& recent = Config::AppConfig::instance().getEditorConfig().recentProjects;
+    const auto& recent =
+        Config::AppConfig::instance().getEditorConfig().recentProjects;
 
     if ( !recent.empty() ) {
         recentVBox.setPadding(12, 0, 12, 0).setSpacing(8);
-        recentVBox.addElement("RecentTitle", Sizing::Grow(), Sizing::Fixed(20),
-            [](Clay_BoundingBox r, bool isHovered) {
-                ImGui::TextDisabled("%s", TR("ui.file.open_recent").data());
-            });
+        recentVBox.addElement("RecentTitle",
+                              Sizing::Grow(),
+                              Sizing::Fixed(20),
+                              [](Clay_BoundingBox r, bool isHovered) {
+                                  ImGui::TextDisabled(
+                                      "%s", TR("ui.file.open_recent").data());
+                              });
 
         for ( size_t i = 0; i < recent.size(); ++i ) {
             const auto& path = recent[i];
-            recentVBox.addElement(fmt::format("RecentItem_{}", i), Sizing::Grow(), Sizing::Fixed(20),
+            recentVBox.addElement(
+                fmt::format("RecentItem_{}", i),
+                Sizing::Grow(),
+                Sizing::Fixed(20),
                 [path, &skinCfg](Clay_BoundingBox r, bool isHovered) {
-                    std::filesystem::path p(path);
-                    std::string name = p.filename().string();
+                    std::filesystem::path p(
+                        reinterpret_cast<const char8_t*>(path.c_str()));
+                    auto        u8name = p.filename().u8string();
+                    std::string name(
+                        reinterpret_cast<const char*>(u8name.c_str()),
+                        u8name.size());
                     if ( name.empty() ) name = path;
                     auto   iconCol = skinCfg.getColor("icon");
                     ImVec4 col(iconCol.r, iconCol.g, iconCol.b, iconCol.a);
-                    if ( isHovered ) col = ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered];
+                    if ( isHovered )
+                        col = ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered];
 
                     ImGui::PushStyleColor(ImGuiCol_Text, col);
                     ImGui::TextUnformatted(name.c_str());
@@ -115,8 +135,9 @@ void FileManagerView::renderEmptyProjectView(LayoutContext& layoutContext)
 
                     ImVec2 min = ImGui::GetItemRectMin();
                     ImVec2 max = ImGui::GetItemRectMax();
-                    min.y = max.y;
-                    ImGui::GetWindowDrawList()->AddLine(min, max, ImGui::ColorConvertFloat4ToU32(col), 1.0f);
+                    min.y      = max.y;
+                    ImGui::GetWindowDrawList()->AddLine(
+                        min, max, ImGui::ColorConvertFloat4ToU32(col), 1.0f);
 
                     if ( isHovered ) {
                         ImGui::SetTooltip("%s", path.c_str());
@@ -124,7 +145,7 @@ void FileManagerView::renderEmptyProjectView(LayoutContext& layoutContext)
                     }
                     if ( ImGui::IsItemClicked() ) {
                         Event::OpenProjectEvent ev;
-                        ev.m_projectPath = path;
+                        ev.m_projectPath = p;
                         Event::EventBus::instance().publish(ev);
                     }
                 });
@@ -149,7 +170,8 @@ void FileManagerView::openFolderPicker()
         nfdresult_t  result  = NFD_PickFolder(&outPath, nullptr);
         if ( result == NFD_OKAY ) {
             Event::OpenProjectEvent ev;
-            ev.m_projectPath = outPath;
+            ev.m_projectPath = std::filesystem::path(
+                reinterpret_cast<const char8_t*>(outPath));
             Event::EventBus::instance().publish(ev);
             NFD_FreePath(outPath);
         }
@@ -158,9 +180,12 @@ void FileManagerView::openFolderPicker()
         fdConfig.path              = ".";
         fdConfig.countSelectionMax = 1;
         fdConfig.flags             = ImGuiFileDialogFlags_Default;
-        ImGuiFileDialog::Instance()->OpenDialog("ProjectFolderPicker",
-            TR("ui.file_manager.open_directory"), nullptr, fdConfig);
+        ImGuiFileDialog::Instance()->OpenDialog(
+            "ProjectFolderPicker",
+            TR("ui.file_manager.open_directory"),
+            nullptr,
+            fdConfig);
     }
 }
 
-} // namespace MMM::UI
+}  // namespace MMM::UI

@@ -26,11 +26,18 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
     if ( basemeta.map_path.is_relative() ) {
         basemeta.map_path = std::filesystem::absolute(basemeta.map_path);
     }
-    XINFO("加载malody谱面路径:{}", basemeta.map_path.string());
+    // 将 path 转为 UTF-8 std::string 供日志使用
+    auto pathToStr = [](const std::filesystem::path& p) {
+        auto u8 = p.u8string();
+        return std::string(reinterpret_cast<const char*>(u8.c_str()),
+                           u8.size());
+    };
+
+    XINFO("加载malody谱面路径:{}", pathToStr(basemeta.map_path));
 
     std::ifstream fs{ path };
     if ( !fs.is_open() ) {
-        XERROR("无法打开 malody 谱面文件: {}", path.string());
+        XERROR("无法打开 malody 谱面文件: {}", pathToStr(path));
         return {};
     }
 
@@ -42,12 +49,18 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
         return {};
     }
 
+    // 辅助函数：将 UTF-8 字符串转为 std::filesystem::path
+    auto strToPath = [](const std::string& s) {
+        return std::filesystem::path(
+            reinterpret_cast<const char8_t*>(s.c_str()));
+    };
+
     // 1. 解析基础元数据 (Meta)
     if ( fileData.contains("meta") ) {
         const auto& meta         = fileData["meta"];
         basemeta.author          = meta.value("creator", "");
         basemeta.version         = meta.value("version", "");
-        basemeta.main_cover_path = meta.value("background", "");
+        basemeta.main_cover_path = strToPath(meta.value("background", ""));
 
         if ( meta.contains("song") ) {
             const auto& song         = meta["song"];
@@ -55,7 +68,7 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
             basemeta.title_unicode   = song.value("titleorg", "");
             basemeta.artist          = song.value("artist", "");
             basemeta.artist_unicode  = song.value("artistorg", "");
-            basemeta.main_audio_path = song.value("file", "");
+            basemeta.main_audio_path = strToPath(song.value("file", ""));
             basemeta.preference_bpm  = song.value("bpm", 0.0);
         }
 
@@ -228,14 +241,14 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
             if ( n.value("type", 0) == 1 ) {
                 std::string soundFile = n.value("sound", "");
                 if ( basemeta.main_audio_path.empty() ) {
-                    basemeta.main_audio_path = soundFile;
+                    basemeta.main_audio_path = strToPath(soundFile);
                 }
-                if ( soundFile == basemeta.main_audio_path ||
+                if ( strToPath(soundFile) == basemeta.main_audio_path ||
                      soundFile.empty() ) {
                     audioOffset = n.value("offset", 0.0);
                     XINFO("找到 Malody 音频偏移: {} ms, 音频文件: {}",
                           audioOffset,
-                          basemeta.main_audio_path.string());
+                          pathToStr(basemeta.main_audio_path));
                     break;
                 }
             }

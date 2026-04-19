@@ -225,7 +225,8 @@ inline BeatMap loadOSUMap(std::filesystem::path path)
     trim(main_audio_rpath);
     osumeta_props["General::AudioFilename"] = main_audio_rpath;
 
-    basemeta.main_audio_path = main_audio_rpath;
+    basemeta.main_audio_path = std::filesystem::path(
+        reinterpret_cast<const char8_t*>(main_audio_rpath.c_str()));
 
     osumeta_props["General::AudioLeadIn"] =
         osureader.get_value("General", "AudioLeadIn", std::string("0"));
@@ -370,7 +371,8 @@ inline BeatMap loadOSUMap(std::filesystem::path path)
     // 去引号再次trim
     trim(cover_path);
 
-    basemeta.main_cover_path = cover_path;
+    basemeta.main_cover_path = std::filesystem::path(
+        reinterpret_cast<const char8_t*>(cover_path.c_str()));
     if ( background_paras.size() >= 5 ) {
         basemeta.bgxoffset = std::stoi(background_paras.at(3));
         basemeta.bgyoffset = std::stoi(background_paras.at(4));

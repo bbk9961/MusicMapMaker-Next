@@ -73,21 +73,30 @@ EditorEngine::~EditorEngine()
 
 void EditorEngine::openProject(const std::filesystem::path& projectPath)
 {
+    // 将 path 转为 UTF-8 std::string 供日志使用（Windows 下 string() 为
+    // ANSI，会乱码）
+    auto pathToStr = [](const std::filesystem::path& p) {
+        auto u8 = p.u8string();
+        return std::string(reinterpret_cast<const char*>(u8.c_str()),
+                           u8.size());
+    };
+
     if ( !std::filesystem::exists(projectPath) ||
          !std::filesystem::is_directory(projectPath) ) {
         XERROR(
             "Failed to open project: Path does not exist or is not a "
             "directory: {}",
-            projectPath.string());
+            pathToStr(projectPath));
         return;
     }
 
-    XINFO("Opening project at: {}", projectPath.string());
+    XINFO("Opening project at: {}", pathToStr(projectPath));
+
 
     auto newProject           = std::make_unique<Project>();
     newProject->m_projectRoot = projectPath;
     newProject->m_metadata.m_title =
-        projectPath.filename().string();  // 默认标题为目录名
+        pathToStr(projectPath.filename());  // 默认标题为目录名（UTF-8）
 
     // 扫描文件系统
     try {
@@ -98,7 +107,7 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
               std::filesystem::recursive_directory_iterator(projectPath) ) {
             if ( !entry.is_regular_file() ) continue;
 
-            auto ext = entry.path().extension().string();
+            auto ext = pathToStr(entry.path().extension());
             if ( ext == ".osu" || ext == ".imd" || ext == ".mc" ) {
                 mapFiles.push_back(entry.path());
             } else if ( ext == ".mp3" || ext == ".ogg" || ext == ".wav" ||
@@ -113,8 +122,8 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
         // 1. 处理谱面并识别主音轨
         for ( const auto& mapPath : mapFiles ) {
             auto relMapPath =
-                std::filesystem::relative(mapPath, projectPath).string();
-            auto filename = mapPath.filename().string();
+                pathToStr(std::filesystem::relative(mapPath, projectPath));
+            auto filename = pathToStr(mapPath.filename());
 
             Project::BeatmapEntry mapEntry;
             mapEntry.m_name     = filename;
@@ -128,11 +137,11 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
                     auto absAudioPath =
                         mapPath.parent_path() /
                         tempMap.m_baseMapMetadata.main_audio_path;
-                    auto relAudioPath =
-                        std::filesystem::relative(absAudioPath, projectPath)
-                            .string();
+                    auto relAudioPath = pathToStr(
+                        std::filesystem::relative(absAudioPath, projectPath));
 
-                    mapEntry.m_audioTrackId = absAudioPath.filename().string();
+                    mapEntry.m_audioTrackId =
+                        pathToStr(absAudioPath.filename());
                     mainAudioPaths.insert(relAudioPath);
                 }
             } catch ( ... ) {
@@ -146,8 +155,8 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
         // 2. 处理所有音频资源
         for ( const auto& audioPath : audioFiles ) {
             auto relAudioPath =
-                std::filesystem::relative(audioPath, projectPath).string();
-            auto filename = audioPath.filename().string();
+                pathToStr(std::filesystem::relative(audioPath, projectPath));
+            auto filename = pathToStr(audioPath.filename());
 
             AudioResource res;
             res.m_id   = filename;
@@ -234,7 +243,7 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
             auto absPath = projectPath / res.m_path;
             if ( std::filesystem::exists(absPath) ) {
                 Audio::AudioManager::instance().preloadSoundEffect(
-                    res.m_id, absPath.string(), res.m_config.volume);
+                    res.m_id, pathToStr(absPath), res.m_config.volume);
             }
         }
     }
@@ -248,7 +257,7 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
     // 发布加载成功事件
     Event::ProjectLoadedEvent loadedEv;
     loadedEv.m_projectTitle = m_currentProject->m_metadata.m_title;
-    loadedEv.m_projectPath  = projectPath.string();
+    loadedEv.m_projectPath  = pathToStr(projectPath);
     loadedEv.m_beatmapCount = m_currentProject->m_beatmaps.size();
     Event::EventBus::instance().publish(loadedEv);
 
@@ -271,7 +280,8 @@ void EditorEngine::openProject(const std::filesystem::path& projectPath)
     }
 
     // 记录到最近打开列表
-    Config::AppConfig::instance().addRecentProject(projectPath.string());
+    Config::AppConfig::instance().addRecentProject(
+        pathToStr(projectPath));  // UTF-8 编码路径
 
     {
         std::lock_guard<std::recursive_mutex> lock(m_sessionMutex);

@@ -1,12 +1,12 @@
-#include "ui/imgui/manager/FileManagerView.h"
 #include "config/skin/SkinConfig.h"
+#include "event/ui/UISubViewToggleEvent.h"
 #include "imgui.h"
 #include "logic/EditorEngine.h"
 #include "mmm/beatmap/BeatMap.h"
-#include "event/ui/UISubViewToggleEvent.h"
 #include "ui/UIManager.h"
 #include "ui/imgui/SideBarUI.h"
 #include "ui/imgui/audio/AudioTrackControllerUI.h"
+#include "ui/imgui/manager/FileManagerView.h"
 #include "ui/layout/box/CLayBox.h"
 
 namespace MMM::UI
@@ -27,13 +27,22 @@ void FileManagerView::renderActiveProjectView(LayoutContext& layoutContext,
         Sizing::Grow(),
         Sizing::Fixed(ImGui::GetFrameHeight()),
         [project, &skinCfg](Clay_BoundingBox r, bool isHovered) {
-            auto highlightCol = skinCfg.getColor("ui.highlight");
-            ImGui::TextColored(
-                { highlightCol.r, highlightCol.g, highlightCol.b, highlightCol.a },
-                "Root: %s",
-                project->m_projectRoot.filename().string().c_str());
+            auto        highlightCol = skinCfg.getColor("ui.highlight");
+            auto        u8Name = project->m_projectRoot.filename().u8string();
+            std::string rootName(reinterpret_cast<const char*>(u8Name.c_str()),
+                                 u8Name.size());
+            ImGui::TextColored({ highlightCol.r,
+                                 highlightCol.g,
+                                 highlightCol.b,
+                                 highlightCol.a },
+                               "Root: %s",
+                               rootName.c_str());
             if ( ImGui::IsItemHovered() ) {
-                ImGui::SetTooltip("%s", project->m_projectRoot.string().c_str());
+                auto        u8Full = project->m_projectRoot.u8string();
+                std::string fullPath(
+                    reinterpret_cast<const char*>(u8Full.c_str()),
+                    u8Full.size());
+                ImGui::SetTooltip("%s", fullPath.c_str());
             }
         });
 
@@ -43,16 +52,17 @@ void FileManagerView::renderActiveProjectView(LayoutContext& layoutContext,
             "FileTree",
             Sizing::Grow(),
             Sizing::Grow(),
-            [this, sourceManager, &layoutContext](Clay_BoundingBox r, bool isHovered) {
+            [this, sourceManager, &layoutContext](Clay_BoundingBox r,
+                                                  bool             isHovered) {
                 ImGui::SetNextWindowContentSize(ImVec2(2000.0f, 0.0f));
                 ImGui::BeginChild("FileTreeChild",
                                   { 0, 0 },
                                   false,
                                   ImGuiWindowFlags_HorizontalScrollbar);
 
-                ImVec2 oldAvail    = layoutContext.m_avail;
+                ImVec2 oldAvail       = layoutContext.m_avail;
                 layoutContext.m_avail = { 2000.0f, 10000.0f };
-                float indent       = ImGui::CalcTextSize("AA").x;
+                float indent          = ImGui::CalcTextSize("AA").x;
                 ImGui::PushStyleVar(ImGuiStyleVar_IndentSpacing, indent);
                 this->drawDirectoryRecursive(m_currentRoot, sourceManager);
                 ImGui::PopStyleVar();
@@ -70,12 +80,14 @@ void FileManagerView::renderActiveProjectView(LayoutContext& layoutContext,
 }
 
 void FileManagerView::drawDirectoryRecursive(const std::filesystem::path& path,
-                                              UIManager*                   sourceManager)
+                                             UIManager* sourceManager)
 {
     try {
         for ( const auto& entry : std::filesystem::directory_iterator(path) ) {
-            const auto& p        = entry.path();
-            std::string filename = p.filename().string();
+            const auto& p  = entry.path();
+            auto        u8 = p.filename().u8string();
+            std::string filename(reinterpret_cast<const char*>(u8.c_str()),
+                                 u8.size());
             if ( filename.size() > 1 && filename[0] == '.' ) continue;
 
             if ( entry.is_directory() ) {
@@ -94,10 +106,16 @@ void FileManagerView::drawDirectoryRecursive(const std::filesystem::path& path,
                     auto& engine  = Logic::EditorEngine::instance();
                     auto* project = engine.getCurrentProject();
                     if ( project ) {
-                        auto relPath =
-                            std::filesystem::relative(p, project->m_projectRoot)
-                                .generic_string();
-                        auto ext = p.extension().string();
+                        auto relP = std::filesystem::relative(
+                            p, project->m_projectRoot);
+                        auto        relU8 = relP.generic_u8string();
+                        std::string relPath(
+                            reinterpret_cast<const char*>(relU8.c_str()),
+                            relU8.size());
+                        auto        extU8 = p.extension().u8string();
+                        std::string ext(
+                            reinterpret_cast<const char*>(extU8.c_str()),
+                            extU8.size());
 
                         auto publishToggleEvent = [&](SideBarTab tab) {
                             Event::UISubViewToggleEvent evt;
@@ -124,16 +142,25 @@ void FileManagerView::drawDirectoryRecursive(const std::filesystem::path& path,
                         } else if ( ext == ".mp3" || ext == ".wav" ||
                                     ext == ".ogg" || ext == ".flac" ) {
                             publishToggleEvent(SideBarTab::AudioExplorer);
-                            for ( const auto& audio : project->m_audioResources ) {
+                            for ( const auto& audio :
+                                  project->m_audioResources ) {
                                 if ( audio.m_path == relPath ) {
-                                    std::string viewName = "TrackController_" + audio.m_id;
-                                    if ( !sourceManager->getView<AudioTrackControllerUI>(viewName) ) {
-                                        auto controller = std::make_unique<AudioTrackControllerUI>(
-                                            audio.m_id, audio.m_id,
-                                            audio.m_type == AudioTrackType::Main ? 
-                                            AudioTrackControllerUI::TrackType::Main : 
-                                            AudioTrackControllerUI::TrackType::Effect);
-                                        sourceManager->registerView(viewName, std::move(controller));
+                                    std::string viewName =
+                                        "TrackController_" + audio.m_id;
+                                    if ( !sourceManager
+                                              ->getView<AudioTrackControllerUI>(
+                                                  viewName) ) {
+                                        auto controller = std::make_unique<
+                                            AudioTrackControllerUI>(
+                                            audio.m_id,
+                                            audio.m_id,
+                                            audio.m_type == AudioTrackType::Main
+                                                ? AudioTrackControllerUI::
+                                                      TrackType::Main
+                                                : AudioTrackControllerUI::
+                                                      TrackType::Effect);
+                                        sourceManager->registerView(
+                                            viewName, std::move(controller));
                                     }
                                     break;
                                 }
@@ -143,7 +170,8 @@ void FileManagerView::drawDirectoryRecursive(const std::filesystem::path& path,
                 }
             }
         }
-    } catch ( ... ) {}
+    } catch ( ... ) {
+    }
 }
 
-} // namespace MMM::UI
+}  // namespace MMM::UI

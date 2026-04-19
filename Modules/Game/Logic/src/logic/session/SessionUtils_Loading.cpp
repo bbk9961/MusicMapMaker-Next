@@ -15,6 +15,14 @@ namespace MMM::Logic
 void SessionUtils::loadBeatmap(SessionContext&               ctx,
                                std::shared_ptr<MMM::BeatMap> beatmap)
 {
+    // 将 path 转为 UTF-8 std::string 供外部 C API 使用（Windows 下 string() 为
+    // ANSI）
+    auto pathToStr = [](const std::filesystem::path& p) {
+        auto u8 = p.u8string();
+        return std::string(reinterpret_cast<const char*>(u8.c_str()),
+                           u8.size());
+    };
+
     ctx.noteRegistry.clear();
     ctx.timelineRegistry.clear();
     ctx.actionStack.clear();
@@ -38,7 +46,7 @@ void SessionUtils::loadBeatmap(SessionContext&               ctx,
     if ( !beatmap->m_baseMapMetadata.main_cover_path.empty() &&
          std::filesystem::exists(bgPath) ) {
         int w = 0, h = 0, comp = 0;
-        if ( stbi_info(bgPath.string().c_str(), &w, &h, &comp) ) {
+        if ( stbi_info(pathToStr(bgPath).c_str(), &w, &h, &comp) ) {
             ctx.bgSize =
                 glm::vec2(static_cast<float>(w), static_cast<float>(h));
         }
@@ -57,17 +65,17 @@ void SessionUtils::loadBeatmap(SessionContext&               ctx,
         auto*            project = EditorEngine::instance().getCurrentProject();
         if ( project ) {
             for ( const auto& res : project->m_audioResources ) {
-                if ( res.m_id ==
-                         beatmap->m_baseMapMetadata.main_audio_path.filename()
-                             .string() ||
+                if ( res.m_id == pathToStr(beatmap->m_baseMapMetadata
+                                               .main_audio_path.filename()) ||
                      res.m_path ==
-                         beatmap->m_baseMapMetadata.main_audio_path.string() ) {
+                         pathToStr(
+                             beatmap->m_baseMapMetadata.main_audio_path) ) {
                     config = res.m_config;
                     break;
                 }
             }
         }
-        Audio::AudioManager::instance().loadBGM(audioPath.string(), config);
+        Audio::AudioManager::instance().loadBGM(pathToStr(audioPath), config);
     }
 
     // 清空缓存上下文，以确保重新构建
