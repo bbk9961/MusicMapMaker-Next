@@ -159,8 +159,8 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
         double minTotalError = 1e18;
         int    bestK         = 6;
         for ( int k : { 4, 5, 6, 7, 8, 9 } ) {
-            float  w = 256.0f / k;
-            float  s = w / 2.0f;
+            float  w     = 256.0f / k;
+            float  s     = w / 2.0f;
             double error = 0;
             for ( auto const& [x, freq] : xFreq ) {
                 float target = std::round((x - s) / w) * w + s;
@@ -185,7 +185,8 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
     auto getTrackIndexFromX = [&](int x_val) -> uint32_t {
         if ( finalK <= 0 ) return 0;
         // 计算映射到该虚拟网格的索引
-        int idx = static_cast<int>(std::round((static_cast<float>(x_val) - bestS) / bestW));
+        int idx = static_cast<int>(
+            std::round((static_cast<float>(x_val) - bestS) / bestW));
         return static_cast<uint32_t>(std::clamp(idx, 0, finalK - 1));
     };
 
@@ -298,49 +299,58 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
 
             double   startBeat = beatToDouble(n["beat"]);
             double   startTime = getAbsTime(startBeat) - audioOffset;
-            uint32_t track = std::clamp(getNoteTrackIndex(n), 0u, (uint32_t)std::max(0, basemeta.track_count - 1));
+            uint32_t track =
+                std::clamp(getNoteTrackIndex(n),
+                           0u,
+                           (uint32_t)std::max(0, basemeta.track_count - 1));
 
             Note* notePtr = nullptr;
 
             if ( n.contains("seg") ) {
                 auto& segs = n["seg"];
-                
+
                 // 1. 获取根节点的绝对拍数 (用于计算子段落的绝对时间)
                 double rootBeatRaw = beatToDouble(n["beat"]);
 
                 // 2. 预判定第一个节点的时间和轨道
-                double firstSegBeat = rootBeatRaw + beatToDouble(segs[0].value("beat", json::array()));
-                double firstTime = getAbsTime(firstSegBeat) - audioOffset;
+                double firstSegBeat = rootBeatRaw + beatToDouble(segs[0].value(
+                                                        "beat", json::array()));
+                double firstTime    = getAbsTime(firstSegBeat) - audioOffset;
 
-                int rootX = n.value("x", 0);
-                int xOffset = segs[0].value("x", 0);
-                int firstX = rootX + xOffset;
-                uint32_t firstSegTrack = std::clamp(getTrackIndexFromX(firstX), 0u, (uint32_t)std::max(0, basemeta.track_count - 1));
+                int      rootX   = n.value("x", 0);
+                int      xOffset = segs[0].value("x", 0);
+                int      firstX  = rootX + xOffset;
+                uint32_t firstSegTrack =
+                    std::clamp(getTrackIndexFromX(firstX),
+                               0u,
+                               (uint32_t)std::max(0, basemeta.track_count - 1));
 
                 // 2. 模式 7 优化：如果是单段垂直 Hold 或单段 Flick
                 if ( segs.size() == 1 ) {
-                    if ( firstTime > startTime && xOffset == 0 && firstSegTrack == track ) {
+                    if ( firstTime > startTime && xOffset == 0 &&
+                         firstSegTrack == track ) {
                         // 绝对垂直的长条 -> Hold
-                        Hold& h = beatMap.m_noteData.holds.emplace_back();
-                        h.m_type = NoteType::HOLD;
+                        Hold& h       = beatMap.m_noteData.holds.emplace_back();
+                        h.m_type      = NoteType::HOLD;
                         h.m_timestamp = startTime;
-                        h.m_track = track;
-                        h.m_duration = firstTime - startTime;
-                        notePtr = &h;
+                        h.m_track     = track;
+                        h.m_duration  = firstTime - startTime;
+                        notePtr       = &h;
                     } else if ( firstTime == startTime ) {
                         // 瞬发跳变 -> Flick
                         Flick& f = beatMap.m_noteData.flicks.emplace_back();
                         f.m_type = NoteType::FLICK;
                         f.m_timestamp = startTime;
-                        f.m_track = track;
-                        f.m_dtrack = (int32_t)firstSegTrack - (int32_t)track;
-                        notePtr = &f;
+                        f.m_track     = track;
+                        f.m_dtrack    = (int32_t)firstSegTrack - (int32_t)track;
+                        notePtr       = &f;
                     }
                 }
 
                 // 3. 构造 Polyline (针对多段或滑动 Hold)
                 if ( !notePtr ) {
-                    Polyline& poly   = beatMap.m_noteData.polylines.emplace_back();
+                    Polyline& poly =
+                        beatMap.m_noteData.polylines.emplace_back();
                     poly.m_type      = NoteType::POLYLINE;
                     poly.m_timestamp = startTime;
                     poly.m_track     = track;
@@ -350,30 +360,41 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
 
                     for ( size_t i = 0; i < segs.size(); ++i ) {
                         const auto& s = segs[i];
-                        double stepBeatValue = rootBeatRaw + beatToDouble(s.value("beat", json::array()));
-                        double stepTime = getAbsTime(stepBeatValue) - audioOffset;
+                        double      stepBeatValue =
+                            rootBeatRaw +
+                            beatToDouble(s.value("beat", json::array()));
+                        double stepTime =
+                            getAbsTime(stepBeatValue) - audioOffset;
 
-                        int stepAbsX = rootX + s.value("x", 0);
-                        uint32_t stepTrack = std::clamp(getTrackIndexFromX(stepAbsX), 0u, (uint32_t)std::max(0, basemeta.track_count - 1));
+                        int      stepAbsX  = rootX + s.value("x", 0);
+                        uint32_t stepTrack = std::clamp(
+                            getTrackIndexFromX(stepAbsX),
+                            0u,
+                            (uint32_t)std::max(0, basemeta.track_count - 1));
 
                         if ( stepTime > runningTime ) {
                             // Hold segment
-                            Hold& h = beatMap.m_noteData.holds.emplace_back();
+                            Hold& h  = beatMap.m_noteData.holds.emplace_back();
                             h.m_type = NoteType::HOLD;
                             h.m_timestamp = runningTime;
                             h.m_track     = runningTrack;
-                            h.m_duration  = std::max(0.0, stepTime - runningTime);
+                            h.m_duration =
+                                std::max(0.0, stepTime - runningTime);
                             poly.m_subNotes.push_back(h);
                             poly.m_subHolds.push_back(h);
                             beatMap.m_allNotes.push_back(h);
 
-                            // 如果不是最后一段，或者当前发生了轨道变化，则需要添加 Flick 节点
-                            if ( i < segs.size() - 1 || stepTrack != runningTrack ) {
-                                Flick& f = beatMap.m_noteData.flicks.emplace_back();
-                                f.m_type = NoteType::FLICK;
+                            // 如果不是最后一段，或者当前发生了轨道变化，则需要添加
+                            // Flick 节点
+                            if ( i < segs.size() - 1 ||
+                                 stepTrack != runningTrack ) {
+                                Flick& f =
+                                    beatMap.m_noteData.flicks.emplace_back();
+                                f.m_type      = NoteType::FLICK;
                                 f.m_timestamp = stepTime;
-                                f.m_track     = runningTrack; 
-                                f.m_dtrack    = (int32_t)stepTrack - (int32_t)runningTrack;
+                                f.m_track     = runningTrack;
+                                f.m_dtrack =
+                                    (int32_t)stepTrack - (int32_t)runningTrack;
                                 poly.m_subNotes.push_back(f);
                                 poly.m_subFlicks.push_back(f);
                                 beatMap.m_allNotes.push_back(f);
@@ -384,7 +405,8 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                             f.m_type = NoteType::FLICK;
                             f.m_timestamp = runningTime;
                             f.m_track     = runningTrack;
-                            f.m_dtrack    = (int32_t)stepTrack - (int32_t)runningTrack;
+                            f.m_dtrack =
+                                (int32_t)stepTrack - (int32_t)runningTrack;
                             poly.m_subNotes.push_back(f);
                             poly.m_subFlicks.push_back(f);
                             beatMap.m_allNotes.push_back(f);
@@ -405,12 +427,16 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                 hold.m_duration  = endTime - startTime;
                 notePtr          = &hold;
             } else if ( n.contains("dir") ) {
+                static std::map<int, int> wmap = { { 4, 60 },
+                                                   { 5, 50 },
+                                                   { 6, 40 } };
                 // 处理滑键 Flick (按用户指令：dtrack = w - 40，方向由 dir 决定)
                 Flick& flick      = beatMap.m_noteData.flicks.emplace_back();
                 flick.m_type      = NoteType::FLICK;
                 flick.m_timestamp = startTime;
                 flick.m_track     = track;
-                int distance      = n.value("w", 40) - 40;
+                int distance      = n.value("w", wmap[basemeta.track_count]) -
+                                    wmap[basemeta.track_count];
                 int direction     = n.value("dir", 0);
                 // 8 为左 (-)，2 为右 (+)
                 flick.m_dtrack = (direction == 8) ? -distance : distance;
