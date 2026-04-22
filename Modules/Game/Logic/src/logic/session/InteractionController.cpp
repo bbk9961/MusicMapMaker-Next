@@ -10,7 +10,6 @@
 #include "logic/ecs/system/render/Batcher.h"
 #include "logic/session/NoteAction.h"
 #include "logic/session/context/SessionContext.h"
-#include "logic/session/tool/CutTool.h"
 #include "logic/session/tool/DrawTool.h"
 #include "logic/session/tool/GrabTool.h"
 #include "logic/session/tool/MarqueeTool.h"
@@ -23,7 +22,6 @@ InteractionController::InteractionController(SessionContext& ctx) : m_ctx(ctx)
 {
     m_tools[EditTool::Move]    = std::make_unique<GrabTool>();
     m_tools[EditTool::Marquee] = std::make_unique<MarqueeTool>();
-    m_tools[EditTool::Cut]     = std::make_unique<CutTool>();
     m_tools[EditTool::Draw]    = std::make_unique<DrawTool>();
 }
 

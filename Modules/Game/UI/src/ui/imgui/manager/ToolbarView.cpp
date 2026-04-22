@@ -109,13 +109,6 @@ void ToolbarView::update(UIManager* sourceManager)
         drawToolButton(
             ICON_MMM_PEN, Logic::EditTool::Draw, TR("ui.toolbar.draw"), drawW);
 
-        // 4. 裁剪工具 (剪刀)
-        ImGui::SetCursorPosX(0);
-        drawToolButton(ICON_MMM_SCISSORS,
-                       Logic::EditTool::Cut,
-                       TR("ui.toolbar.cut"),
-                       drawW);
-
         ImGui::Separator();
 
         // --- 鼠标滚动翻转开关 ---

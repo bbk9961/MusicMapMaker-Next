@@ -159,7 +159,6 @@ enum class EditTool {
     Move,     // 移动工具
     Marquee,  // 矩形选取
     Draw,     // 绘制工具
-    Cut,      // 裁剪工具
 };
 
 /**

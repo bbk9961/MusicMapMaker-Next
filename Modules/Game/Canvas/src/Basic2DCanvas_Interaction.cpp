@@ -82,25 +82,16 @@ void Basic2DCanvas::handleHotkeys()
             Logic::CmdSetPlayState{ !m_currentSnapshot->isPlaying }));
     }
 
-    // --- 快捷键：工具切换 (V/E: Move, M/Q: Marquee, P/W: Draw, C/R: Cut) ---
-    if ( ImGui::IsKeyPressed(ImGuiKey_V, false) ||
-         ImGui::IsKeyPressed(ImGuiKey_E, false) ) {
+    // --- 快捷键：工具切换 (1: Move, 2: Marquee, 3: Draw) ---
+    if ( ImGui::IsKeyPressed(ImGuiKey_1, false) ) {
         Event::EventBus::instance().publish(Event::LogicCommandEvent(
             Logic::CmdChangeTool{ Logic::EditTool::Move }));
-    } else if ( ImGui::IsKeyPressed(ImGuiKey_M, false) ||
-                ImGui::IsKeyPressed(ImGuiKey_Q, false) ) {
+    } else if ( ImGui::IsKeyPressed(ImGuiKey_2, false) ) {
         Event::EventBus::instance().publish(Event::LogicCommandEvent(
             Logic::CmdChangeTool{ Logic::EditTool::Marquee }));
-    } else if ( ImGui::IsKeyPressed(ImGuiKey_P, false) ||
-                ImGui::IsKeyPressed(ImGuiKey_W, false) ) {
+    } else if ( ImGui::IsKeyPressed(ImGuiKey_3, false) ) {
         Event::EventBus::instance().publish(Event::LogicCommandEvent(
             Logic::CmdChangeTool{ Logic::EditTool::Draw }));
-    } else if ( ImGui::IsKeyPressed(ImGuiKey_C, false) ||
-                ImGui::IsKeyPressed(ImGuiKey_R, false) ) {
-        if ( !ImGui::GetIO().KeyCtrl ) {
-            Event::EventBus::instance().publish(Event::LogicCommandEvent(
-                Logic::CmdChangeTool{ Logic::EditTool::Cut }));
-        }
     }
 
     // --- 快捷键：编辑操作 (Ctrl+C/X/V, Ctrl+Z/Y) ---
