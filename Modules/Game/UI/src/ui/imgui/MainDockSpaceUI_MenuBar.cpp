@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "imgui_internal.h"
 #include "ui/Icons.h"
+#include "ui/utils/UIThemeUtils.h"
 #include <GLFW/glfw3.h>
 #include <memory>
 
@@ -52,13 +53,8 @@ void MainDockSpaceUI::renderMenuBar(UIManager* sourceManager, float menuBarHeigh
                                   std::unique_ptr<Graphic::VKTexture>& tex,
                                   float  btnSize,
                                   ImVec4 hoverColor) -> bool {
-            auto transparentCol = skinCfg.getColor("ui.button.transparent");
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-            ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(transparentCol.r,
-                                         transparentCol.g,
-                                         transparentCol.b,
-                                         transparentCol.a));
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hoverColor);
 
             bool clicked = ImGui::Button(str_id, ImVec2(btnSize, btnSize));
@@ -85,19 +81,12 @@ void MainDockSpaceUI::renderMenuBar(UIManager* sourceManager, float menuBarHeigh
         auto DrawFontIconButton = [&](const char* icon,
                                       float       btnSize,
                                       ImVec4      hoverColor) -> bool {
-            auto transparentCol = skinCfg.getColor("ui.button.transparent");
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-            ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(transparentCol.r,
-                                         transparentCol.g,
-                                         transparentCol.b,
-                                         transparentCol.a));
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, hoverColor);
 
-            Config::Color iconColor = skinCfg.getColor("icon");
-            ImGui::PushStyleColor(
-                ImGuiCol_Text,
-                ImVec4(iconColor.r, iconColor.g, iconColor.b, iconColor.a));
+            ImVec4 iconVec4 = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+            ImGui::PushStyleColor(ImGuiCol_Text, iconVec4);
 
             bool clicked = ImGui::Button(icon, ImVec2(btnSize, btnSize));
 
@@ -106,12 +95,8 @@ void MainDockSpaceUI::renderMenuBar(UIManager* sourceManager, float menuBarHeigh
             return clicked;
         };
 
-        auto transparentHoverCol =
-            skinCfg.getColor("ui.button.transparent_hovered");
-        ImVec4 hoverVec4(transparentHoverCol.r,
-                         transparentHoverCol.g,
-                         transparentHoverCol.b,
-                         transparentHoverCol.a);
+        ImVec4 textCol = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        ImVec4 hoverVec4 = ImVec4(textCol.x, textCol.y, textCol.z, 0.1f);
 
         ImGui::SetCursorPosX(0.0f);
         DrawIconButton("##logo", m_logo_texture, buttonSize, hoverVec4);
@@ -186,13 +171,10 @@ void MainDockSpaceUI::renderMenuBar(UIManager* sourceManager, float menuBarHeigh
 
         ImGui::SameLine();
 
-        auto dangerCol = skinCfg.getColor("ui.danger");
+        ImVec4 dangerCol = Utils::UIThemeUtils::getDangerColor();
         if ( DrawFontIconButton(ICON_MMM_CLOSE,
                                 buttonSize,
-                                ImVec4(dangerCol.r,
-                                       dangerCol.g,
-                                       dangerCol.b,
-                                       dangerCol.a)) ) {
+                                dangerCol) ) {
             Event::EventBus::instance().publish(Event::GLFWNativeEvent{
                 .type = Event::NativeEventType::GLFW_CLOSE_WINDOW });
         }

@@ -6,6 +6,7 @@
 #include "log/colorful-log.h"
 #include "ui/Icons.h"
 #include "ui/layout/box/CLayBox.h"
+#include "ui/utils/UIThemeUtils.h"
 #include <lunasvg.h>
 
 namespace MMM::UI
@@ -83,31 +84,16 @@ void SideBarUI::update(UIManager* sourceManager)
 
             // --- 样式处理 ---
             if ( isActive ) {
-                // 激活态：深灰色背景（VS Code 风格）
-                auto c1 = skinCfg.getColor("ui.button.sidebar_active");
-                auto c2 = skinCfg.getColor("ui.button.normal");
-                ImGui::PushStyleColor(ImGuiCol_Button,
-                                      ImVec4(c1.r, c1.g, c1.b, c1.a));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                      ImVec4(c1.r, c1.g, c1.b, c1.a));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                      ImVec4(c2.r, c2.g, c2.b, c2.a));
+                ImVec4 activeCol = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+                ImGui::PushStyleColor(ImGuiCol_Button, activeCol);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeCol);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, activeCol);
             } else {
-                // 非激活态：全透明，仅悬停时有微弱反馈
-                auto c1 = skinCfg.getColor("ui.button.transparent");
-                auto c2 = skinCfg.getColor("ui.button.transparent_hovered");
-                auto c3 = skinCfg.getColor("ui.button.transparent_active");
-                ImGui::PushStyleColor(ImGuiCol_Button,
-                                      ImVec4(c1.r, c1.g, c1.b, c1.a));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                      ImVec4(c2.r, c2.g, c2.b, c2.a));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                      ImVec4(c3.r, c3.g, c3.b, c3.a));
+                Utils::UIThemeUtils::pushTransparentButtonStyles();
             }
 
-            // 使用不同的文字颜色（未激活时稍显灰色）
-            Config::Color iconColor = skinCfg.getColor("icon");
-            ImVec4 iconVec4(iconColor.r, iconColor.g, iconColor.b, iconColor.a);
+            // 使用不同的文字颜色（未激活时稍显透明）
+            ImVec4 iconVec4 = ImGui::GetStyleColorVec4(ImGuiCol_Text);
             if ( !isActive ) {
                 iconVec4.w *= 0.7f;  // 非激活状态稍微透明点
             }
@@ -155,7 +141,12 @@ void SideBarUI::update(UIManager* sourceManager)
 
             // --- 清理状态栈 ---
             if ( sideBarFont ) ImGui::PopFont();
-            ImGui::PopStyleColor(4);  // 弹出 Button, Hovered, Active, Text
+            ImGui::PopStyleColor(1);
+            if ( isActive ) {
+                ImGui::PopStyleColor(3);
+            } else {
+                Utils::UIThemeUtils::popTransparentButtonStyles();
+            }  // 弹出 Button, Hovered, Active, Text
         };
 
     CLayVBox vbox;

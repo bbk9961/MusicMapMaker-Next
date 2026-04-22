@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "logic/EditorEngine.h"
 #include "ui/imgui/manager/SettingsView.h"
+#include "ui/utils/UIThemeUtils.h"
 
 namespace MMM::UI
 {
@@ -307,9 +308,9 @@ void SettingsView::drawProjectSettings()
     auto* project = engine.getCurrentProject();
 
     if ( !project ) {
-        auto dangerCol = Config::SkinManager::instance().getColor("ui.danger");
+        ImVec4 dangerCol = Utils::UIThemeUtils::getDangerColor();
         ImGui::TextColored(
-            ImVec4(dangerCol.r, dangerCol.g, dangerCol.b, dangerCol.a),
+            dangerCol,
             "%s",
             TR("ui.settings.project.no_project").data());
         return;

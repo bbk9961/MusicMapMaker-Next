@@ -2,6 +2,7 @@
 #include "canvas/Basic2DCanvas.h"
 #include "config/skin/SkinConfig.h"
 #include "ui/UIManager.h"
+#include "ui/utils/UIThemeUtils.h"
 #include <imgui.h>
 
 namespace MMM::UI
@@ -44,15 +45,15 @@ void DebugWindowUI::update(UIManager* sourceManager)
                     ImGui::EndTooltip();
                 }
             } else {
-                auto dangerCol = skinCfg.getColor("ui.danger");
+                ImVec4 dangerCol = Utils::UIThemeUtils::getDangerColor();
                 ImGui::TextColored(
-                    ImVec4(dangerCol.r, dangerCol.g, dangerCol.b, dangerCol.a),
+                    dangerCol,
                     "Glow Mask texture not available.");
             }
         } else {
-            auto warningCol = skinCfg.getColor("ui.warning");
+            ImVec4 warningCol = Utils::UIThemeUtils::getWarningColor();
             ImGui::TextColored(
-                ImVec4(warningCol.r, warningCol.g, warningCol.b, warningCol.a),
+                warningCol,
                 "Basic2DCanvas ('Basic2DCanvas') not found.");
         }
     }

@@ -8,6 +8,7 @@
 #include "ui/imgui/audio/AudioTrackControllerUI.h"
 #include "ui/imgui/manager/FileManagerView.h"
 #include "ui/layout/box/CLayBox.h"
+#include "ui/utils/UIThemeUtils.h"
 
 namespace MMM::UI
 {
@@ -26,15 +27,12 @@ void FileManagerView::renderActiveProjectView(LayoutContext& layoutContext,
         "ProjectTitle",
         Sizing::Grow(),
         Sizing::Fixed(ImGui::GetFrameHeight()),
-        [project, &skinCfg](Clay_BoundingBox r, bool isHovered) {
-            auto        highlightCol = skinCfg.getColor("ui.highlight");
+        [project](Clay_BoundingBox r, bool isHovered) {
+            ImVec4 highlightCol = Utils::UIThemeUtils::getHighlightColor();
             auto        u8Name = project->m_projectRoot.filename().u8string();
             std::string rootName(reinterpret_cast<const char*>(u8Name.c_str()),
                                  u8Name.size());
-            ImGui::TextColored({ highlightCol.r,
-                                 highlightCol.g,
-                                 highlightCol.b,
-                                 highlightCol.a },
+            ImGui::TextColored(highlightCol,
                                "Root: %s",
                                rootName.c_str());
             if ( ImGui::IsItemHovered() ) {

@@ -1,6 +1,10 @@
 #include "ui/imgui/manager/ToolbarView.h"
+#include "config/EditorConfig.h"
 #include "config/skin/SkinConfig.h"
+#include "config/skin/translation/Translation.h"
 #include "logic/EditorEngine.h"
+#include "ui/UIManager.h"
+#include "ui/utils/UIThemeUtils.h"
 #include "ui/Icons.h"
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -52,25 +56,12 @@ void ToolbarView::update(UIManager* sourceManager)
 
     auto pushBtnStyle = [&](bool active) {
         if ( active ) {
-            auto c1 = skinCfg.getColor("ui.button.normal");
-            auto c2 = skinCfg.getColor("ui.button.normal_hovered");
-            auto c3 = skinCfg.getColor("ui.button.normal_active");
-            ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(c1.r, c1.g, c1.b, c1.a));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                  ImVec4(c2.r, c2.g, c2.b, c2.a));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                  ImVec4(c3.r, c3.g, c3.b, c3.a));
+            ImVec4 activeCol = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+            ImGui::PushStyleColor(ImGuiCol_Button, activeCol);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeCol);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, activeCol);
         } else {
-            auto c1 = skinCfg.getColor("ui.button.transparent");
-            auto c2 = skinCfg.getColor("ui.button.transparent_hovered");
-            auto c3 = skinCfg.getColor("ui.button.transparent_active");
-            ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(c1.r, c1.g, c1.b, c1.a));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                  ImVec4(c2.r, c2.g, c2.b, c2.a));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                  ImVec4(c3.r, c3.g, c3.b, c3.a));
+            Utils::UIThemeUtils::pushTransparentButtonStyles();
         }
     };
 
@@ -249,13 +240,6 @@ void ToolbarView::update(UIManager* sourceManager)
         ImGui::PushStyleVar(
             ImGuiStyleVar_WindowPadding,
             ImVec2(std::floor(8.0f * dpiScale), std::floor(8.0f * dpiScale)));
-        auto bgCol     = skinCfg.getColor("ui.button.disabled_bg");
-        auto borderCol = skinCfg.getColor("ui.border");
-        ImGui::PushStyleColor(ImGuiCol_WindowBg,
-                              ImVec4(bgCol.r, bgCol.g, bgCol.b, bgCol.a));
-        ImGui::PushStyleColor(
-            ImGuiCol_Border,
-            ImVec4(borderCol.r, borderCol.g, borderCol.b, borderCol.a));
 
         if ( ImGui::Begin("##BeatDivisorPopup", nullptr, popupFlags) ) {
             auto editorCfg = Logic::EditorEngine::instance().getEditorConfig();
@@ -288,7 +272,6 @@ void ToolbarView::update(UIManager* sourceManager)
         }
         ImGui::End();
 
-        ImGui::PopStyleColor(2);
         ImGui::PopStyleVar(2);
     }
 }
@@ -304,29 +287,13 @@ void ToolbarView::drawToolButton(const char* icon, Logic::EditTool tool,
 
 
     if ( isActive ) {
-        auto c1 = skinCfg.getColor("ui.button.normal");
-        auto c2 = skinCfg.getColor("ui.button.normal_hovered");
-        auto c3 = skinCfg.getColor("ui.button.normal_active");
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(c1.r, c1.g, c1.b, c1.a));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                              ImVec4(c2.r, c2.g, c2.b, c2.a));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                              ImVec4(c3.r, c3.g, c3.b, c3.a));
+        ImVec4 activeCol = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+        ImGui::PushStyleColor(ImGuiCol_Button, activeCol);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeCol);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, activeCol);
     } else {
-        auto c1 = skinCfg.getColor("ui.button.transparent");
-        auto c2 = skinCfg.getColor("ui.button.transparent_hovered");
-        auto c3 = skinCfg.getColor("ui.button.transparent_active");
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(c1.r, c1.g, c1.b, c1.a));
-        ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                              ImVec4(c2.r, c2.g, c2.b, c2.a));
-        ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                              ImVec4(c3.r, c3.g, c3.b, c3.a));
+        Utils::UIThemeUtils::pushTransparentButtonStyles();
     }
-
-    Config::Color iconColor = skinCfg.getColor("icon");
-    ImVec4        iconVec4(iconColor.r, iconColor.g, iconColor.b, iconColor.a);
-    if ( !isActive ) iconVec4.w *= 0.8f;
-    ImGui::PushStyleColor(ImGuiCol_Text, iconVec4);
 
     if ( ImGui::Button(icon, ImVec2(btnSize, btnSize)) ) {
         if ( m_currentTool != tool ) {
@@ -343,7 +310,7 @@ void ToolbarView::drawToolButton(const char* icon, Logic::EditTool tool,
         if ( contentFont ) ImGui::PopFont();
     }
 
-    ImGui::PopStyleColor(4);
+    ImGui::PopStyleColor(3);
 }
 
 }  // namespace MMM::UI

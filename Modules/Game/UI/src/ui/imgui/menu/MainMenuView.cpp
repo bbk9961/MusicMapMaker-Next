@@ -200,14 +200,12 @@ void MainMenuView::update()
         ImGuiStyleVar_FramePadding,
         ImVec2(6.0f * dpiScale, ImGui::GetStyle().FramePadding.y));
 
-    auto MenuItemWithFontIcon = [&skinCfg](const char* icon,
+    auto MenuItemWithFontIcon = [](const char* icon,
                                            const char* label,
                                            const char* shortcut = nullptr,
                                            bool        enabled = true) -> bool {
-        Config::Color iconColor = skinCfg.getColor("icon");
-        ImGui::PushStyleColor(
-            ImGuiCol_Text,
-            ImVec4(iconColor.r, iconColor.g, iconColor.b, iconColor.a));
+        ImVec4 iconVec4 = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+        ImGui::PushStyleColor(ImGuiCol_Text, iconVec4);
 
         // 图标与文本间隔设为半个空格宽
         float gap = ImGui::CalcTextSize(" ").x * 0.5f;

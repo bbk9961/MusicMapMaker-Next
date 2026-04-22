@@ -124,8 +124,7 @@ void FileManagerView::renderEmptyProjectView(LayoutContext& layoutContext)
                         reinterpret_cast<const char*>(u8name.c_str()),
                         u8name.size());
                     if ( name.empty() ) name = path;
-                    auto   iconCol = skinCfg.getColor("icon");
-                    ImVec4 col(iconCol.r, iconCol.g, iconCol.b, iconCol.a);
+                    ImVec4 col = ImGui::GetStyleColorVec4(ImGuiCol_Text);
                     if ( isHovered )
                         col = ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered];
 

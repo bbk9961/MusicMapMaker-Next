@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "ui/Icons.h"
 #include "ui/imgui/audio/AudioTrackControllerUI.h"
+#include "ui/utils/UIThemeUtils.h"
 
 // Needed for fmt::format
 #include <fmt/core.h>
@@ -27,17 +28,11 @@ void AudioTrackControllerUI::renderVolumeSection(float& volume, bool& muted,
 
     bool pushedTextColor = false;
     if ( muted ) {
-        auto dangerCol = Config::SkinManager::instance().getColor("ui.danger");
-        ImGui::PushStyleColor(
-            ImGuiCol_Text,
-            ImVec4(dangerCol.r, dangerCol.g, dangerCol.b, dangerCol.a));
+        ImVec4 dangerCol = Utils::UIThemeUtils::getDangerColor();
+        ImGui::PushStyleColor(ImGuiCol_Text, dangerCol);
         pushedTextColor = true;
     }
-    auto btnTransCol =
-        Config::SkinManager::instance().getColor("ui.button.transparent");
-    ImGui::PushStyleColor(
-        ImGuiCol_Button,
-        ImVec4(btnTransCol.r, btnTransCol.g, btnTransCol.b, btnTransCol.a));
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
     if ( ImGui::Button(icon, ImVec2(30, 0)) ) {
         muted   = !muted;
         changed = true;

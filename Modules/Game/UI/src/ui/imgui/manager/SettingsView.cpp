@@ -4,6 +4,7 @@
 #include "imgui.h"
 #include "ui/Icons.h"
 #include "ui/layout/box/CLayBox.h"
+#include "ui/utils/UIThemeUtils.h"
 
 namespace MMM::UI
 {
@@ -42,29 +43,15 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
                 bool isActive = (m_currentTab == tab);
 
                 if ( isActive ) {
-                    auto c1 = skinCfg.getColor("ui.button.sidebar_active");
-                    auto c2 = skinCfg.getColor("ui.button.normal");
-                    ImGui::PushStyleColor(ImGuiCol_Button,
-                                          ImVec4(c1.r, c1.g, c1.b, c1.a));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                          ImVec4(c1.r, c1.g, c1.b, c1.a));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                          ImVec4(c2.r, c2.g, c2.b, c2.a));
+                    ImVec4 activeCol = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+                    ImGui::PushStyleColor(ImGuiCol_Button, activeCol);
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeCol);
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, activeCol);
                 } else {
-                    auto c1 = skinCfg.getColor("ui.button.transparent");
-                    auto c2 = skinCfg.getColor("ui.button.transparent_hovered");
-                    auto c3 = skinCfg.getColor("ui.button.transparent_active");
-                    ImGui::PushStyleColor(ImGuiCol_Button,
-                                          ImVec4(c1.r, c1.g, c1.b, c1.a));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                          ImVec4(c2.r, c2.g, c2.b, c2.a));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                          ImVec4(c3.r, c3.g, c3.b, c3.a));
+                    Utils::UIThemeUtils::pushTransparentButtonStyles();
                 }
 
-                Config::Color iconColor = skinCfg.getColor("icon");
-                ImVec4        iconVec4(
-                    iconColor.r, iconColor.g, iconColor.b, iconColor.a);
+                ImVec4 iconVec4 = ImGui::GetStyleColorVec4(ImGuiCol_Text);
                 if ( !isActive ) {
                     iconVec4.w *= 0.7f;
                 }
@@ -88,7 +75,13 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
                     ImGui::EndTooltip();
                 }
 
-                ImGui::PopStyleColor(4);
+                ImGui::PopStyleColor(1);
+                
+                if ( isActive ) {
+                    ImGui::PopStyleColor(3);
+                } else {
+                    Utils::UIThemeUtils::popTransparentButtonStyles();
+                }
             };
 
             DrawCategoryIcon(SettingsTab::Software,
