@@ -54,7 +54,7 @@ void MarqueeTool::handleStartMarquee(SessionContext&        ctx,
                                (mainEffectiveH *
                                 ctx.lastConfig.visual.previewConfig.areaRatio);
             } else {
-                renderScaleY = ctx.lastConfig.visual.noteScaleY;
+                renderScaleY = 1.0f;
             }
 
             double currentAbsY = cache->getAbsY(ctx.visualTime);
@@ -110,7 +110,7 @@ void MarqueeTool::handleUpdateMarquee(SessionContext&         ctx,
                                (mainEffectiveH *
                                 ctx.lastConfig.visual.previewConfig.areaRatio);
             } else {
-                renderScaleY = ctx.lastConfig.visual.noteScaleY;
+                renderScaleY = 1.0f;
             }
 
             double currentAbsY = cache->getAbsY(ctx.visualTime);
@@ -169,14 +169,14 @@ void MarqueeTool::handleRemoveMarqueeAt(SessionContext&           ctx,
         float by           = it->second.viewportHeight -
                              ctx.lastConfig.visual.previewConfig.margin.bottom;
         float previewDrawH = by - ty;
-        renderScaleY =
-            previewDrawH /
-            (mainEffectiveH * ctx.lastConfig.visual.previewConfig.areaRatio);
-    } else {
-        renderScaleY = ctx.lastConfig.visual.noteScaleY;
-    }
+                renderScaleY = previewDrawH /
+                               (mainEffectiveH *
+                                ctx.lastConfig.visual.previewConfig.areaRatio);
+            } else {
+                renderScaleY = 1.0f;
+            }
 
-    double currentAbsY = cache->getAbsY(ctx.visualTime);
+            double currentAbsY = cache->getAbsY(ctx.visualTime);
     double targetAbsY =
         currentAbsY + (judgmentLineY - cmd.mouseY) / renderScaleY;
     double clickTime = cache->getTime(targetAbsY);

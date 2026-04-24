@@ -113,7 +113,7 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
                 double currentAbsY = cache->getAbsY(m_ctx->visualTime);
                 double deltaY      = (judgmentLineY - m_ctx->lastMousePos.y);
 
-                float renderScaleY = config.visual.noteScaleY;
+                float renderScaleY = 1.0f;
                 // 核心修复：预览区的坐标是经过压缩的，计算时间时需要除以缩放比例
                 if ( cameraId == "Preview" || cameraId == "PreviewCanvas" ) {
                     float previewMainHeight = 1000.0f;

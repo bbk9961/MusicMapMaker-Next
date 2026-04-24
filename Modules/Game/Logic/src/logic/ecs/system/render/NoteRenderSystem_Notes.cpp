@@ -82,7 +82,7 @@ NoteRenderSystem::NoteRenderContext NoteRenderSystem::prepareNoteRenderContext(
     ctx.baseAspect = itBase->second.z / itBase->second.w;
 
     ctx.noteW = singleTrackW * config.visual.noteScaleX;
-    ctx.noteH = ctx.noteW / ctx.baseAspect;
+    ctx.noteH = (singleTrackW / ctx.baseAspect) * config.visual.noteScaleY;
 
     auto& skin      = Config::SkinManager::instance();
     auto  color_tap = skin.getColor("note_tap");

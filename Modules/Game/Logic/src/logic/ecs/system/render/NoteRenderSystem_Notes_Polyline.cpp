@@ -50,7 +50,7 @@ void NoteRenderSystem::renderPolyline(
     double             currentAbsY = cache->getAbsY(currentTime);
 
     float noteW = singleTrackW * config.visual.noteScaleX;
-    float noteH = noteW / getTexAspect(snapshot, TextureID::Note);
+    float noteH = (singleTrackW / getTexAspect(snapshot, TextureID::Note)) * config.visual.noteScaleY;
 
     // 1. 绘制主体连接段
     drawPolylineBody(batcher,

@@ -64,7 +64,7 @@ void GrabTool::handleUpdateDrag(SessionContext& ctx, const CmdUpdateDrag& cmd)
                                (mainEffectiveH *
                                 ctx.lastConfig.visual.previewConfig.areaRatio);
             } else {
-                renderScaleY = ctx.lastConfig.visual.noteScaleY;
+                renderScaleY = 1.0f;
             }
 
             auto* cache =

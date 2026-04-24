@@ -29,7 +29,7 @@ SnapResult getSnapResult(
     float  judgmentLineY = camera.viewportHeight * config.visual.judgeline_pos;
     double currentAbsY   = cache->getAbsY(visualTime);
 
-    float renderScaleY = config.visual.noteScaleY;
+    float renderScaleY = 1.0f;
     if ( camera.id == "Preview" || camera.id == "PreviewCanvas" ) {
         auto  itMain             = cameras.find("Basic2DCanvas");
         float mainViewportHeight = itMain != cameras.end()

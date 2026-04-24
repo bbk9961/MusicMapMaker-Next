@@ -77,7 +77,7 @@ void NoteRenderSystem::generateSnapshot(
         // 主画布背景不裁剪
         batcher.setScissor(0, 0, viewportWidth, viewportHeight);
 
-        renderScaleY = config.visual.noteScaleY;
+        renderScaleY = 1.0f;
 
         NoteRenderSystem::generateMainCanvasSnapshot(registry,
                                                      timelineRegistry,
