@@ -38,6 +38,10 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
 #endif
 
     // 不再需要初始化 ImGui 的辅助窗口
+#ifdef __linux__
+    glfwWindowHintString(GLFW_WAYLAND_APP_ID, "MusicMapMaker-Next");
+    glfwWindowHintString(GLFW_X11_CLASS_NAME, "MusicMapMaker-Next");
+#endif
     m_windowHandle = glfwCreateWindow(w, h, wtitle, nullptr, nullptr);
 
     // 窗口启动时居中
@@ -81,6 +85,16 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
 
     // 隐藏系统原生光标
     glfwSetInputMode(m_windowHandle, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+#ifdef __linux__
+    // 确保不禁止系统快捷键 (针对 Wayland)
+    if ( glfwRawMouseMotionSupported() ) { // 只是为了检查是否是现代 GLFW
+        // GLFW_MOUSE_PASSTHROUGH 也可以考虑，但这里不是需要的
+    }
+    // 显式确保不拦截系统组合键
+    #if defined(GLFW_KEYBOARD_SHORTCUTS_INHIBIT)
+    glfwSetInputMode(m_windowHandle, GLFW_KEYBOARD_SHORTCUTS_INHIBIT, GLFW_FALSE);
+    #endif
+#endif
 
 
     // 设置用户指针，方便回调函数访问类成员

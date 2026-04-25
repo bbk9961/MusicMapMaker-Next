@@ -89,7 +89,7 @@ void MainMenuView::handleHotkeys()
                 m_openEditMenuNextFrame = true;
             }
         }
-    } else {
+    } else if ( !io.KeySuper && !io.KeyShift ) {
         if ( ImGui::IsKeyPressed(ImGuiKey_Space) ) {
             bool playing = Logic::EditorEngine::instance().isPlaybackPlaying();
             dispatchCommand(Logic::CmdSetPlayState{ !playing });

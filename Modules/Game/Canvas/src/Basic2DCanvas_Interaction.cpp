@@ -77,7 +77,9 @@ void Basic2DCanvas::handleHotkeys()
 {
     if ( !m_currentSnapshot ) return;
 
-    if ( ImGui::IsKeyPressed(ImGuiKey_Space, false) ) {
+    auto& io = ImGui::GetIO();
+    if ( ImGui::IsKeyPressed(ImGuiKey_Space, false) && !io.KeyCtrl &&
+         !io.KeyShift && !io.KeyAlt && !io.KeySuper ) {
         Event::EventBus::instance().publish(Event::LogicCommandEvent(
             Logic::CmdSetPlayState{ !m_currentSnapshot->isPlaying }));
     }
