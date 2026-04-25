@@ -60,6 +60,7 @@ private:
     void handleCommand(const CmdSaveBeatmap& cmd);
     void handleCommand(const CmdSaveBeatmapAs& cmd);
     void handleCommand(const CmdPackBeatmap& cmd);
+    void handleCommand(const CmdUpdateBeatmapMetadata& cmd);
 
     std::unique_ptr<SessionContext>        m_ctx;          ///< 共享上下文状态
     std::unique_ptr<PlaybackController>    m_playback;     ///< 播放控制器

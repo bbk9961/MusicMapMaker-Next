@@ -2,7 +2,7 @@ return {
 	-- [ Translation Key ] = "翻译后的目标文本"
 
 	-- 普通文本
-	["ui.file"] = "文件",
+	["ui.file"] = "文件(&F)",
 	["ui.file.new_map"] = "新建谱面",
 	["ui.file.new_pro"] = "新建项目",
 	["ui.file.open_map"] = "打开谱面",
@@ -14,13 +14,14 @@ return {
 	["ui.file.pack"] = "打包",
 
 	["ui.file.exit"] = "退出",
-	["ui.edit"] = "编辑",
+	["ui.edit"] = "编辑(&E)",
 	["ui.edit.undo"] = "撤销",
 	["ui.edit.redo"] = "重做",
 	["ui.edit.cut"] = "剪切",
 	["ui.edit.copy"] = "复制",
 	["ui.edit.paste"] = "粘贴",
 	["ui.edit.play_pause"] = "播放/暂停",
+	["ui.edit.beatmap_settings"] = "谱面设置",
 
 	["canvas.editor"] = "编辑器",
 	["canvas.preview"] = "预览",
@@ -80,11 +81,16 @@ return {
 
 	["ui.settings.project"] = "项目配置",
 	["ui.settings.project.no_project"] = "当前未打开任何项目",
-	["ui.settings.project.info"] = "项目基本信息",
-	["ui.settings.project.name"] = "项目标题",
-	["ui.settings.project.artist"] = "曲作者",
-	["ui.settings.project.mapper"] = "谱师",
-	["ui.settings.project.path"] = "物理路径",
+	["ui.settings.project.path"] = "项目物理路径",
+	["ui.settings.beatmap"] = "谱面配置",
+	["ui.settings.beatmap.no_beatmap"] = "当前未加载任何谱面",
+	["ui.settings.beatmap.info"] = "谱面元数据",
+	["ui.settings.beatmap.title"] = "歌曲标题",
+	["ui.settings.beatmap.artist"] = "曲作者",
+	["ui.settings.beatmap.mapper"] = "谱师/作者",
+	["ui.settings.beatmap.version"] = "难度名称",
+	["ui.settings.beatmap.audio"] = "音频路径",
+	["ui.settings.beatmap.cover"] = "封面路径",
 
 	["ui.settings.editor"] = "编辑器配置",
 	["ui.settings.editor.behavior"] = "基础行为",

@@ -63,6 +63,15 @@ public:
     /// @brief 处理新建谱面指令 (向导/项目管理)
     void handleCreateBeatmap(const CmdCreateBeatmap& cmd);
 
+    /**
+     * @brief 获取当前激活的谱面会话
+     */
+    std::shared_ptr<BeatmapSession> getActiveSession()
+    {
+        std::lock_guard<std::recursive_mutex> lock(m_sessionMutex);
+        return m_activeSession;
+    }
+
 
     /**
      * @brief 获取指定摄像机/画布的同步缓冲区

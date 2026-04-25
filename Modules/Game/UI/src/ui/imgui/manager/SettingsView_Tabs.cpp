@@ -6,6 +6,8 @@
 #include "event/logic/LogicCommandEvent.h"
 #include "imgui.h"
 #include "logic/EditorEngine.h"
+#include "logic/session/context/SessionContext.h"
+#include "mmm/beatmap/BeatMap.h"
 #include "ui/imgui/manager/SettingsView.h"
 #include "ui/utils/UIThemeUtils.h"
 
@@ -342,20 +344,69 @@ void SettingsView::drawProjectSettings()
     }
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.project.info").data());
-    ImGui::Text("%s: %s",
-                TR_CACHE("ui.settings.project.name").data(),
-                project->m_metadata.m_title.c_str());
-    ImGui::Text("%s: %s",
-                TR_CACHE("ui.settings.project.artist").data(),
-                project->m_metadata.m_artist.c_str());
-    ImGui::Text("%s: %s",
-                TR_CACHE("ui.settings.project.mapper").data(),
-                project->m_metadata.m_mapper.c_str());
     auto        u8 = project->m_projectRoot.u8string();
     std::string projPath(reinterpret_cast<const char*>(u8.c_str()), u8.size());
     ImGui::Text("%s: %s",
                 TR_CACHE("ui.settings.project.path").data(),
                 projPath.c_str());
+}
+
+void SettingsView::drawBeatmapSettings()
+{
+    auto& engine  = Logic::EditorEngine::instance();
+    auto  session = engine.getActiveSession();
+
+    if ( !session || !session->getContext().currentBeatmap ) {
+        ImVec4 dangerCol = Utils::UIThemeUtils::getDangerColor();
+        ImGui::TextColored(
+            dangerCol,
+            "%s",
+            TR("ui.settings.beatmap.no_beatmap").data());
+        return;
+    }
+
+    auto& beatmap = *session->getContext().currentBeatmap;
+    auto  meta    = beatmap.m_baseMapMetadata;
+    bool  changed = false;
+
+    ImGui::SeparatorText(TR_CACHE("ui.settings.beatmap.info").data());
+
+    auto DrawInput = [&](const char* label, std::string& val) {
+        char buf[256];
+        strncpy(buf, val.c_str(), sizeof(buf));
+        if ( ImGui::InputText(label, buf, sizeof(buf)) ) {
+            val     = buf;
+            changed = true;
+        }
+    };
+
+    DrawInput(TR_CACHE("ui.settings.beatmap.title").data(), meta.title);
+    DrawInput(TR_CACHE("ui.settings.beatmap.artist").data(), meta.artist);
+    DrawInput(TR_CACHE("ui.settings.beatmap.mapper").data(), meta.author);
+    DrawInput(TR_CACHE("ui.settings.beatmap.version").data(), meta.version);
+
+    ImGui::SeparatorText(TR_CACHE("ui.audio_manager.global_settings").data());
+    auto audioU8 = meta.main_audio_path.u8string();
+    std::string audioPath(reinterpret_cast<const char*>(audioU8.c_str()),
+                          audioU8.size());
+    if ( ImGui::InputText(TR_CACHE("ui.settings.beatmap.audio").data(),
+                          &audioPath[0],
+                          audioPath.size() + 1,
+                          ImGuiInputTextFlags_ReadOnly) ) {
+    }
+
+    auto coverU8 = meta.main_cover_path.u8string();
+    std::string coverPath(reinterpret_cast<const char*>(coverU8.c_str()),
+                          coverU8.size());
+    if ( ImGui::InputText(TR_CACHE("ui.settings.beatmap.cover").data(),
+                          &coverPath[0],
+                          coverPath.size() + 1,
+                          ImGuiInputTextFlags_ReadOnly) ) {
+    }
+
+    if ( changed ) {
+        engine.pushCommand(Logic::CmdUpdateBeatmapMetadata{ meta });
+    }
 }
 
 void SettingsView::drawEditorSettings()

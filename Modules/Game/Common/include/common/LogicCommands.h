@@ -259,6 +259,13 @@ struct CmdCreateBeatmap {
 };
 
 /**
+ * @brief 更新谱面元数据指令
+ */
+struct CmdUpdateBeatmapMetadata {
+    ::MMM::BaseMapMeta baseMeta;
+};
+
+/**
  * @brief 所有可能的逻辑指令变体
  */
 using LogicCommand = std::variant<
@@ -269,6 +276,7 @@ using LogicCommand = std::variant<
     CmdChangeTool, CmdSetMousePosition, CmdUndo, CmdRedo, CmdCopy, CmdPaste,
     CmdCut, CmdSaveBeatmap, CmdSaveBeatmapAs, CmdPackBeatmap, CmdScroll,
     CmdUpdateTimelineEvent, CmdDeleteTimelineEvent, CmdCreateTimelineEvent,
-    CmdStartMarquee, CmdUpdateMarquee, CmdEndMarquee, CmdRemoveMarqueeAt>;
+    CmdStartMarquee, CmdUpdateMarquee, CmdEndMarquee, CmdRemoveMarqueeAt,
+    CmdUpdateBeatmapMetadata>;
 
 }  // namespace MMM::Logic

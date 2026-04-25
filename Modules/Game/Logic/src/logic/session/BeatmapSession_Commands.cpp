@@ -24,7 +24,8 @@ void BeatmapSession::processCommands()
                                std::is_same_v<T, CmdLoadBeatmap> ||
                                std::is_same_v<T, CmdSaveBeatmap> ||
                                std::is_same_v<T, CmdSaveBeatmapAs> ||
-                               std::is_same_v<T, CmdPackBeatmap> ) {
+                               std::is_same_v<T, CmdPackBeatmap> ||
+                               std::is_same_v<T, CmdUpdateBeatmapMetadata> ) {
                     this->handleCommand(arg);
                 }
                 // --- Playback 处理的命令 ---
@@ -113,6 +114,15 @@ void BeatmapSession::handleCommand(const CmdSaveBeatmapAs& cmd)
 void BeatmapSession::handleCommand(const CmdPackBeatmap& cmd)
 {
     // TODO: 实现打包逻辑
+}
+
+void BeatmapSession::handleCommand(const CmdUpdateBeatmapMetadata& cmd)
+{
+    if ( m_ctx->currentBeatmap ) {
+        m_ctx->currentBeatmap->m_baseMapMetadata = cmd.baseMeta;
+        XINFO("BeatmapSession: Metadata updated for {}",
+              m_ctx->currentBeatmap->m_baseMapMetadata.name);
+    }
 }
 
 }  // namespace MMM::Logic

@@ -1,6 +1,7 @@
 #include "ui/imgui/manager/SettingsView.h"
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
+#include "event/core/EventBus.h"
 #include "imgui.h"
 #include "ui/Icons.h"
 #include "ui/layout/box/CLayBox.h"
@@ -12,6 +13,16 @@ namespace MMM::UI
 SettingsView::SettingsView(const std::string& subViewName)
     : ISubView(subViewName)
 {
+    m_tabSubId = Event::EventBus::instance().subscribe<Event::UISettingsTabEvent>(
+        [this](const Event::UISettingsTabEvent& e) { m_currentTab = e.tab; });
+}
+
+SettingsView::~SettingsView()
+{
+    if ( m_tabSubId != 0 ) {
+        Event::EventBus::instance().unsubscribe<Event::UISettingsTabEvent>(
+            m_tabSubId);
+    }
 }
 
 void SettingsView::onUpdate(LayoutContext& layoutContext,
@@ -37,7 +48,7 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
             ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
-            auto DrawCategoryIcon = [&](SettingsTab tab,
+            auto DrawCategoryIcon = [&](Event::SettingsTab tab,
                                         const char* iconStr,
                                         const char* tooltip) {
                 bool isActive = (m_currentTab == tab);
@@ -84,16 +95,19 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
                 }
             };
 
-            DrawCategoryIcon(SettingsTab::Software,
+            DrawCategoryIcon(Event::SettingsTab::Software,
                              ICON_MMM_DESKTOP,
                              TR_CACHE("ui.settings.software").data());
-            DrawCategoryIcon(SettingsTab::Visual,
+            DrawCategoryIcon(Event::SettingsTab::Visual,
                              ICON_MMM_EYE,
                              TR_CACHE("ui.settings.visual").data());
-            DrawCategoryIcon(SettingsTab::Project,
+            DrawCategoryIcon(Event::SettingsTab::Project,
                              ICON_MMM_FOLDER,
                              TR_CACHE("ui.settings.project").data());
-            DrawCategoryIcon(SettingsTab::Editor,
+            DrawCategoryIcon(Event::SettingsTab::Beatmap,
+                             ICON_MMM_FILE,
+                             TR_CACHE("ui.settings.beatmap").data());
+            DrawCategoryIcon(Event::SettingsTab::Editor,
                              ICON_MMM_PEN,
                              TR_CACHE("ui.settings.editor").data());
 
@@ -126,10 +140,11 @@ void SettingsView::onUpdate(LayoutContext& layoutContext,
             if ( contentFont ) ImGui::PushFont(contentFont);
 
             switch ( m_currentTab ) {
-            case SettingsTab::Software: drawSoftwareSettings(); break;
-            case SettingsTab::Visual: drawVisualSettings(); break;
-            case SettingsTab::Project: drawProjectSettings(); break;
-            case SettingsTab::Editor: drawEditorSettings(); break;
+            case Event::SettingsTab::Software: drawSoftwareSettings(); break;
+            case Event::SettingsTab::Visual: drawVisualSettings(); break;
+            case Event::SettingsTab::Project: drawProjectSettings(); break;
+            case Event::SettingsTab::Beatmap: drawBeatmapSettings(); break;
+            case Event::SettingsTab::Editor: drawEditorSettings(); break;
             }
 
             if ( contentFont ) ImGui::PopFont();

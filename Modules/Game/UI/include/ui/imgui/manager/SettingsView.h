@@ -7,16 +7,11 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "event/ui/UISettingsTabEvent.h"
 
 namespace MMM::UI
 {
 
-enum class SettingsTab {
-    Software,  // 软件配置
-    Visual,    // 视觉配置
-    Project,   // 项目配置
-    Editor     // 编辑器配置
-};
 
 class SettingsView : public ISubView
 {
@@ -26,17 +21,19 @@ public:
     SettingsView(const SettingsView&)            = default;
     SettingsView& operator=(SettingsView&&)      = delete;
     SettingsView& operator=(const SettingsView&) = delete;
-    ~SettingsView() override                     = default;
+    ~SettingsView() override;
 
     void onUpdate(LayoutContext& layoutContext,
                   UIManager*     sourceManager) override;
 
 private:
-    SettingsTab m_currentTab = SettingsTab::Software;
+    Event::SettingsTab m_currentTab = Event::SettingsTab::Software;
+    uint64_t m_tabSubId = 0;
 
     void drawSoftwareSettings();
     void drawVisualSettings();
     void drawProjectSettings();
+    void drawBeatmapSettings();
     void drawEditorSettings();
 };
 

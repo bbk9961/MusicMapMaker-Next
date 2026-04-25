@@ -8,6 +8,8 @@
 #include "log/colorful-log.h"
 #include "logic/EditorEngine.h"
 #include "ui/Icons.h"
+#include "event/ui/UISubViewToggleEvent.h"
+#include "event/ui/UISettingsTabEvent.h"
 #include <ImGuiFileDialog.h>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -16,7 +18,11 @@
 namespace MMM::UI
 {
 
-MainMenuView::MainMenuView() {}
+MainMenuView::MainMenuView()
+    : m_openFileMenuNextFrame(false), m_openEditMenuNextFrame(false),
+      m_closeFileMenuNextFrame(false), m_closeEditMenuNextFrame(false)
+{
+}
 
 MainMenuView::~MainMenuView() {}
 
@@ -33,16 +39,28 @@ void MainMenuView::handleHotkeys()
 
     if ( io.KeyCtrl ) {
         if ( ImGui::IsKeyPressed(ImGuiKey_N) ) {
-            // New project logic placeholder
+            if ( io.KeyShift ) {
+                // New project logic placeholder
+            } else {
+                dispatchCommand(Logic::CmdCreateBeatmap{});
+            }
         }
         if ( ImGui::IsKeyPressed(ImGuiKey_O) ) {
             openFolderPicker();
         }
         if ( ImGui::IsKeyPressed(ImGuiKey_S) ) {
-            dispatchCommand(Logic::CmdSaveBeatmap{});
+            if ( io.KeyShift ) {
+                openExportFilePicker("");
+            } else {
+                dispatchCommand(Logic::CmdSaveBeatmap{});
+            }
         }
         if ( ImGui::IsKeyPressed(ImGuiKey_Z) ) {
-            dispatchCommand(Logic::CmdUndo{});
+            if ( io.KeyShift ) {
+                dispatchCommand(Logic::CmdRedo{});
+            } else {
+                dispatchCommand(Logic::CmdUndo{});
+            }
         }
         if ( ImGui::IsKeyPressed(ImGuiKey_Y) ) {
             dispatchCommand(Logic::CmdRedo{});
@@ -55,6 +73,21 @@ void MainMenuView::handleHotkeys()
         }
         if ( ImGui::IsKeyPressed(ImGuiKey_X) ) {
             dispatchCommand(Logic::CmdCut{});
+        }
+    } else if ( io.KeyAlt ) {
+        if ( ImGui::IsKeyPressed(ImGuiKey_F) ) {
+            if ( ImGui::IsPopupOpen(TR("ui.file")) ) {
+                m_closeFileMenuNextFrame = true;
+            } else {
+                m_openFileMenuNextFrame = true;
+            }
+        }
+        if ( ImGui::IsKeyPressed(ImGuiKey_E) ) {
+            if ( ImGui::IsPopupOpen(TR("ui.edit")) ) {
+                m_closeEditMenuNextFrame = true;
+            } else {
+                m_openEditMenuNextFrame = true;
+            }
         }
     } else {
         if ( ImGui::IsKeyPressed(ImGuiKey_Space) ) {
@@ -112,13 +145,6 @@ void MainMenuView::openPackFilePicker()
         fdConfig.flags             = ImGuiFileDialogFlags_Default;
         ImGuiFileDialog::Instance()->OpenDialog(
             "PackFilePicker", TR("ui.file.pack"), ".osz,.mcz,.zip", fdConfig);
-        if ( ImGuiFileDialog::Instance()->IsOk() ) {
-            // 这里获得了路径 filePath
-            std::string filePath =
-                ImGuiFileDialog::Instance()->GetFilePathName();
-            Event::EventBus::instance().publish(
-                Event::LogicCommandEvent(Logic::CmdPackBeatmap{ filePath }));
-        }
     }
 }
 
@@ -160,8 +186,8 @@ void MainMenuView::openExportFilePicker(const std::string& ext)
         else
             filterStr = ".osu,.imd";
 
-        ImGuiFileDialog::Instance()->OpenDialog("ExportFilePicker",
-                                                TR("ui.file.export"),
+        ImGuiFileDialog::Instance()->OpenDialog("SaveAsFilePicker",
+                                                TR("ui.file.save_as"),
                                                 filterStr.c_str(),
                                                 fdConfig);
 
@@ -176,13 +202,41 @@ void MainMenuView::update()
     handleHotkeys();
 
     // 检查文件对话框结果 (针对非 Native 模式)
-    if ( ImGuiFileDialog::Instance()->Display("ExportFilePicker",
+    // 另存为/导出
+    if ( ImGuiFileDialog::Instance()->Display("SaveAsFilePicker",
                                               ImGuiWindowFlags_NoCollapse,
                                               ImVec2(600, 400)) ) {
         if ( ImGuiFileDialog::Instance()->IsOk() ) {
             std::string filePath =
                 ImGuiFileDialog::Instance()->GetFilePathName();
             dispatchCommand(Logic::CmdSaveBeatmapAs{ filePath });
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    // 打开项目
+    if ( ImGuiFileDialog::Instance()->Display("ProjectFolderPicker",
+                                              ImGuiWindowFlags_NoCollapse,
+                                              ImVec2(600, 400)) ) {
+        if ( ImGuiFileDialog::Instance()->IsOk() ) {
+            std::string filePath =
+                ImGuiFileDialog::Instance()->GetFilePathName();
+            Event::OpenProjectEvent ev;
+            ev.m_projectPath = std::filesystem::path(
+                reinterpret_cast<const char8_t*>(filePath.c_str()));
+            Event::EventBus::instance().publish(ev);
+        }
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    // 打包
+    if ( ImGuiFileDialog::Instance()->Display("PackFilePicker",
+                                              ImGuiWindowFlags_NoCollapse,
+                                              ImVec2(600, 400)) ) {
+        if ( ImGuiFileDialog::Instance()->IsOk() ) {
+            std::string filePath =
+                ImGuiFileDialog::Instance()->GetFilePathName();
+            dispatchCommand(Logic::CmdPackBeatmap{ filePath });
         }
         ImGuiFileDialog::Instance()->Close();
     }
@@ -226,11 +280,21 @@ void MainMenuView::update()
     ImFont* menuFont = skinCfg.getFont("menu");
     if ( menuFont ) ImGui::PushFont(menuFont);
 
+    if ( m_openFileMenuNextFrame ) {
+        ImGui::OpenPopup(TR("ui.file"));
+        m_openFileMenuNextFrame = false;
+    }
     if ( ImGui::BeginMenu(TR("ui.file")) ) {
+        if ( m_closeFileMenuNextFrame ) {
+            ImGui::CloseCurrentPopup();
+            m_closeFileMenuNextFrame = false;
+        }
         if ( MenuItemWithFontIcon(
-                 ICON_MMM_BOOK, TR("ui.file.new_pro"), "Ctrl+N") ) {}
-        if ( MenuItemWithFontIcon(ICON_MMM_FILE, TR("ui.file.new_map")) ) {
-            Logic::EditorEngine::instance().pushCommand(Logic::CmdCreateBeatmap{});
+                 ICON_MMM_BOOK, TR("ui.file.new_pro"), "Ctrl+Shift+N") ) {}
+        if ( MenuItemWithFontIcon(
+                 ICON_MMM_FILE, TR("ui.file.new_map"), "Ctrl+N") ) {
+            Logic::EditorEngine::instance().pushCommand(
+                Logic::CmdCreateBeatmap{});
         }
         ImGui::Separator();
 
@@ -267,20 +331,11 @@ void MainMenuView::update()
                  ICON_MMM_SAVE, TR("ui.file.save"), "Ctrl+S") ) {
             dispatchCommand(Logic::CmdSaveBeatmap{});
         }
-        if ( MenuItemWithFontIcon(nullptr, TR("ui.file.save_as")) ) {
+        if ( MenuItemWithFontIcon(
+                 nullptr, TR("ui.file.save_as"), "Ctrl+Shift+S") ) {
             openExportFilePicker("");
         }
 
-        ImGui::Separator();
-        if ( ImGui::BeginMenu(TR("ui.file.export")) ) {
-            if ( ImGui::MenuItem("osu!mania (.osu)") ) {
-                openExportFilePicker(".osu");
-            }
-            if ( ImGui::MenuItem("IvoryMusicData (.imd)") ) {
-                openExportFilePicker(".imd");
-            }
-            ImGui::EndMenu();
-        }
 
         if ( MenuItemWithFontIcon(ICON_MMM_PACK, TR("ui.file.pack")) ) {
             openPackFilePicker();
@@ -288,13 +343,21 @@ void MainMenuView::update()
         ImGui::EndMenu();
     }
 
+    if ( m_openEditMenuNextFrame ) {
+        ImGui::OpenPopup(TR("ui.edit"));
+        m_openEditMenuNextFrame = false;
+    }
     if ( ImGui::BeginMenu(TR("ui.edit")) ) {
+        if ( m_closeEditMenuNextFrame ) {
+            ImGui::CloseCurrentPopup();
+            m_closeEditMenuNextFrame = false;
+        }
         if ( MenuItemWithFontIcon(
                  ICON_MMM_UNDO, TR("ui.edit.undo"), "Ctrl+Z") ) {
             dispatchCommand(Logic::CmdUndo{});
         }
         if ( MenuItemWithFontIcon(
-                 ICON_MMM_REDO, TR("ui.edit.redo"), "Ctrl+Y") ) {
+                 ICON_MMM_REDO, TR("ui.edit.redo"), "Ctrl+Y / Ctrl+Shift+Z") ) {
             dispatchCommand(Logic::CmdRedo{});
         }
         ImGui::Separator();
@@ -314,6 +377,18 @@ void MainMenuView::update()
         const char* pIcon = playing ? ICON_MMM_PAUSE : ICON_MMM_PLAY;
         if ( MenuItemWithFontIcon(pIcon, TR("ui.edit.play_pause"), "Space") ) {
             dispatchCommand(Logic::CmdSetPlayState{ !playing });
+        }
+        ImGui::Separator();
+        if ( MenuItemWithFontIcon(ICON_MMM_FILE, TR("ui.edit.beatmap_settings")) ) {
+            Event::UISubViewToggleEvent evt;
+            evt.targetFloatManagerName = "SideBarManager";
+            evt.subViewId              = TR("title.settings_manager").data();
+            evt.showSubView            = true;
+            Event::EventBus::instance().publish(evt);
+
+            Event::UISettingsTabEvent tabEvt;
+            tabEvt.tab = Event::SettingsTab::Beatmap;
+            Event::EventBus::instance().publish(tabEvt);
         }
         ImGui::EndMenu();
     }

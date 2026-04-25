@@ -2,7 +2,7 @@ return {
 	-- [ Translation Key ] = "Translated text"
 
 	-- Common Text
-	["ui.file"] = "File",
+	["ui.file"] = "&File",
 	["ui.file.new_map"] = "New Beatmap",
 	["ui.file.new_pro"] = "New Project",
 	["ui.file.open_map"] = "Open Beatmap",
@@ -14,13 +14,14 @@ return {
 	["ui.file.pack"] = "Pack",
 	["ui.file.exit"] = "Exit",
 
-	["ui.edit"] = "Edit",
+	["ui.edit"] = "&Edit",
 	["ui.edit.undo"] = "Undo",
 	["ui.edit.redo"] = "Redo",
 	["ui.edit.cut"] = "Cut",
 	["ui.edit.copy"] = "Copy",
 	["ui.edit.paste"] = "Paste",
 	["ui.edit.play_pause"] = "Play/Pause",
+	["ui.edit.beatmap_settings"] = "Beatmap Settings",
 
 	["canvas.editor"] = "Editor",
 	["canvas.preview"] = "Preview",
@@ -85,6 +86,15 @@ return {
 	["ui.settings.project.artist"] = "Artist",
 	["ui.settings.project.mapper"] = "Mapper",
 	["ui.settings.project.path"] = "Physical Path",
+	["ui.settings.beatmap"] = "Beatmap Config",
+	["ui.settings.beatmap.no_beatmap"] = "No beatmap loaded currently",
+	["ui.settings.beatmap.info"] = "Beatmap Metadata",
+	["ui.settings.beatmap.title"] = "Song Title",
+	["ui.settings.beatmap.artist"] = "Artist",
+	["ui.settings.beatmap.mapper"] = "Mapper/Author",
+	["ui.settings.beatmap.version"] = "Difficulty Name",
+	["ui.settings.beatmap.audio"] = "Audio Path",
+	["ui.settings.beatmap.cover"] = "Cover Path",
 
 	["ui.settings.editor"] = "Editor Config",
 	["ui.settings.editor.behavior"] = "Behavior",
