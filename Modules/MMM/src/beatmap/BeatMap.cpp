@@ -1,8 +1,10 @@
 #include "mmm/beatmap/BeatMap.h"
 
+#include "LoadMMMMap.hpp"
 #include "LoadMalodyMap.hpp"
 #include "LoadOSUMap.hpp"
 #include "LoadRMMap.hpp"
+#include "SaveMMMMap.hpp"
 #include "SaveOSUMap.hpp"
 #include "SaveRMMap.hpp"
 
@@ -36,6 +38,9 @@ BeatMap BeatMap::loadFromFile(std::filesystem::path mapFilePath)
     if ( mapFileExtention == ".imd" ) {
         return loadRMMap(mapFilePath);
     }
+    if ( mapFileExtention == ".mmm" ) {
+        return loadMMMMap(mapFilePath);
+    }
     XWARN("Unsupport map file type: {}", mapFileExtention);
     return {};
 }
@@ -48,6 +53,9 @@ bool BeatMap::saveToFile(std::filesystem::path mapFilePath) const
     }
     if ( mapFileExtention == ".imd" ) {
         return saveRMMap(*this, mapFilePath);
+    }
+    if ( mapFileExtention == ".mmm" ) {
+        return saveMMMMap(*this, mapFilePath);
     }
     XWARN("Unsupport save map file type: {}", mapFileExtention);
     return false;
