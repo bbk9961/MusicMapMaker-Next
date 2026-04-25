@@ -1,3 +1,4 @@
+#include "audio/AudioManager.h"
 #include "log/colorful-log.h"
 #include "logic/BeatmapSession.h"
 #include "logic/ecs/system/ScrollCache.h"
@@ -5,7 +6,9 @@
 #include "logic/session/InteractionController.h"
 #include "logic/session/PlaybackController.h"
 #include "logic/session/SessionUtils.h"
+#include "logic/EditorEngine.h"
 #include "logic/session/context/SessionContext.h"
+#include <stb_image.h>
 
 namespace MMM::Logic
 {
@@ -119,9 +122,80 @@ void BeatmapSession::handleCommand(const CmdPackBeatmap& cmd)
 void BeatmapSession::handleCommand(const CmdUpdateBeatmapMetadata& cmd)
 {
     if ( m_ctx->currentBeatmap ) {
+        auto oldAudio = m_ctx->currentBeatmap->m_baseMapMetadata.main_audio_path;
+        auto oldCover = m_ctx->currentBeatmap->m_baseMapMetadata.main_cover_path;
+
         m_ctx->currentBeatmap->m_baseMapMetadata = cmd.baseMeta;
         XINFO("BeatmapSession: Metadata updated for {}",
               m_ctx->currentBeatmap->m_baseMapMetadata.name);
+
+        // 同步轨道数到上下文，确保渲染实时更新
+        m_ctx->trackCount = cmd.baseMeta.track_count;
+
+        // 如果音频路径发生变化，重新加载音频
+        if ( oldAudio != cmd.baseMeta.main_audio_path ) {
+            XINFO("BeatmapSession: Audio path changed, reloading...");
+            auto audioPath = m_ctx->currentBeatmap->m_baseMapMetadata.map_path.parent_path() /
+                             cmd.baseMeta.main_audio_path;
+            if ( std::filesystem::exists(audioPath) ) {
+                // 这里可以调用 AudioManager::instance().loadBGM
+                // 暂时简单处理，复用 loadBeatmap 中的逻辑部分（实际上应该抽取为工具函数）
+                // 查找对应的 AudioResource 配置
+                AudioTrackConfig config;
+                auto*            project = EditorEngine::instance().getCurrentProject();
+                if ( project ) {
+                    auto u8 = cmd.baseMeta.main_audio_path.filename().u8string();
+                    std::string fileName(reinterpret_cast<const char*>(u8.c_str()), u8.size());
+                    
+                    auto u8Full = cmd.baseMeta.main_audio_path.u8string();
+                    std::string fullPathStr(reinterpret_cast<const char*>(u8Full.c_str()), u8Full.size());
+
+                    for ( const auto& res : project->m_audioResources ) {
+                        if ( res.m_id == fileName || res.m_path == fullPathStr ) {
+                            config = res.m_config;
+                            break;
+                        }
+                    }
+                }
+                auto u8Audio = audioPath.u8string();
+                std::string audioPathStr(reinterpret_cast<const char*>(u8Audio.c_str()), u8Audio.size());
+                Audio::AudioManager::instance().loadBGM(audioPathStr, config);
+            }
+        }
+
+        // 如果封面路径发生变化，更新背景图尺寸
+        if ( oldCover != cmd.baseMeta.main_cover_path ) {
+            auto bgPath = m_ctx->currentBeatmap->m_baseMapMetadata.map_path.parent_path() /
+                          cmd.baseMeta.main_cover_path;
+            if ( std::filesystem::exists(bgPath) ) {
+                int w = 0, h = 0, comp = 0;
+                auto u8Bg = bgPath.u8string();
+                std::string bgPathStr(reinterpret_cast<const char*>(u8Bg.c_str()), u8Bg.size());
+                if ( stbi_info(bgPathStr.c_str(), &w, &h, &comp) ) {
+                    m_ctx->bgSize = glm::vec2(static_cast<float>(w), static_cast<float>(h));
+                }
+            } else {
+                m_ctx->bgSize = glm::vec2(0.0f);
+            }
+        }
+
+        // 同步修改到项目入口列表中，确保侧边栏等 UI 实时更新
+        auto* project = EditorEngine::instance().getCurrentProject();
+        if ( project ) {
+            for ( auto& entry : project->m_beatmaps ) {
+                auto fullEntryPath =
+                    project->m_projectRoot /
+                    std::filesystem::path(
+                        reinterpret_cast<const char8_t*>(entry.m_filePath.c_str()));
+
+                if ( std::filesystem::exists(fullEntryPath) &&
+                     std::filesystem::equivalent(fullEntryPath, cmd.baseMeta.map_path) ) {
+                    entry.m_name = cmd.baseMeta.version;
+                    XINFO("BeatmapSession: Synced name '{}' to project entry", entry.m_name);
+                    break;
+                }
+            }
+        }
     }
 }
 

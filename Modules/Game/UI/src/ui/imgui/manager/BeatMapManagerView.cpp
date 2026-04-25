@@ -93,34 +93,6 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
             });
     }
 
-    // 新建谱面按钮
-    listVBox.addElement(
-        "Beatmap_CreateNew",
-        Sizing::Grow(),
-        Sizing::Fixed(28),
-        [&engine](Clay_BoundingBox r, bool isHovered) {
-            ImGui::Indent();
-            ImGui::PushStyleColor(
-                ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                  ImVec4(1, 1, 1, 0.1f));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
-
-            if ( ImGui::Button(
-                     ICON_MMM_PLUS,
-                     ImVec2(r.width - ImGui::GetStyle().IndentSpacing, 28)) ) {
-                engine.pushCommand(Logic::CmdCreateBeatmap{});
-            }
-
-            ImGui::PopStyleVar();
-            ImGui::PopStyleColor(4);
-            if ( ImGui::IsItemHovered() ) {
-                ImGui::SetTooltip("%s", TR_CACHE("ui.file.new_map").data());
-            }
-            ImGui::Unindent();
-        });
 
     rootVBox.setPadding(12, 12, 12, 12)
         .setSpacing(8)
@@ -151,6 +123,41 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
 
                 ImGui::EndChild();
             });
+
+    // 新建谱面按钮 (居中显示在列表下方)
+    CLayHBox bottomBtnHBox;
+    bottomBtnHBox.addSpring()
+        .addElement(
+            "Beatmap_CreateNew",
+            Sizing::Fixed(32),
+            Sizing::Fixed(32),
+            [&engine](Clay_BoundingBox r, bool isHovered) {
+                ImGui::PushStyleColor(
+                    ImGuiCol_Text,
+                    ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                      ImVec4(1, 1, 1, 0.1f));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
+                                      ImVec4(1, 1, 1, 0.2f));
+                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+                ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                                     (r.width - 32.0f) * 0.5f);
+                if ( ImGui::Button(ICON_MMM_PLUS, ImVec2(32, 32)) ) {
+                    engine.pushCommand(Logic::CmdCreateBeatmap{});
+                }
+
+                ImGui::PopStyleVar();
+                ImGui::PopStyleColor(4);
+                if ( ImGui::IsItemHovered() ) {
+                    ImGui::SetTooltip("%s", TR_CACHE("ui.file.new_map").data());
+                }
+            })
+        .addSpring();
+
+    rootVBox.addLayout(
+        "BottomBtnArea", bottomBtnHBox, Sizing::Grow(), Sizing::Fixed(32));
 
     rootVBox.render(layoutContext);
 
