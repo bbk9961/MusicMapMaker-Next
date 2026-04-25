@@ -345,6 +345,12 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
             snapshot->brush.type     = m_ctx->brushState.type;
         }
 
+        // --- 注入橡皮擦预览状态 ---
+        if ( m_ctx->eraserState.isActive ) {
+            snapshot->erasingEntities = m_ctx->eraserState.targetEntities;
+        }
+
+
         // 3. 调用 ECS System 针对当前 Camera 生成渲染快照
         // 使用视觉时间 m_ctx->visualTime 进行剔除 and 位置映射
         System::NoteRenderSystem::generateSnapshot(m_ctx->noteRegistry,

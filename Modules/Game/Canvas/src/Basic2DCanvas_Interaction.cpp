@@ -19,8 +19,8 @@
 namespace MMM::Canvas
 {
 
-Basic2DCanvasInteraction::Basic2DCanvasInteraction(const std::string& canvasName,
-                                                   const std::string& cameraId)
+Basic2DCanvasInteraction::Basic2DCanvasInteraction(
+    const std::string& canvasName, const std::string& cameraId)
     : m_canvasName(canvasName), m_cameraId(cameraId)
 {
     m_dropSubId = Event::EventBus::instance().subscribe<Event::GLFWDropEvent>(
@@ -36,12 +36,12 @@ Basic2DCanvasInteraction::~Basic2DCanvasInteraction()
     Event::EventBus::instance().unsubscribe<Event::GLFWDropEvent>(m_dropSubId);
 }
 
-void Basic2DCanvasInteraction::update(UI::UIManager*               sourceManager,
-                                      const Logic::RenderSnapshot* currentSnapshot,
-                                      float targetWidth, float targetHeight)
+void Basic2DCanvasInteraction::update(
+    UI::UIManager* sourceManager, const Logic::RenderSnapshot* currentSnapshot,
+    float targetWidth, float targetHeight)
 {
     handleDrops(sourceManager);
-    
+
     if ( currentSnapshot ) {
         handleHotkeys(currentSnapshot);
         handleInteractions(currentSnapshot, targetWidth, targetHeight);
@@ -84,7 +84,8 @@ void Basic2DCanvasInteraction::handleDrops(UI::UIManager* sourceManager)
                 Event::EventBus::instance().publish(evt);
 
                 // 3. 如果是谱面文件，直接加载
-                if ( ext == ".osu" || ext == ".imd" || ext == ".mc" || ext == ".mmm" ) {
+                if ( ext == ".osu" || ext == ".imd" || ext == ".mc" ||
+                     ext == ".mmm" ) {
                     auto        u8 = p.filename().u8string();
                     std::string u8_filename(
                         reinterpret_cast<const char*>(u8.c_str()), u8.size());
@@ -104,7 +105,8 @@ void Basic2DCanvasInteraction::handleDrops(UI::UIManager* sourceManager)
     m_pendingDrops.clear();
 }
 
-void Basic2DCanvasInteraction::handleHotkeys(const Logic::RenderSnapshot* currentSnapshot)
+void Basic2DCanvasInteraction::handleHotkeys(
+    const Logic::RenderSnapshot* currentSnapshot)
 {
     auto& io = ImGui::GetIO();
     if ( ImGui::IsKeyPressed(ImGuiKey_Space, false) && !io.KeyCtrl &&
@@ -151,8 +153,9 @@ void Basic2DCanvasInteraction::handleHotkeys(const Logic::RenderSnapshot* curren
     }
 }
 
-void Basic2DCanvasInteraction::handleInteractions(const Logic::RenderSnapshot* currentSnapshot,
-                                                  float targetWidth, float targetHeight)
+void Basic2DCanvasInteraction::handleInteractions(
+    const Logic::RenderSnapshot* currentSnapshot, float targetWidth,
+    float targetHeight)
 {
     ImVec2 mousePos      = ImGui::GetMousePos();
     ImVec2 windowPos     = ImGui::GetCursorScreenPos();
@@ -198,13 +201,12 @@ void Basic2DCanvasInteraction::handleInteractions(const Logic::RenderSnapshot* c
                 ImGui::BeginTooltip();
 
                 if ( currentSnapshot->hoveredNoteNumerator > 0 ) {
-                    ImGui::TextColored(
-                        ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
-                        "%s: %d + %d/%d",
-                        TR("ui.canvas.note_fraction").data(),
-                        currentSnapshot->hoveredNoteBeatIndex,
-                        currentSnapshot->hoveredNoteNumerator,
-                        currentSnapshot->hoveredNoteDenominator);
+                    ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
+                                       "%s: %d + %d/%d",
+                                       TR("ui.canvas.note_fraction").data(),
+                                       currentSnapshot->hoveredNoteBeatIndex,
+                                       currentSnapshot->hoveredNoteNumerator,
+                                       currentSnapshot->hoveredNoteDenominator);
                     ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.5f, 1.0f),
                                        "%s: %.3f s",
                                        TR("ui.canvas.note_time").data(),
@@ -227,12 +229,11 @@ void Basic2DCanvasInteraction::handleInteractions(const Logic::RenderSnapshot* c
                             "%s (1/1)",
                             TR("ui.canvas.beat_fraction").data());
                     } else {
-                        ImGui::TextColored(
-                            ImVec4(0.8f, 0.9f, 1.0f, 1.0f),
-                            "%s (%d/%d)",
-                            TR("ui.canvas.beat_fraction").data(),
-                            currentSnapshot->snappedNumerator,
-                            currentSnapshot->snappedDenominator);
+                        ImGui::TextColored(ImVec4(0.8f, 0.9f, 1.0f, 1.0f),
+                                           "%s (%d/%d)",
+                                           TR("ui.canvas.beat_fraction").data(),
+                                           currentSnapshot->snappedNumerator,
+                                           currentSnapshot->snappedDenominator);
                     }
                 } else {
                     ImGui::Text("%s: %.3f s",
@@ -347,6 +348,24 @@ void Basic2DCanvasInteraction::handleInteractions(const Logic::RenderSnapshot* c
         }
     }
 
+    // --- 右键交互：画笔工具下为擦除 ---
+    if ( currentSnapshot->currentTool == Logic::EditTool::Draw ) {
+        if ( ImGui::IsMouseClicked(1) && isHovered ) {
+            Event::EventBus::instance().publish(
+                Event::LogicCommandEvent(Logic::CmdStartErase{ m_cameraId }));
+        }
+        if ( ImGui::IsMouseDragging(1) ) {
+            Event::EventBus::instance().publish(
+                Event::LogicCommandEvent(Logic::CmdUpdateErase{
+                    m_cameraId, localMousePos.x, localMousePos.y }));
+        }
+        if ( ImGui::IsMouseReleased(1) ) {
+            Event::EventBus::instance().publish(
+                Event::LogicCommandEvent(Logic::CmdEndErase{ m_cameraId }));
+        }
+    }
+
+    // --- Ctrl+右键：移除框选框（全局可用） ---
     if ( ImGui::IsMouseClicked(1) && ImGui::GetIO().KeyCtrl ) {
         Event::EventBus::instance().publish(
             Event::LogicCommandEvent(Logic::CmdRemoveMarqueeAt{

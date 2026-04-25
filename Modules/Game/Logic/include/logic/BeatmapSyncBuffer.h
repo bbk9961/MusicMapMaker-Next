@@ -9,7 +9,9 @@
 #include <entt/entt.hpp>
 #include <glm/glm.hpp>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace MMM::Logic
@@ -143,6 +145,9 @@ struct RenderSnapshot {
         ::MMM::NoteType type{ ::MMM::NoteType::NOTE };
     } brush;
 
+    // 橡皮擦预览状态
+    std::unordered_set<entt::entity> erasingEntities;
+
     // 是否已加载谱面
     bool hasBeatmap{ false };
 
@@ -184,6 +189,7 @@ struct RenderSnapshot {
         previewHoverTime       = 0.0;
         isPreviewDragging      = false;
         brush.isActive         = false;
+        erasingEntities.clear();
         hasBeatmap             = false;
     }
 };

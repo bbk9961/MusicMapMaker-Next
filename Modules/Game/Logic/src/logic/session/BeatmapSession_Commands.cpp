@@ -53,7 +53,10 @@ void BeatmapSession::processCommands()
                                     std::is_same_v<T, CmdRemoveMarqueeAt> ||
                                     std::is_same_v<T, CmdStartBrush> ||
                                     std::is_same_v<T, CmdUpdateBrush> ||
-                                    std::is_same_v<T, CmdEndBrush> ) {
+                                    std::is_same_v<T, CmdEndBrush> ||
+                                    std::is_same_v<T, CmdStartErase> ||
+                                    std::is_same_v<T, CmdUpdateErase> ||
+                                    std::is_same_v<T, CmdEndErase> ) {
                     m_interaction->handleCommand(arg);
                 }
                 // --- Action 处理的命令 ---

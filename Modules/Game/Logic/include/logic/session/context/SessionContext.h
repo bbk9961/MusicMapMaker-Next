@@ -12,8 +12,8 @@
 #include <glm/glm.hpp>
 #include <memory>
 #include <optional>
-#include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace MMM::Logic
@@ -106,6 +106,12 @@ struct SessionContext {
         int             track{ 0 };
         ::MMM::NoteType type{ ::MMM::NoteType::NOTE };
     } brushState;
+
+    // --- 橡皮擦工具状态 ---
+    struct EraserState {
+        bool isActive{ false };
+        std::unordered_set<entt::entity> targetEntities;
+    } eraserState;
 
     // --- 编辑操作栈 ---
     EditorActionStack          actionStack;  ///< 撤销/重做操作栈

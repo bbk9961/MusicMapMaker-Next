@@ -12,6 +12,11 @@ public:
     void handleStartBrush(SessionContext& ctx, const CmdStartBrush& cmd) override;
     void handleUpdateBrush(SessionContext& ctx, const CmdUpdateBrush& cmd) override;
     void handleEndBrush(SessionContext& ctx, const CmdEndBrush& cmd) override;
+
+    void handleStartErase(SessionContext& ctx, const CmdStartErase& cmd) override;
+    void handleUpdateErase(SessionContext& ctx, const CmdUpdateErase& cmd) override;
+    void handleEndErase(SessionContext& ctx, const CmdEndErase& cmd) override;
 };
+
 
 }  // namespace MMM::Logic

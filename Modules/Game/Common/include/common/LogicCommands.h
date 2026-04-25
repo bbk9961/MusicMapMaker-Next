@@ -158,6 +158,30 @@ struct CmdEndBrush {
 };
 
 /**
+ * @brief 开始擦除操作指令
+ */
+struct CmdStartErase {
+    std::string cameraId;
+};
+
+/**
+ * @brief 更新擦除操作指令
+ */
+struct CmdUpdateErase {
+    std::string cameraId;
+    float       mouseX;
+    float       mouseY;
+};
+
+/**
+ * @brief 结束擦除操作指令
+ */
+struct CmdEndErase {
+    std::string cameraId;
+};
+
+
+/**
  * @brief 更新轨道数量指令
  */
 struct CmdUpdateTrackCount {
@@ -305,6 +329,7 @@ using LogicCommand = std::variant<
     CmdUpdateTimelineEvent, CmdDeleteTimelineEvent, CmdCreateTimelineEvent,
     CmdStartMarquee, CmdUpdateMarquee, CmdEndMarquee, CmdRemoveMarqueeAt,
     CmdStartBrush, CmdUpdateBrush, CmdEndBrush,
+    CmdStartErase, CmdUpdateErase, CmdEndErase,
     CmdUpdateBeatmapMetadata>;
 
 }  // namespace MMM::Logic

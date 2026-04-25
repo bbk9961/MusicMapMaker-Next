@@ -224,6 +224,31 @@ void InteractionController::handleCommand(const CmdEndBrush& cmd)
     m_ctx.isDragging = false;
 }
 
+void InteractionController::handleCommand(const CmdStartErase& cmd)
+{
+    if ( m_tools.count(m_ctx.currentTool) ) {
+        m_ctx.isDragging   = true;
+        m_ctx.dragCameraId = cmd.cameraId;
+        m_tools[m_ctx.currentTool]->handleStartErase(m_ctx, cmd);
+    }
+}
+
+void InteractionController::handleCommand(const CmdUpdateErase& cmd)
+{
+    if ( m_tools.count(m_ctx.currentTool) ) {
+        m_tools[m_ctx.currentTool]->handleUpdateErase(m_ctx, cmd);
+    }
+}
+
+void InteractionController::handleCommand(const CmdEndErase& cmd)
+{
+    if ( m_tools.count(m_ctx.currentTool) ) {
+        m_tools[m_ctx.currentTool]->handleEndErase(m_ctx, cmd);
+    }
+    m_ctx.isDragging = false;
+}
+
+
 
 void InteractionController::updateMarqueeSelection(bool forceFullSync)
 {

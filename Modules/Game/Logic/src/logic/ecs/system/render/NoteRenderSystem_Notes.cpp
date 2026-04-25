@@ -315,6 +315,14 @@ void NoteRenderSystem::renderNoteBaseLayer(
             curColorHold = { 1.0f, 1.0f, 0.4f, 1.0f };
         }
 
+        if ( snapshot->erasingEntities.count(entity) ) {
+            curColorTap   = { 1.0f, 0.2f, 0.2f, 1.0f };
+            curColorHold  = { 1.0f, 0.2f, 0.2f, 1.0f };
+            curColorNode  = { 1.0f, 0.2f, 0.2f, 1.0f };
+            curColorArrow = { 1.0f, 0.2f, 0.2f, 1.0f };
+            alphaMul      *= 0.5f;
+        }
+
         curColorTap.a *= alphaMul;
         curColorHold.a *= alphaMul;
         curColorNode.a *= alphaMul;

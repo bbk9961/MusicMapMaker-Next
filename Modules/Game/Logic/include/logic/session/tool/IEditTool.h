@@ -83,6 +83,16 @@ public:
 
     /// @brief 处理画笔工具结束事件
     virtual void handleEndBrush(SessionContext& ctx, const CmdEndBrush& cmd) {}
+
+    /// @brief 处理开始擦除事件
+    virtual void handleStartErase(SessionContext& ctx, const CmdStartErase& cmd) {}
+
+    /// @brief 处理擦除更新事件
+    virtual void handleUpdateErase(SessionContext& ctx, const CmdUpdateErase& cmd) {}
+
+    /// @brief 处理结束擦除事件
+    virtual void handleEndErase(SessionContext& ctx, const CmdEndErase& cmd) {}
 };
+
 
 }  // namespace MMM::Logic
