@@ -123,36 +123,37 @@ enum class UITheme {
     KazamCherry,
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(UITheme, {
-                                          { UITheme::Auto, "Auto" },
-                                          { UITheme::DeepDark, "DeepDark" },
-                                          { UITheme::Dark, "Dark" },
-                                          { UITheme::Light, "Light" },
-                                          { UITheme::Classic, "Classic" },
-                                          { UITheme::Microsoft, "Microsoft" },
-                                          { UITheme::Darcula, "Darcula" },
-                                          { UITheme::Photoshop, "Photoshop" },
-                                          { UITheme::Unreal, "Unreal" },
-                                          { UITheme::Gold, "Gold" },
-                                          { UITheme::RoundedVisualStudio, "RoundedVisualStudio" },
-                                          { UITheme::SonicRiders, "SonicRiders" },
-                                          { UITheme::DarkRuda, "DarkRuda" },
-                                          { UITheme::SoftCherry, "SoftCherry" },
-                                          { UITheme::Enemymouse, "Enemymouse" },
-                                          { UITheme::DiscordDark, "DiscordDark" },
-                                          { UITheme::Comfy, "Comfy" },
-                                          { UITheme::PurpleComfy, "PurpleComfy" },
-                                          { UITheme::FutureDark, "FutureDark" },
-                                          { UITheme::CleanDark, "CleanDark" },
-                                          { UITheme::Moonlight, "Moonlight" },
-                                          { UITheme::ComfortableLight, "ComfortableLight" },
-                                          { UITheme::HazyDark, "HazyDark" },
-                                          { UITheme::Everforest, "Everforest" },
-                                          { UITheme::Windark, "Windark" },
-                                          { UITheme::Rest, "Rest" },
-                                          { UITheme::ComfortableDarkCyan, "ComfortableDarkCyan" },
-                                          { UITheme::KazamCherry, "KazamCherry" },
-                                      })
+NLOHMANN_JSON_SERIALIZE_ENUM(
+    UITheme, {
+                 { UITheme::Auto, "Auto" },
+                 { UITheme::DeepDark, "DeepDark" },
+                 { UITheme::Dark, "Dark" },
+                 { UITheme::Light, "Light" },
+                 { UITheme::Classic, "Classic" },
+                 { UITheme::Microsoft, "Microsoft" },
+                 { UITheme::Darcula, "Darcula" },
+                 { UITheme::Photoshop, "Photoshop" },
+                 { UITheme::Unreal, "Unreal" },
+                 { UITheme::Gold, "Gold" },
+                 { UITheme::RoundedVisualStudio, "RoundedVisualStudio" },
+                 { UITheme::SonicRiders, "SonicRiders" },
+                 { UITheme::DarkRuda, "DarkRuda" },
+                 { UITheme::SoftCherry, "SoftCherry" },
+                 { UITheme::Enemymouse, "Enemymouse" },
+                 { UITheme::DiscordDark, "DiscordDark" },
+                 { UITheme::Comfy, "Comfy" },
+                 { UITheme::PurpleComfy, "PurpleComfy" },
+                 { UITheme::FutureDark, "FutureDark" },
+                 { UITheme::CleanDark, "CleanDark" },
+                 { UITheme::Moonlight, "Moonlight" },
+                 { UITheme::ComfortableLight, "ComfortableLight" },
+                 { UITheme::HazyDark, "HazyDark" },
+                 { UITheme::Everforest, "Everforest" },
+                 { UITheme::Windark, "Windark" },
+                 { UITheme::Rest, "Rest" },
+                 { UITheme::ComfortableDarkCyan, "ComfortableDarkCyan" },
+                 { UITheme::KazamCherry, "KazamCherry" },
+             })
 
 enum class SelectionMode {
     Strict,       ///< 严格模式 (必须完全包含)
@@ -164,6 +165,17 @@ NLOHMANN_JSON_SERIALIZE_ENUM(SelectionMode,
                                  { SelectionMode::Strict, "Strict" },
                                  { SelectionMode::Intersection,
                                    "Intersection" },
+                             })
+
+enum class SaveFormatPreference {
+    Original,  ///< 保持原始格式 (例如 .osu, .mc 等)
+    ForceMMM   ///< 强制保存为 .mmm 格式 (内置 JSON 格式)
+};
+
+NLOHMANN_JSON_SERIALIZE_ENUM(SaveFormatPreference,
+                             {
+                                 { SaveFormatPreference::Original, "Original" },
+                                 { SaveFormatPreference::ForceMMM, "ForceMMM" },
                              })
 
 /// @brief 编辑器行为与功能相关的配置
@@ -216,7 +228,11 @@ struct EditorSettings {
     /// @brief 框选圆角半径
     float marqueeRounding{ 0.0f };
 
-    // TODO: 后续可在此添加自动保存(AutoSave)等配置
+    /// @brief Ctrl+S 保存偏好
+    SaveFormatPreference saveFormatPreference{ SaveFormatPreference::Original };
+
+    /// @brief 上次打开文件的路径 (用于文件对话框记忆)
+    std::string lastFilePickerPath{ "." };
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(EditorSettings, syncConfig, sfxConfig,
                                    filePickerStyle, cursorStyle, theme,
@@ -224,7 +240,8 @@ struct EditorSettings {
                                    recentProjectsLimit, language, vsync,
                                    scrollSpeedMultiplier, globalVolume,
                                    selectionMode, marqueeThickness,
-                                   marqueeRounding)
+                                   marqueeRounding, saveFormatPreference,
+                                   lastFilePickerPath)
 };
 
 }  // namespace MMM::Config

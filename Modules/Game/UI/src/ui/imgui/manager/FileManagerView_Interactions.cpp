@@ -176,7 +176,7 @@ void FileManagerView::openFolderPicker()
         }
     } else {
         IGFD::FileDialogConfig fdConfig;
-        fdConfig.path              = ".";
+        fdConfig.path              = config.lastFilePickerPath;
         fdConfig.countSelectionMax = 1;
         fdConfig.flags             = ImGuiFileDialogFlags_Default;
         ImGuiFileDialog::Instance()->OpenDialog(

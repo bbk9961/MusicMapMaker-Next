@@ -123,7 +123,7 @@ void MainMenuView::openFolderPicker()
         }
     } else {
         IGFD::FileDialogConfig fdConfig;
-        fdConfig.path              = ".";
+        fdConfig.path              = config.lastFilePickerPath;
         fdConfig.countSelectionMax = 1;
         fdConfig.flags             = ImGuiFileDialogFlags_Default;
         ImGuiFileDialog::Instance()->OpenDialog(
@@ -149,7 +149,7 @@ void MainMenuView::openPackFilePicker()
         }
     } else {
         IGFD::FileDialogConfig fdConfig;
-        fdConfig.path              = ".";
+        fdConfig.path              = config.lastFilePickerPath;
         fdConfig.countSelectionMax = 1;
         fdConfig.fileName          = "map.osz";
         fdConfig.flags             = ImGuiFileDialogFlags_Default;
@@ -186,7 +186,7 @@ void MainMenuView::openExportFilePicker(const std::string& ext)
         }
     } else {
         IGFD::FileDialogConfig fdConfig;
-        fdConfig.path              = ".";
+        fdConfig.path              = config.lastFilePickerPath;
         fdConfig.countSelectionMax = 1;
         fdConfig.fileName          = "map" + (ext.empty() ? ".mmm" : ext);
         fdConfig.flags             = ImGuiFileDialogFlags_Default;
@@ -211,43 +211,6 @@ void MainMenuView::openExportFilePicker(const std::string& ext)
 void MainMenuView::update(UIManager* sourceManager)
 {
     handleHotkeys(sourceManager);
-
-    // 检查文件对话框结果 (针对非 Native 模式)
-    if ( ImGuiFileDialog::Instance()->Display("SaveAsFilePicker",
-                                              ImGuiWindowFlags_NoCollapse,
-                                              ImVec2(600, 400)) ) {
-        if ( ImGuiFileDialog::Instance()->IsOk() ) {
-            std::string filePath =
-                ImGuiFileDialog::Instance()->GetFilePathName();
-            dispatchCommand(Logic::CmdSaveBeatmapAs{ filePath });
-        }
-        ImGuiFileDialog::Instance()->Close();
-    }
-
-    if ( ImGuiFileDialog::Instance()->Display("ProjectFolderPicker",
-                                              ImGuiWindowFlags_NoCollapse,
-                                              ImVec2(600, 400)) ) {
-        if ( ImGuiFileDialog::Instance()->IsOk() ) {
-            std::string filePath =
-                ImGuiFileDialog::Instance()->GetFilePathName();
-            Event::OpenProjectEvent ev;
-            ev.m_projectPath = std::filesystem::path(
-                reinterpret_cast<const char8_t*>(filePath.c_str()));
-            Event::EventBus::instance().publish(ev);
-        }
-        ImGuiFileDialog::Instance()->Close();
-    }
-
-    if ( ImGuiFileDialog::Instance()->Display("PackFilePicker",
-                                              ImGuiWindowFlags_NoCollapse,
-                                              ImVec2(600, 400)) ) {
-        if ( ImGuiFileDialog::Instance()->IsOk() ) {
-            std::string filePath =
-                ImGuiFileDialog::Instance()->GetFilePathName();
-            dispatchCommand(Logic::CmdPackBeatmap{ filePath });
-        }
-        ImGuiFileDialog::Instance()->Close();
-    }
 
     Config::SkinManager& skinCfg = Config::SkinManager::instance();
 

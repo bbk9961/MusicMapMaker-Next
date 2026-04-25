@@ -114,6 +114,24 @@ void SettingsView::drawSoftwareSettings()
         changed                  = true;
     }
 
+    // 4. 保存偏好
+    ImGui::Text("%s", TR_CACHE("ui.settings.software.save_format").data());
+    ImGui::SameLine();
+    int savePreference = (int)settings.saveFormatPreference;
+    if ( ImGui::RadioButton(
+             TR_CACHE("ui.settings.software.save_format.original").data(),
+             savePreference == (int)Config::SaveFormatPreference::Original) ) {
+        settings.saveFormatPreference = Config::SaveFormatPreference::Original;
+        changed                       = true;
+    }
+    ImGui::SameLine();
+    if ( ImGui::RadioButton(
+             TR_CACHE("ui.settings.software.save_format.force_mmm").data(),
+             savePreference == (int)Config::SaveFormatPreference::ForceMMM) ) {
+        settings.saveFormatPreference = Config::SaveFormatPreference::ForceMMM;
+        changed                       = true;
+    }
+
     // 4. 最近项目上限
     if ( ImGui::SliderInt(TR_CACHE("ui.settings.software.recent_limit").data(),
                           &settings.recentProjectsLimit,

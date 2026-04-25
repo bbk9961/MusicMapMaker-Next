@@ -45,6 +45,9 @@ return {
 	["ui.settings.software.sync_factor"] = "积分追踪系数",
 	["ui.settings.software.sync_buffer"] = "水箱缓冲时间",
 	["ui.settings.software.sync_interval"] = "同步时间间隔",
+	["ui.settings.software.save_format"] = "Ctrl+S 保存行为",
+	["ui.settings.software.save_format.original"] = "保存原始文件格式",
+	["ui.settings.software.save_format.force_mmm"] = "强制保存为 .mmm",
 
 	["ui.settings.visual"] = "视觉配置",
 	["ui.settings.visual.layout"] = "布局比例",
