@@ -432,6 +432,7 @@ inline BeatMap loadOSUMap(std::filesystem::path path)
     }
 
     // 创建timing
+    bool firstBpmSet = false;
     for ( int i = 0; i < osureader.current_timing_index; i++ ) {
         // 按顺序读取timing点
         auto timing_point_des =
@@ -450,6 +451,12 @@ inline BeatMap loadOSUMap(std::filesystem::path path)
         timing.from_osu_description(timing_point_paras);
         // 添加到timing表
         beatMap.m_timings.push_back(timing);
+
+        // 设置预设 BPM (取第一个红线点)
+        if ( !firstBpmSet && timing.m_timingEffect == TimingEffect::BPM ) {
+            beatMap.m_baseMapMetadata.preference_bpm = timing.m_bpm;
+            firstBpmSet                              = true;
+        }
     }
 
     return beatMap;

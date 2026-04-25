@@ -212,7 +212,16 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
 
                             if ( activeBpm ) {
                                 double bpmVal = activeBpm->m_value;
-                                if ( bpmVal <= 0.0 ) bpmVal = 120.0;
+                                if ( bpmVal <= 0.0 ) {
+                                    bpmVal = 120.0;
+                                    if ( m_ctx->currentBeatmap &&
+                                         m_ctx->currentBeatmap->m_baseMapMetadata
+                                                 .preference_bpm > 0.0 ) {
+                                        bpmVal =
+                                            m_ctx->currentBeatmap
+                                                ->m_baseMapMetadata.preference_bpm;
+                                    }
+                                }
                                 double beatDuration = 60.0 / bpmVal;
 
                                 // 尝试多个常用分母，找到误差最小且分母最小的拟合
@@ -285,9 +294,19 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
                                     double dur = nextTime - bpmEv->m_timestamp;
                                     if ( dur < 0 ) dur = 0;
 
-                                    double bVal = bpmEv->m_value > 0
-                                                      ? bpmEv->m_value
-                                                      : 120.0;
+                                    double bVal = bpmEv->m_value;
+                                    if ( bVal <= 0.0 ) {
+                                        bVal = 120.0;
+                                        if ( m_ctx->currentBeatmap &&
+                                             m_ctx->currentBeatmap
+                                                     ->m_baseMapMetadata
+                                                     .preference_bpm > 0.0 ) {
+                                            bVal =
+                                                m_ctx->currentBeatmap
+                                                    ->m_baseMapMetadata
+                                                    .preference_bpm;
+                                        }
+                                    }
                                     totalBeatsPrefix += static_cast<int64_t>(
                                         std::round(dur / (60.0 / bVal)));
                                 }

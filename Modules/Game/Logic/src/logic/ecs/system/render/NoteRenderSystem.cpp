@@ -1,6 +1,9 @@
 #include "logic/ecs/system/NoteRenderSystem.h"
 #include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
+#include "logic/EditorEngine.h"
+#include "logic/session/context/SessionContext.h"
+#include "mmm/beatmap/BeatMap.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/BackgroundRenderSystem.h"
 #include "logic/ecs/system/ScrollCache.h"
@@ -126,8 +129,17 @@ void NoteRenderSystem::generateSnapshot(
                     const auto* currentBPM = bpmEvents[i];
                     double      bpmTime    = currentBPM->m_timestamp;
                     double      bpmVal     = currentBPM->m_value;
-                    if ( bpmVal <= 0.0 ) bpmVal = 120.0;
-                    if ( bpmVal > 10000.0 ) bpmVal = 10000.0;  // 增加安全限制
+                    if ( bpmVal <= 0.0 ) {
+                        bpmVal = 120.0;
+                        if ( auto session = EditorEngine::instance().getActiveSession() ) {
+                            if ( auto beatmap = session->getContext().currentBeatmap ) {
+                                if ( beatmap->m_baseMapMetadata.preference_bpm > 0.0 ) {
+                                    bpmVal = beatmap->m_baseMapMetadata.preference_bpm;
+                                }
+                            }
+                        }
+                    }
+                    if ( bpmVal > 10000.0 ) bpmVal = 10000.0;
 
                     double nextBpmTime =
                         (i + 1 < bpmEvents.size())

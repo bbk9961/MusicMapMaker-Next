@@ -321,6 +321,10 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
         });
 
     double currentBPM = 120.0;
+    if ( ctx.currentBeatmap &&
+         ctx.currentBeatmap->m_baseMapMetadata.preference_bpm > 0.0 ) {
+        currentBPM = ctx.currentBeatmap->m_baseMapMetadata.preference_bpm;
+    }
     for ( const auto& tc : sortedTLs ) {
         Timing timing;
         timing.m_timestamp             = tc.m_timestamp * 1000.0;

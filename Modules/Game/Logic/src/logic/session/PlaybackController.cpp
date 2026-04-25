@@ -84,7 +84,17 @@ void PlaybackController::handleCommand(const CmdScroll& cmd)
 
             const auto* currentBPM   = bpmEvents[currentIdx];
             double      bpmVal       = currentBPM->m_value;
-            double      beatDuration = 60.0 / (bpmVal > 0 ? bpmVal : 120.0);
+            double      bVal = bpmVal;
+            if ( bVal <= 0.0 ) {
+                bVal = 120.0;
+                if ( m_ctx.currentBeatmap &&
+                     m_ctx.currentBeatmap->m_baseMapMetadata.preference_bpm >
+                         0.0 ) {
+                    bVal =
+                        m_ctx.currentBeatmap->m_baseMapMetadata.preference_bpm;
+                }
+            }
+            double      beatDuration = 60.0 / bVal;
             double      stepDuration = cmd.isShiftDown
                                            ? beatDuration
                                            : (beatDuration / beatDivisor);

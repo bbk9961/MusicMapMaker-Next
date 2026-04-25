@@ -227,6 +227,9 @@ inline BeatMap loadRMMap(std::filesystem::path path)
                   std::to_string(read_timing.m_timestamp) +
                   ",bpm:" + std::to_string(read_timing.m_bpm) + "]");
             // 加入谱面timing表
+            if ( beatMap.m_timings.empty() ) {
+                basemeta.preference_bpm = read_timing.m_bpm;
+            }
             beatMap.m_timings.push_back(read_timing);
         }
     }

@@ -1,5 +1,7 @@
 #include "logic/ecs/system/ScrollCache.h"
 #include "logic/EditorEngine.h"
+#include "logic/session/context/SessionContext.h"
+#include "mmm/beatmap/BeatMap.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include <algorithm>
 #include <cmath>
@@ -44,17 +46,27 @@ void ScrollCache::rebuild(const entt::registry& timelineRegistry)
             return false;  // 保持原始顺序
         });
 
-    // 1. 查找基准 BPM (第一个出现的 BPM 类型点)
+    // 1. 获取基准 BPM (优先使用谱面元数据中的预设值)
     double refBPM = 120.0;
-    for ( const auto& entry : timings ) {
-        if ( entry.component->m_effect == ::MMM::TimingEffect::BPM ) {
-            refBPM = entry.component->m_value;
-            break;
+    if ( auto session = EditorEngine::instance().getActiveSession() ) {
+        if ( auto beatmap = session->getContext().currentBeatmap ) {
+            refBPM = beatmap->m_baseMapMetadata.preference_bpm;
         }
     }
+
+    // 如果元数据中没有有效值，则回退到查找第一个时间线点
+    if ( refBPM <= 0.0 ) {
+        for ( const auto& entry : timings ) {
+            if ( entry.component->m_effect == ::MMM::TimingEffect::BPM ) {
+                refBPM = entry.component->m_value;
+                break;
+            }
+        }
+    }
+
     // 限制 refBPM 范围，防止流速计算溢出
-    if ( refBPM < 1.0 ) refBPM = 120.0; 
-    if ( refBPM > 10000.0 ) refBPM = 10000.0;
+    if ( refBPM < 1.0 ) refBPM = 120.0;
+    if ( refBPM > 1000000.0 ) refBPM = 1000000.0;
 
     // 2. 初始参数
     double currentBPM        = refBPM;

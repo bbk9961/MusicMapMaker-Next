@@ -1,4 +1,7 @@
 #include "logic/session/SessionUtils.h"
+#include "logic/EditorEngine.h"
+#include "logic/session/context/SessionContext.h"
+#include "mmm/beatmap/BeatMap.h"
 #include "logic/ecs/components/NoteComponent.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/ScrollCache.h"
@@ -59,7 +62,19 @@ SnapResult getSnapResult(
         if ( rawTime < bpmTime && i > 0 ) continue;
         if ( rawTime > nextBpmTime ) continue;
 
-        double beatDuration = 60.0 / (bpmVal > 0 ? bpmVal : 120.0);
+        double      bVal = bpmVal;
+        if ( bVal <= 0.0 ) {
+            bVal = 120.0;
+            // 获取全局活动 Session 里的 Beatmap 预设 BPM
+            if ( auto session = EditorEngine::instance().getActiveSession() ) {
+                if ( auto beatmap = session->getContext().currentBeatmap ) {
+                    if ( beatmap->m_baseMapMetadata.preference_bpm > 0.0 ) {
+                        bVal = beatmap->m_baseMapMetadata.preference_bpm;
+                    }
+                }
+            }
+        }
+        double beatDuration = 60.0 / bVal;
         double stepDuration = beatDuration / beatDivisor;
 
         double relativeTime    = rawTime - bpmTime;

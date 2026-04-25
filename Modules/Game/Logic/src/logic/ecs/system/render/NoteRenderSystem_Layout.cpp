@@ -1,4 +1,7 @@
 #include "config/skin/SkinConfig.h"
+#include "logic/EditorEngine.h"
+#include "logic/session/context/SessionContext.h"
+#include "mmm/beatmap/BeatMap.h"
 #include "logic/ecs/components/TimelineComponent.h"
 #include "logic/ecs/system/NoteRenderSystem.h"
 #include "logic/ecs/system/ScrollCache.h"
@@ -218,7 +221,16 @@ void NoteRenderSystem::drawBeatLines(
         const auto* currentBPM = bpmEvents[i];
         double      bpmTime    = currentBPM->m_timestamp;
         double      bpmVal     = currentBPM->m_value;
-        if ( bpmVal <= 0.0 ) bpmVal = 120.0;
+        if ( bpmVal <= 0.0 ) {
+            bpmVal = 120.0;
+            if ( auto session = EditorEngine::instance().getActiveSession() ) {
+                if ( auto beatmap = session->getContext().currentBeatmap ) {
+                    if ( beatmap->m_baseMapMetadata.preference_bpm > 0.0 ) {
+                        bpmVal = beatmap->m_baseMapMetadata.preference_bpm;
+                    }
+                }
+            }
+        }
 
         // 限制极端 BPM 导致的无限循环 (例如 osu! 谱面中的 6E-96 ms_per_beat)
         if ( bpmVal > 10000.0 ) bpmVal = 10000.0;

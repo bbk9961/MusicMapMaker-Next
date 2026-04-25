@@ -414,7 +414,7 @@ void SettingsView::drawBeatmapSettings()
         changed = true;
     }
 
-    ImGui::SeparatorText(TR_CACHE("ui.settings.beatmap.bpm").data());
+    ImGui::SeparatorText(TR_CACHE("ui.settings.beatmap.preference").data());
     float bpm = (float)meta.preference_bpm;
     if ( ImGui::DragFloat(TR_CACHE("ui.settings.beatmap.bpm").data(), &bpm, 0.1f, -1.0f, 1000.0f, "%.2f") ) {
         meta.preference_bpm = (double)bpm;
@@ -434,6 +434,15 @@ void SettingsView::drawBeatmapSettings()
     
     auto audioU8 = meta.main_audio_path.u8string();
     std::string currentAudioPath(reinterpret_cast<const char*>(audioU8.c_str()), audioU8.size());
+    std::string audioPreview = currentAudioPath;
+    if ( project && !audioPreview.empty() ) {
+        std::filesystem::path p(audioU8);
+        if ( p.is_absolute() ) {
+            try {
+                audioPreview = std::filesystem::relative(p, project->m_projectRoot).generic_string();
+            } catch (...) {}
+        }
+    }
 
     bool audioExists = false;
     if ( project ) {
@@ -447,7 +456,7 @@ void SettingsView::drawBeatmapSettings()
         audioPushed = true;
     }
 
-    if ( ImGui::BeginCombo(TR_CACHE("ui.settings.beatmap.audio").data(), currentAudioPath.c_str()) ) {
+    if ( ImGui::BeginCombo(TR_CACHE("ui.settings.beatmap.audio").data(), audioPreview.c_str()) ) {
         if ( audioPushed ) {
             ImGui::PopStyleColor();
             audioPushed = false;
@@ -475,6 +484,15 @@ void SettingsView::drawBeatmapSettings()
 
     auto coverU8 = meta.main_cover_path.u8string();
     std::string currentCoverPath(reinterpret_cast<const char*>(coverU8.c_str()), coverU8.size());
+    std::string coverPreview = currentCoverPath;
+    if ( project && !coverPreview.empty() ) {
+        std::filesystem::path p(coverU8);
+        if ( p.is_absolute() ) {
+            try {
+                coverPreview = std::filesystem::relative(p, project->m_projectRoot).generic_string();
+            } catch (...) {}
+        }
+    }
 
     bool coverExists = false;
     if ( project ) {
@@ -488,7 +506,7 @@ void SettingsView::drawBeatmapSettings()
         coverPushed = true;
     }
 
-    if ( ImGui::BeginCombo(TR_CACHE("ui.settings.beatmap.cover").data(), currentCoverPath.c_str()) ) {
+    if ( ImGui::BeginCombo(TR_CACHE("ui.settings.beatmap.cover").data(), coverPreview.c_str()) ) {
         if ( coverPushed ) {
             ImGui::PopStyleColor();
             coverPushed = false;
