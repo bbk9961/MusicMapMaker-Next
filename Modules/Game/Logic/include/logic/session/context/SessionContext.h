@@ -109,7 +109,11 @@ struct SessionContext {
         int    startTrack{ 0 };       ///< Flick 起始轨道
         int    dtrack{ 0 };           ///< Flick 偏移轨道
         float  startMouseY{ 0.0f };   ///< 按下 Shift 瞬间的鼠标 Y 坐标 (像素)
+        float  segmentStartMouseY{ 0.0f };  ///< 当前子段开始时的鼠标 Y 坐标
         ::MMM::NoteType type{ ::MMM::NoteType::NOTE };
+
+        // Polyline 相关的实时构建链
+        std::vector<NoteComponent::SubNote> polylineSegments;
     } brushState;
 
     // --- 橡皮擦工具状态 ---

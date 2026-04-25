@@ -308,7 +308,7 @@ void SettingsView::drawVisualSettings()
         ImGui::SliderFloat(TR_CACHE("ui.settings.visual.snap_threshold").data(),
                            &visual.snapThreshold,
                            0.0f,
-                           20.0f,
+                           48.0f,
                            "%.1f px");
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.visual.offset").data());
@@ -337,9 +337,7 @@ void SettingsView::drawProjectSettings()
     if ( !project ) {
         ImVec4 dangerCol = Utils::UIThemeUtils::getDangerColor();
         ImGui::TextColored(
-            dangerCol,
-            "%s",
-            TR("ui.settings.project.no_project").data());
+            dangerCol, "%s", TR("ui.settings.project.no_project").data());
         return;
     }
 
@@ -360,9 +358,7 @@ void SettingsView::drawBeatmapSettings()
     if ( !session || !session->getContext().currentBeatmap ) {
         ImVec4 dangerCol = Utils::UIThemeUtils::getDangerColor();
         ImGui::TextColored(
-            dangerCol,
-            "%s",
-            TR("ui.settings.beatmap.no_beatmap").data());
+            dangerCol, "%s", TR("ui.settings.beatmap.no_beatmap").data());
         return;
     }
 
@@ -383,80 +379,101 @@ void SettingsView::drawBeatmapSettings()
 
     DrawInput(TR_CACHE("ui.settings.beatmap.name").data(), meta.name);
     DrawInput(TR_CACHE("ui.settings.beatmap.title").data(), meta.title);
-    DrawInput(TR_CACHE("ui.settings.beatmap.title_unicode").data(), meta.title_unicode);
+    DrawInput(TR_CACHE("ui.settings.beatmap.title_unicode").data(),
+              meta.title_unicode);
     DrawInput(TR_CACHE("ui.settings.beatmap.artist").data(), meta.artist);
-    DrawInput(TR_CACHE("ui.settings.beatmap.artist_unicode").data(), meta.artist_unicode);
+    DrawInput(TR_CACHE("ui.settings.beatmap.artist_unicode").data(),
+              meta.artist_unicode);
     DrawInput(TR_CACHE("ui.settings.beatmap.mapper").data(), meta.author);
     DrawInput(TR_CACHE("ui.settings.beatmap.version").data(), meta.version);
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.beatmap.cover_type").data());
     int coverType = (int)meta.cover_type;
-    if ( ImGui::RadioButton(TR_CACHE("ui.settings.beatmap.cover_type.image").data(), coverType == 0) ) {
+    if ( ImGui::RadioButton(
+             TR_CACHE("ui.settings.beatmap.cover_type.image").data(),
+             coverType == 0) ) {
         meta.cover_type = MMM::CoverType::IMAGE;
-        changed = true;
+        changed         = true;
     }
     ImGui::SameLine();
-    if ( ImGui::RadioButton(TR_CACHE("ui.settings.beatmap.cover_type.video").data(), coverType == 1) ) {
+    if ( ImGui::RadioButton(
+             TR_CACHE("ui.settings.beatmap.cover_type.video").data(),
+             coverType == 1) ) {
         meta.cover_type = MMM::CoverType::VIDEO;
-        changed = true;
+        changed         = true;
     }
 
     if ( meta.cover_type == MMM::CoverType::VIDEO ) {
-        if ( ImGui::InputInt(TR_CACHE("ui.settings.beatmap.video_start").data(), &meta.video_starttime) ) {
+        if ( ImGui::InputInt(TR_CACHE("ui.settings.beatmap.video_start").data(),
+                             &meta.video_starttime) ) {
             changed = true;
         }
     }
 
     int offsets[2] = { meta.bgxoffset, meta.bgyoffset };
-    if ( ImGui::DragInt2(TR_CACHE("ui.settings.beatmap.bg_offset").data(), offsets) ) {
+    if ( ImGui::DragInt2(TR_CACHE("ui.settings.beatmap.bg_offset").data(),
+                         offsets) ) {
         meta.bgxoffset = offsets[0];
         meta.bgyoffset = offsets[1];
-        changed = true;
+        changed        = true;
     }
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.beatmap.preference").data());
     float bpm = (float)meta.preference_bpm;
-    if ( ImGui::DragFloat(TR_CACHE("ui.settings.beatmap.bpm").data(), &bpm, 0.1f, -1.0f, 1000.0f, "%.2f") ) {
+    if ( ImGui::DragFloat(TR_CACHE("ui.settings.beatmap.bpm").data(),
+                          &bpm,
+                          0.1f,
+                          -1.0f,
+                          1000.0f,
+                          "%.2f") ) {
         meta.preference_bpm = (double)bpm;
-        changed = true;
+        changed             = true;
     }
 
-    if ( ImGui::InputInt(TR_CACHE("ui.settings.beatmap.tracks").data(), &meta.track_count) ) {
+    if ( ImGui::InputInt(TR_CACHE("ui.settings.beatmap.tracks").data(),
+                         &meta.track_count) ) {
         changed = true;
     }
 
     ImGui::BeginDisabled();
     double length = meta.map_length;
-    ImGui::InputDouble(TR_CACHE("ui.settings.beatmap.length").data(), &length, 0, 0, "%.3f s");
+    ImGui::InputDouble(
+        TR_CACHE("ui.settings.beatmap.length").data(), &length, 0, 0, "%.3f s");
     ImGui::EndDisabled();
 
     ImGui::SeparatorText(TR_CACHE("ui.settings.beatmap.resource").data());
-    
-    auto audioU8 = meta.main_audio_path.u8string();
-    std::string currentAudioPath(reinterpret_cast<const char*>(audioU8.c_str()), audioU8.size());
+
+    auto        audioU8 = meta.main_audio_path.u8string();
+    std::string currentAudioPath(reinterpret_cast<const char*>(audioU8.c_str()),
+                                 audioU8.size());
     std::string audioPreview = currentAudioPath;
     if ( project && !audioPreview.empty() ) {
         std::filesystem::path p(audioU8);
         if ( p.is_absolute() ) {
             try {
-                audioPreview = std::filesystem::relative(p, project->m_projectRoot).generic_string();
-            } catch (...) {}
+                audioPreview =
+                    std::filesystem::relative(p, project->m_projectRoot)
+                        .generic_string();
+            } catch ( ... ) {
+            }
         }
     }
 
     bool audioExists = false;
     if ( project ) {
         auto absAudio = project->m_projectRoot / meta.main_audio_path;
-        audioExists = std::filesystem::exists(absAudio);
+        audioExists   = std::filesystem::exists(absAudio);
     }
 
     bool audioPushed = false;
     if ( !audioExists && !currentAudioPath.empty() ) {
-        ImGui::PushStyleColor(ImGuiCol_Text, Utils::UIThemeUtils::getWarningColor());
+        ImGui::PushStyleColor(ImGuiCol_Text,
+                              Utils::UIThemeUtils::getWarningColor());
         audioPushed = true;
     }
 
-    if ( ImGui::BeginCombo(TR_CACHE("ui.settings.beatmap.audio").data(), audioPreview.c_str()) ) {
+    if ( ImGui::BeginCombo(TR_CACHE("ui.settings.beatmap.audio").data(),
+                           audioPreview.c_str()) ) {
         if ( audioPushed ) {
             ImGui::PopStyleColor();
             audioPushed = false;
@@ -469,44 +486,51 @@ void SettingsView::drawBeatmapSettings()
                 bool isSelected = (currentAudioPath == res.m_path);
                 if ( ImGui::Selectable(res.m_id.c_str(), isSelected) ) {
                     meta.main_audio_path = res.m_path;
-                    changed = true;
+                    changed              = true;
                 }
                 if ( isSelected ) ImGui::SetItemDefaultFocus();
                 ImGui::SameLine();
                 ImGui::TextDisabled("(%s)", res.m_path.c_str());
             }
         } else {
-            ImGui::TextDisabled("%s", TR_CACHE("ui.settings.beatmap.no_beatmap").data());
+            ImGui::TextDisabled(
+                "%s", TR_CACHE("ui.settings.beatmap.no_beatmap").data());
         }
         ImGui::EndCombo();
     }
     if ( audioPushed ) ImGui::PopStyleColor();
 
-    auto coverU8 = meta.main_cover_path.u8string();
-    std::string currentCoverPath(reinterpret_cast<const char*>(coverU8.c_str()), coverU8.size());
+    auto        coverU8 = meta.main_cover_path.u8string();
+    std::string currentCoverPath(reinterpret_cast<const char*>(coverU8.c_str()),
+                                 coverU8.size());
     std::string coverPreview = currentCoverPath;
     if ( project && !coverPreview.empty() ) {
         std::filesystem::path p(coverU8);
         if ( p.is_absolute() ) {
             try {
-                coverPreview = std::filesystem::relative(p, project->m_projectRoot).generic_string();
-            } catch (...) {}
+                coverPreview =
+                    std::filesystem::relative(p, project->m_projectRoot)
+                        .generic_string();
+            } catch ( ... ) {
+            }
         }
     }
 
     bool coverExists = false;
     if ( project ) {
         auto absCover = project->m_projectRoot / meta.main_cover_path;
-        coverExists = std::filesystem::exists(absCover);
+        coverExists   = std::filesystem::exists(absCover);
     }
 
     bool coverPushed = false;
     if ( !coverExists && !currentCoverPath.empty() ) {
-        ImGui::PushStyleColor(ImGuiCol_Text, Utils::UIThemeUtils::getWarningColor());
+        ImGui::PushStyleColor(ImGuiCol_Text,
+                              Utils::UIThemeUtils::getWarningColor());
         coverPushed = true;
     }
 
-    if ( ImGui::BeginCombo(TR_CACHE("ui.settings.beatmap.cover").data(), coverPreview.c_str()) ) {
+    if ( ImGui::BeginCombo(TR_CACHE("ui.settings.beatmap.cover").data(),
+                           coverPreview.c_str()) ) {
         if ( coverPushed ) {
             ImGui::PopStyleColor();
             coverPushed = false;
@@ -516,28 +540,35 @@ void SettingsView::drawBeatmapSettings()
             // 扫描项目中的图片文件
             std::vector<std::string> images;
             try {
-                for ( const auto& entry : std::filesystem::recursive_directory_iterator(project->m_projectRoot) ) {
+                for ( const auto& entry :
+                      std::filesystem::recursive_directory_iterator(
+                          project->m_projectRoot) ) {
                     if ( entry.is_regular_file() ) {
                         auto ext = entry.path().extension().string();
-                        std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-                        if ( ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".mp4" || ext == ".avi" ) {
-                            auto rel = std::filesystem::relative(entry.path(), project->m_projectRoot);
+                        std::transform(
+                            ext.begin(), ext.end(), ext.begin(), ::tolower);
+                        if ( ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
+                             ext == ".bmp" || ext == ".mp4" || ext == ".avi" ) {
+                            auto rel = std::filesystem::relative(
+                                entry.path(), project->m_projectRoot);
                             images.push_back(rel.generic_string());
                         }
                     }
                 }
-            } catch (...) {}
+            } catch ( ... ) {
+            }
 
             for ( const auto& imgPath : images ) {
                 bool isSelected = (currentCoverPath == imgPath);
                 if ( ImGui::Selectable(imgPath.c_str(), isSelected) ) {
                     meta.main_cover_path = imgPath;
-                    changed = true;
+                    changed              = true;
                 }
                 if ( isSelected ) ImGui::SetItemDefaultFocus();
             }
         } else {
-            ImGui::TextDisabled("%s", TR_CACHE("ui.settings.beatmap.no_beatmap").data());
+            ImGui::TextDisabled(
+                "%s", TR_CACHE("ui.settings.beatmap.no_beatmap").data());
         }
         ImGui::EndCombo();
     }

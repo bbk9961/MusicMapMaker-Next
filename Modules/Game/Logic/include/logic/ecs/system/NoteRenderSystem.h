@@ -158,9 +158,9 @@ private:
                             HoverPart glowPart = HoverPart::None);
 
     static void renderPolyline(
-        entt::registry& registry, Batcher& batcher, const NoteComponent& note,
+        const ScrollCache* cache, Batcher& batcher, const NoteComponent& note,
         const Config::EditorConfig& config, RenderSnapshot* snapshot,
-        double currentTime, float judgmentLineY, float leftX, float rightX,
+        double currentAbsY, float judgmentLineY, float leftX, float rightX,
         float topY, float bottomY, float singleTrackW, float renderScaleY,
         glm::vec4 colorHold, glm::vec4 colorNode, glm::vec4 colorArrow,
         entt::entity entity = entt::null, bool generateHitboxes = false,

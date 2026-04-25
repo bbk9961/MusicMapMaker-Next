@@ -99,7 +99,7 @@ void GrabTool::handleUpdateDrag(SessionContext& ctx, const CmdUpdateDrag& cmd)
                                                         ctx.timelineRegistry,
                                                         ctx.visualTime,
                                                         ctx.cameras);
-                if ( snap.isSnapped ) {
+                if ( snap.isSnapped && !cmd.isCtrlDown ) {
                     targetTime = snap.snappedTime;
                 }
 

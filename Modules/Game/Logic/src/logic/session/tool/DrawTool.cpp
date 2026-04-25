@@ -159,7 +159,8 @@ void DrawTool::handleUpdateBrush(SessionContext& ctx, const CmdUpdateBrush& cmd)
                                                  ctx.visualTime,
                                                  ctx.cameras);
 
-    double currentPosTime = snap.isSnapped ? snap.snappedTime : rawTime;
+    double currentPosTime =
+        (snap.isSnapped && !cmd.isCtrlDown) ? snap.snappedTime : rawTime;
 
     float leftX =
         itCamera->second.viewportWidth * ctx.lastConfig.visual.trackLayout.left;
@@ -178,38 +179,152 @@ void DrawTool::handleUpdateBrush(SessionContext& ctx, const CmdUpdateBrush& cmd)
 
     if ( cmd.isShiftDown ) {
         if ( ctx.brushState.type == ::MMM::NoteType::NOTE &&
+             ctx.brushState.polylineSegments.empty() &&
              ctx.brushState.duration == 0.0 && ctx.brushState.dtrack == 0 ) {
             // 刚按下 Shift 或处于 Note 状态，锁定初始状态
             if ( ctx.brushState.holdStartTime == 0.0 ) {
-                ctx.brushState.holdStartTime = currentPosTime;
-                ctx.brushState.startTrack    = currentTrack;
-                ctx.brushState.startMouseY   = cmd.mouseY;
+                ctx.brushState.holdStartTime      = currentPosTime;
+                ctx.brushState.startTrack         = currentTrack;
+                ctx.brushState.startMouseY        = cmd.mouseY;
+                ctx.brushState.segmentStartMouseY = cmd.mouseY;
             }
         }
 
         float threshold = ctx.lastConfig.visual.snapThreshold;
-        float diffY     = std::abs(cmd.mouseY - ctx.brushState.startMouseY);
 
-        if ( diffY <= threshold ) {
-            int dtrack = currentTrack - ctx.brushState.startTrack;
-            if ( dtrack != 0 && (ctx.brushState.startTrack + dtrack >= 0) &&
-                 (ctx.brushState.startTrack + dtrack < ctx.trackCount) ) {
-                ctx.brushState.type   = ::MMM::NoteType::FLICK;
-                ctx.brushState.dtrack = dtrack;
+        // --- Polyline 状态机 ---
+        if ( ctx.brushState.polylineSegments.empty() ) {
+            // [Phase 1] 决定初始物件 (HOLD or FLICK)
+            float diffY = std::abs(cmd.mouseY - ctx.brushState.startMouseY);
+            if ( diffY <= threshold ) {
+                int dtrack = currentTrack - ctx.brushState.startTrack;
+                if ( dtrack != 0 && (ctx.brushState.startTrack + dtrack >= 0) &&
+                     (ctx.brushState.startTrack + dtrack < ctx.trackCount) ) {
+                    ctx.brushState.type   = ::MMM::NoteType::FLICK;
+                    ctx.brushState.dtrack = dtrack;
+                } else {
+                    ctx.brushState.type   = ::MMM::NoteType::NOTE;
+                    ctx.brushState.dtrack = 0;
+                }
+                ctx.brushState.duration = 0.0;
             } else {
-                ctx.brushState.type   = ::MMM::NoteType::NOTE;
+                ctx.brushState.type     = ::MMM::NoteType::HOLD;
+                ctx.brushState.duration = std::max(
+                    0.0, currentPosTime - ctx.brushState.holdStartTime);
                 ctx.brushState.dtrack = 0;
             }
-            ctx.brushState.duration = 0.0;
+
+            // 检查是否需要转化为 Polyline (状态转换点)
+            if ( ctx.brushState.type == ::MMM::NoteType::HOLD &&
+                 currentTrack != ctx.brushState.startTrack ) {
+                // HOLD 偏离轨道 -> 开始 Polyline: [HOLD, FLICK]
+                NoteComponent::SubNote s1{ ::MMM::NoteType::HOLD,
+                                           ctx.brushState.holdStartTime,
+                                           ctx.brushState.duration,
+                                           ctx.brushState.startTrack,
+                                           0 };
+                NoteComponent::SubNote s2{ ::MMM::NoteType::FLICK,
+                                           s1.timestamp + s1.duration,
+                                           0.0,
+                                           s1.trackIndex,
+                                           currentTrack - s1.trackIndex };
+                ctx.brushState.polylineSegments.push_back(s1);
+                ctx.brushState.polylineSegments.push_back(s2);
+                ctx.brushState.segmentStartMouseY = cmd.mouseY;
+                ctx.brushState.type               = ::MMM::NoteType::POLYLINE;
+            } else if ( ctx.brushState.type == ::MMM::NoteType::FLICK &&
+                        diffY > threshold ) {
+                // FLICK 垂直位移 -> 开始 Polyline: [FLICK, HOLD]
+                NoteComponent::SubNote s1{ ::MMM::NoteType::FLICK,
+                                           ctx.brushState.holdStartTime,
+                                           0.0,
+                                           ctx.brushState.startTrack,
+                                           ctx.brushState.dtrack };
+                NoteComponent::SubNote s2{
+                    ::MMM::NoteType::HOLD,
+                    s1.timestamp,
+                    std::max(0.0, currentPosTime - s1.timestamp),
+                    s1.trackIndex + s1.dtrack,
+                    0
+                };
+                ctx.brushState.polylineSegments.push_back(s1);
+                ctx.brushState.polylineSegments.push_back(s2);
+                ctx.brushState.segmentStartMouseY = cmd.mouseY;
+                ctx.brushState.type               = ::MMM::NoteType::POLYLINE;
+            }
+
+            if ( ctx.brushState.type != ::MMM::NoteType::POLYLINE ) {
+                ctx.brushState.track = ctx.brushState.startTrack;
+                ctx.brushState.time  = ctx.brushState.holdStartTime;
+            }
         } else {
-            // 延续之前的 Hold 逻辑
-            ctx.brushState.type = ::MMM::NoteType::HOLD;
-            ctx.brushState.duration =
-                std::max(0.0, currentPosTime - ctx.brushState.holdStartTime);
-            ctx.brushState.dtrack = 0;
+            // [Phase 2] Polyline 动态增长与退化
+            auto& last = ctx.brushState.polylineSegments.back();
+            if ( last.type == ::MMM::NoteType::HOLD ) {
+                if ( currentPosTime <= last.timestamp ) {
+                    // 回退该 Hold 段
+                    ctx.brushState.polylineSegments.pop_back();
+                    if ( ctx.brushState.polylineSegments.size() == 1 ) {
+                        auto s = ctx.brushState.polylineSegments[0];
+                        ctx.brushState.type          = s.type;
+                        ctx.brushState.holdStartTime = s.timestamp;
+                        ctx.brushState.startTrack    = s.trackIndex;
+                        ctx.brushState.duration      = s.duration;
+                        ctx.brushState.dtrack        = s.dtrack;
+                        ctx.brushState.polylineSegments.clear();
+                    }
+                    return;
+                }
+
+                last.duration = std::max(0.0, currentPosTime - last.timestamp);
+                if ( currentTrack != last.trackIndex ) {
+                    // 开启新的 Flick
+                    ctx.brushState.polylineSegments.push_back(
+                        { ::MMM::NoteType::FLICK,
+                          last.timestamp + last.duration,
+                          0.0,
+                          last.trackIndex,
+                          currentTrack - last.trackIndex });
+                    ctx.brushState.segmentStartMouseY = cmd.mouseY;
+                }
+            } else if ( last.type == ::MMM::NoteType::FLICK ) {
+                int targetTrack = last.trackIndex + last.dtrack;
+                if ( currentTrack != targetTrack ) {
+                    // 正在横移：更新 dtrack，并重置垂直参考点以防止意外触发
+                    // Hold
+                    last.dtrack = currentTrack - last.trackIndex;
+                    ctx.brushState.segmentStartMouseY = cmd.mouseY;
+
+                    // 退化检查: 如果 Flick 回到了起始轨道
+                    if ( last.dtrack == 0 ) {
+                        ctx.brushState.polylineSegments.pop_back();
+                        if ( ctx.brushState.polylineSegments.size() == 1 ) {
+                            auto s = ctx.brushState.polylineSegments[0];
+                            ctx.brushState.type          = s.type;
+                            ctx.brushState.holdStartTime = s.timestamp;
+                            ctx.brushState.startTrack    = s.trackIndex;
+                            ctx.brushState.duration      = s.duration;
+                            ctx.brushState.dtrack        = s.dtrack;
+                            ctx.brushState.polylineSegments.clear();
+                        }
+                    }
+                } else {
+                    // 轨道稳定：检查垂直移动
+                    float diffYLocal = std::abs(
+                        cmd.mouseY - ctx.brushState.segmentStartMouseY);
+                    if ( diffYLocal > threshold ) {
+                        // 开启新的 Hold
+                        ctx.brushState.polylineSegments.push_back(
+                            { ::MMM::NoteType::HOLD,
+                              last.timestamp,
+                              0.0,
+                              last.trackIndex + last.dtrack,
+                              0 });
+                        ctx.brushState.segmentStartMouseY = cmd.mouseY;
+                    }
+                }
+            }
         }
-        ctx.brushState.track = ctx.brushState.startTrack;
-        ctx.brushState.time  = ctx.brushState.holdStartTime;
     } else {
         // 切换回 Note，重置锁定状态
         ctx.brushState.type          = ::MMM::NoteType::NOTE;
@@ -218,6 +333,7 @@ void DrawTool::handleUpdateBrush(SessionContext& ctx, const CmdUpdateBrush& cmd)
         ctx.brushState.duration      = 0.0;
         ctx.brushState.dtrack        = 0;
         ctx.brushState.holdStartTime = 0.0;
+        ctx.brushState.polylineSegments.clear();
     }
 }
 
@@ -233,11 +349,24 @@ void DrawTool::handleEndBrush(SessionContext& ctx, const CmdEndBrush& cmd)
     note.m_dtrack     = ctx.brushState.dtrack;
     note.m_type       = ctx.brushState.type;
 
+    if ( note.m_type == ::MMM::NoteType::POLYLINE ) {
+        note.m_subNotes = ctx.brushState.polylineSegments;
+        if ( !note.m_subNotes.empty() ) {
+            note.m_timestamp  = note.m_subNotes.front().timestamp;
+            note.m_trackIndex = note.m_subNotes.front().trackIndex;
+        }
+    }
+
     auto action = std::make_unique<NoteAction>(
         NoteAction::Type::Create, entt::null, std::nullopt, note);
     ctx.actionStack.pushAndExecute(std::move(action), ctx);
 
-    ctx.brushState.isActive = false;
+    // 重置状态
+    ctx.brushState.polylineSegments.clear();
+    ctx.brushState.holdStartTime = 0.0;
+    ctx.brushState.duration      = 0.0;
+    ctx.brushState.dtrack        = 0;
+    ctx.brushState.isActive      = false;
 }
 
 void DrawTool::handleStartErase(SessionContext& ctx, const CmdStartErase& cmd)

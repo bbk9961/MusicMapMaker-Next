@@ -371,12 +371,12 @@ void NoteRenderSystem::renderNoteBaseLayer(
                 curColorHold,
                 curColorArrow);
         else if ( note.m_type == ::MMM::NoteType::POLYLINE )
-            NoteRenderSystem::renderPolyline(registry,
+            NoteRenderSystem::renderPolyline(ctx.cache,
                                              batcher,
                                              note,
                                              config,
                                              snapshot,
-                                             (double)currentTime,
+                                             ctx.currentAbsY,
                                              judgmentLineY,
                                              leftX,
                                              rightX,
@@ -474,12 +474,12 @@ void NoteRenderSystem::renderNoteGlowLayer(
                 ctx.colorArrow,
                 glowPart);
         else if ( note.m_type == ::MMM::NoteType::POLYLINE )
-            NoteRenderSystem::renderPolyline(registry,
+            NoteRenderSystem::renderPolyline(ctx.cache,
                                              glowBatcher,
                                              note,
                                              config,
                                              snapshot,
-                                             (double)currentTime,
+                                             ctx.currentAbsY,
                                              judgmentLineY,
                                              leftX,
                                              rightX,
@@ -564,6 +564,34 @@ void NoteRenderSystem::renderBrushPreview(
             ctx.noteH,
             singleTrackW,
             color,
+            ctx.colorArrow * glm::vec4(1, 1, 1, 0.5f));
+    } else if ( brush.type == ::MMM::NoteType::POLYLINE ) {
+        tempNote.m_subNotes = brush.polylineSegments;
+        if ( !tempNote.m_subNotes.empty() ) {
+            tempNote.m_timestamp  = tempNote.m_subNotes.front().timestamp;
+            tempNote.m_trackIndex = tempNote.m_subNotes.front().trackIndex;
+        }
+
+        float rightX  = leftX + snapshot->trackCount * singleTrackW;
+        float topY    = 0.0f;
+        float bottomY = judgmentLineY * 2.0f;  // 简单包围盒
+
+        NoteRenderSystem::renderPolyline(
+            ctx.cache,
+            batcher,
+            tempNote,
+            config,
+            snapshot,
+            ctx.currentAbsY,
+            judgmentLineY,
+            leftX,
+            rightX,
+            topY,
+            bottomY,
+            singleTrackW,
+            renderScaleY,
+            ctx.colorHold * glm::vec4(1, 1, 1, 0.5f),
+            ctx.colorNode * glm::vec4(1, 1, 1, 0.5f),
             ctx.colorArrow * glm::vec4(1, 1, 1, 0.5f));
     } else {
         // Fallback debug drawing

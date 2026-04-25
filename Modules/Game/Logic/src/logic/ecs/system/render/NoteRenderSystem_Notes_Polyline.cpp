@@ -36,21 +36,19 @@ static float getTexAspect(RenderSnapshot* snapshot, TextureID id)
 }
 
 void NoteRenderSystem::renderPolyline(
-    entt::registry& registry, Batcher& batcher, const NoteComponent& note,
+    const ScrollCache* cache, Batcher& batcher, const NoteComponent& note,
     const Config::EditorConfig& config, RenderSnapshot* snapshot,
-    double currentTime, float judgmentLineY, float leftX, float rightX,
+    double currentAbsY, float judgmentLineY, float leftX, float rightX,
     float topY, float bottomY, float singleTrackW, float renderScaleY,
     glm::vec4 colorHold, glm::vec4 colorNode, glm::vec4 colorArrow,
     entt::entity entity, bool generateHitboxes, HoverPart glowPart,
     int glowSubIndex)
 {
-    const auto** cachePtr = registry.ctx().find<const ScrollCache*>();
-    if ( !cachePtr || !(*cachePtr) ) return;
-    const ScrollCache* cache       = *cachePtr;
-    double             currentAbsY = cache->getAbsY(currentTime);
+    if ( !cache ) return;
 
     float noteW = singleTrackW * config.visual.noteScaleX;
-    float noteH = (singleTrackW / getTexAspect(snapshot, TextureID::Note)) * config.visual.noteScaleY;
+    float noteH = (singleTrackW / getTexAspect(snapshot, TextureID::Note)) *
+                  config.visual.noteScaleY;
 
     // 1. 绘制主体连接段
     drawPolylineBody(batcher,

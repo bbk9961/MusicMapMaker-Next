@@ -70,6 +70,7 @@ struct CmdSelectEntity {
 struct CmdStartDrag {
     entt::entity entity;
     std::string  cameraId;
+    bool         isCtrlDown{ false };
 };
 
 /**
@@ -79,6 +80,7 @@ struct CmdUpdateDrag {
     std::string cameraId;
     float       mouseX;
     float       mouseY;
+    bool        isCtrlDown{ false };
 };
 
 /**
@@ -140,6 +142,7 @@ struct CmdStartBrush {
     float       mouseX;       ///< 鼠标相对于视口的 X 坐标
     float       mouseY;       ///< 鼠标相对于视口的 Y 坐标
     bool        isShiftDown;  ///< 当前 Shift 键是否按下 (用于创建 Hold)
+    bool        isCtrlDown;   ///< 当前 Ctrl 键是否按下 (用于禁用磁吸)
 };
 
 /**
@@ -150,6 +153,7 @@ struct CmdUpdateBrush {
     float       mouseX;       ///< 鼠标相对于视口的 X 坐标
     float       mouseY;       ///< 鼠标相对于视口的 Y 坐标
     bool        isShiftDown;  ///< 当前 Shift 键是否按下 (用于创建 Hold)
+    bool        isCtrlDown;   ///< 当前 Ctrl 键是否按下 (用于禁用磁吸)
 };
 
 /**

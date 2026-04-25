@@ -337,6 +337,8 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
             finalMainHeight = itMainFinal->second.viewportHeight;
         }
 
+        snapshot->trackCount = m_ctx->trackCount;
+
         // --- 注入画笔预览状态 ---
         if ( m_ctx->brushState.isActive ) {
             snapshot->brush.isActive = true;
@@ -345,6 +347,8 @@ void BeatmapSession::updateECSAndRender(const Config::EditorConfig& config)
             snapshot->brush.track    = m_ctx->brushState.track;
             snapshot->brush.dtrack   = m_ctx->brushState.dtrack;
             snapshot->brush.type     = m_ctx->brushState.type;
+            snapshot->brush.polylineSegments =
+                m_ctx->brushState.polylineSegments;
         }
 
         // --- 注入橡皮擦预览状态 ---

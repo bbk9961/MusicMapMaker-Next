@@ -2,6 +2,7 @@
 
 #include "common/LogicCommands.h"
 #include "graphic/imguivk/mesh/VKBasicVertex.h"
+#include "logic/ecs/components/NoteComponent.h"
 #include "logic/ecs/system/ScrollCache.h"
 #include "ui/brush/BrushDrawCmd.h"
 #include <concurrentqueue.h>
@@ -137,6 +138,8 @@ struct RenderSnapshot {
     double previewHoverTime{ 0.0f };
     bool   isPreviewDragging{ false };
 
+    int32_t trackCount{ 4 };  ///< 谱面轨道数量
+
     // 笔刷预览状态
     struct BrushSnapshot {
         bool            isActive{ false };              ///< 是否激活
@@ -145,6 +148,9 @@ struct RenderSnapshot {
         int             track{ 0 };                     ///< 轨道
         int             dtrack{ 0 };                    ///< Flick 偏移轨道
         ::MMM::NoteType type{ ::MMM::NoteType::NOTE };  ///< 物件类型
+
+        // Polyline 子物件预览
+        std::vector<NoteComponent::SubNote> polylineSegments;
     } brush;
 
     // 橡皮擦预览状态

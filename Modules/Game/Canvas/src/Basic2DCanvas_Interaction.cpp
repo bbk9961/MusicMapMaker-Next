@@ -307,7 +307,9 @@ void Basic2DCanvasInteraction::handleInteractions(
                     // 抓取工具不再负责选中，只负责发起拖拽
                     Event::EventBus::instance().publish(
                         Event::LogicCommandEvent(
-                            Logic::CmdStartDrag{ hoveredEntity, m_cameraId }));
+                            Logic::CmdStartDrag{ hoveredEntity,
+                                                 m_cameraId,
+                                                 ImGui::GetIO().KeyCtrl }));
                 } else {
                     // 抓取工具点击空白处不再清除选中（只有框选工具可以管理选中）
                 }
@@ -317,7 +319,8 @@ void Basic2DCanvasInteraction::handleInteractions(
                     Logic::CmdStartBrush{ m_cameraId,
                                           localMousePos.x,
                                           localMousePos.y,
-                                          ImGui::GetIO().KeyShift }));
+                                          ImGui::GetIO().KeyShift,
+                                          ImGui::GetIO().KeyCtrl }));
             }
         }
     }
@@ -331,11 +334,14 @@ void Basic2DCanvasInteraction::handleInteractions(
                 Logic::CmdUpdateBrush{ m_cameraId,
                                        localMousePos.x,
                                        localMousePos.y,
-                                       ImGui::GetIO().KeyShift }));
+                                       ImGui::GetIO().KeyShift,
+                                       ImGui::GetIO().KeyCtrl }));
         } else {
-            Event::EventBus::instance().publish(
-                Event::LogicCommandEvent(Logic::CmdUpdateDrag{
-                    m_cameraId, localMousePos.x, localMousePos.y }));
+            Event::EventBus::instance().publish(Event::LogicCommandEvent(
+                Logic::CmdUpdateDrag{ m_cameraId,
+                                      localMousePos.x,
+                                      localMousePos.y,
+                                      ImGui::GetIO().KeyCtrl }));
         }
     }
 
