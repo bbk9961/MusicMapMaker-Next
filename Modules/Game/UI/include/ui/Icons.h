@@ -27,6 +27,7 @@ constexpr const char* ICON_MMM_SEARCH = "\xef\x80\x82";  ///< \uf002 search
 constexpr const char* ICON_MMM_SAVE   = "\xef\x83\x87";  ///< \uf0c7 floppy-disk
 constexpr const char* ICON_MMM_PACK   = "\xef\x86\x87";  ///< \uf187 box-archive
 constexpr const char* ICON_MMM_BOOK   = "\xef\x80\xad";  ///< \uf02d book
+constexpr const char* ICON_MMM_PLUS   = "\xef\x81\xa7";  ///< \uf067 plus
 constexpr const char* ICON_MMM_FILE_ADD =
     "\xef\x8c\x99";  ///< \uf319 file-circle-plus
 

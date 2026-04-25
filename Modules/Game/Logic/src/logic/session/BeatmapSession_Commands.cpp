@@ -1,3 +1,4 @@
+#include "log/colorful-log.h"
 #include "logic/BeatmapSession.h"
 #include "logic/ecs/system/ScrollCache.h"
 #include "logic/session/ActionController.h"

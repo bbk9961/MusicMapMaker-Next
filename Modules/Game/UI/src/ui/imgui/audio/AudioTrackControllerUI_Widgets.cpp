@@ -33,10 +33,12 @@ void AudioTrackControllerUI::renderVolumeSection(float& volume, bool& muted,
         pushedTextColor = true;
     }
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
     if ( ImGui::Button(icon, ImVec2(30, 0)) ) {
         muted   = !muted;
         changed = true;
     }
+    ImGui::PopStyleVar();    // Pop ImGuiStyleVar_FramePadding
     ImGui::PopStyleColor();  // Pop ImGuiCol_Button
     if ( pushedTextColor ) {
         ImGui::PopStyleColor();  // Pop ImGuiCol_Text

@@ -60,6 +60,9 @@ EditorEngine::EditorEngine()
             if ( std::holds_alternative<CmdUpdateEditorConfig>(e.command) ) {
                 setEditorConfig(
                     std::get<CmdUpdateEditorConfig>(e.command).config);
+            } else if ( std::holds_alternative<CmdCreateBeatmap>(e.command) ) {
+                // 将创建谱面指令拦截，交由 EditorEngine 引擎级别处理
+                handleCreateBeatmap(std::get<CmdCreateBeatmap>(e.command));
             } else {
                 pushCommand(MMM::Logic::LogicCommand(e.command));
             }
@@ -321,8 +324,23 @@ void EditorEngine::stop()
     }
 }
 
+void EditorEngine::handleCreateBeatmap(const CmdCreateBeatmap& cmd)
+{
+    // FIXME: 后续在这里对接完整的“新建谱面向导”逻辑。
+    // 包括：填写谱面名称、选择音频、确定轨道数等信息。
+    // 目前仅梳理出入口，不再直接粗暴地生成一个空白谱面并切过去。
+
+    XINFO("Triggered Create Beatmap flow. Wizard to be implemented.");
+}
+
 void EditorEngine::pushCommand(LogicCommand&& cmd)
 {
+    // 拦截创建谱面等引擎级别的指令
+    if ( std::holds_alternative<CmdCreateBeatmap>(cmd) ) {
+        handleCreateBeatmap(std::get<CmdCreateBeatmap>(cmd));
+        return;
+    }
+
     // 拦截视口更新指令，缓存最新的尺寸
     if ( std::holds_alternative<CmdUpdateViewport>(cmd) ) {
         const auto&     v = std::get<CmdUpdateViewport>(cmd);

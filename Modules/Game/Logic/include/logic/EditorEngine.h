@@ -60,6 +60,9 @@ public:
      */
     void pushCommand(LogicCommand&& cmd);
 
+    /// @brief 处理新建谱面指令 (向导/项目管理)
+    void handleCreateBeatmap(const CmdCreateBeatmap& cmd);
+
 
     /**
      * @brief 获取指定摄像机/画布的同步缓冲区

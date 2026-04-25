@@ -3,9 +3,9 @@
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
 #include "logic/EditorEngine.h"
+#include "ui/Icons.h"
 #include "ui/UIManager.h"
 #include "ui/utils/UIThemeUtils.h"
-#include "ui/Icons.h"
 #include <imgui.h>
 #include <imgui_internal.h>
 
@@ -53,6 +53,7 @@ void ToolbarView::update(UIManager* sourceManager)
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
 
     auto pushBtnStyle = [&](bool active) {
         if ( active ) {
@@ -214,8 +215,8 @@ void ToolbarView::update(UIManager* sourceManager)
 
     ImGui::End();
 
-    // 我们必须在这个位置把上面为 Begin() 推入的5个样式弹出来
-    ImGui::PopStyleVar(5);
+    // 我们必须在这个位置把上面为 Begin() 推入的6个样式弹出来
+    ImGui::PopStyleVar(6);
 
     // --- 绘制分拍数量设置悬浮窗 ---
     if ( m_showDivisorPopup ) {

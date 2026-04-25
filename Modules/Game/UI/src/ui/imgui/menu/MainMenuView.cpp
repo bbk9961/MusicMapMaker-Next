@@ -229,7 +229,9 @@ void MainMenuView::update()
     if ( ImGui::BeginMenu(TR("ui.file")) ) {
         if ( MenuItemWithFontIcon(
                  ICON_MMM_BOOK, TR("ui.file.new_pro"), "Ctrl+N") ) {}
-        if ( MenuItemWithFontIcon(ICON_MMM_FILE, TR("ui.file.new_map")) ) {}
+        if ( MenuItemWithFontIcon(ICON_MMM_FILE, TR("ui.file.new_map")) ) {
+            Logic::EditorEngine::instance().pushCommand(Logic::CmdCreateBeatmap{});
+        }
         ImGui::Separator();
 
         if ( MenuItemWithFontIcon(

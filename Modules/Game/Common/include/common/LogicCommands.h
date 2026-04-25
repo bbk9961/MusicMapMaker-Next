@@ -253,10 +253,17 @@ struct CmdCreateTimelineEvent {
 };
 
 /**
+ * @brief 新建谱面指令
+ */
+struct CmdCreateBeatmap {
+};
+
+/**
  * @brief 所有可能的逻辑指令变体
  */
 using LogicCommand = std::variant<
     CmdUpdateEditorConfig, CmdUpdateViewport, CmdSetPlayState, CmdLoadBeatmap,
+    CmdCreateBeatmap,
     CmdSetHoveredEntity, CmdSelectEntity, CmdStartDrag, CmdUpdateDrag,
     CmdEndDrag, CmdUpdateTrackCount, CmdSeek, CmdSetPlaybackSpeed,
     CmdChangeTool, CmdSetMousePosition, CmdUndo, CmdRedo, CmdCopy, CmdPaste,

@@ -5,6 +5,7 @@
 #include "imgui_internal.h"
 #include "logic/EditorEngine.h"
 #include "mmm/beatmap/BeatMap.h"
+#include "ui/Icons.h"
 #include "ui/layout/box/CLayBox.h"
 
 namespace MMM::UI
@@ -91,6 +92,35 @@ void BeatMapManagerView::onUpdate(LayoutContext& layoutContext,
                 ImGui::Unindent();
             });
     }
+
+    // 新建谱面按钮
+    listVBox.addElement(
+        "Beatmap_CreateNew",
+        Sizing::Grow(),
+        Sizing::Fixed(28),
+        [&engine](Clay_BoundingBox r, bool isHovered) {
+            ImGui::Indent();
+            ImGui::PushStyleColor(
+                ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+            ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                  ImVec4(1, 1, 1, 0.1f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(1, 1, 1, 0.2f));
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
+
+            if ( ImGui::Button(
+                     ICON_MMM_PLUS,
+                     ImVec2(r.width - ImGui::GetStyle().IndentSpacing, 28)) ) {
+                engine.pushCommand(Logic::CmdCreateBeatmap{});
+            }
+
+            ImGui::PopStyleVar();
+            ImGui::PopStyleColor(4);
+            if ( ImGui::IsItemHovered() ) {
+                ImGui::SetTooltip("%s", TR_CACHE("ui.file.new_map").data());
+            }
+            ImGui::Unindent();
+        });
 
     rootVBox.setPadding(12, 12, 12, 12)
         .setSpacing(8)
