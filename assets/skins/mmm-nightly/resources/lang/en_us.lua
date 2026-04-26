@@ -80,6 +80,8 @@ return {
 	["ui.settings.visual.preview_margin_top"] = "Margin Top",
 	["ui.settings.visual.preview_margin_right"] = "Margin Right",
 	["ui.settings.visual.preview_margin_bottom"] = "Margin Bottom",
+	["ui.settings.visual.preview_draw_beat_lines"] = "Draw Beat Lines",
+	["ui.settings.visual.preview_draw_timing_lines"] = "Draw Timing Lines",
 	["ui.settings.visual.timeline_zoom"] = "Timeline Zoom",
 	["ui.settings.visual.linear_scroll"] = "Linear Scroll Mapping",
 	["ui.settings.visual.offset"] = "Visual Offset",

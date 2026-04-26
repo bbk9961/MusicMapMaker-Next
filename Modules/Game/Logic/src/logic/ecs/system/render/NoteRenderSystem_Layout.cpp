@@ -50,9 +50,6 @@ void NoteRenderSystem::renderTrackLayout(
                                        singleTrackW,
                                        trackAreaW,
                                        config);
-
-
-
 }
 
 void NoteRenderSystem::drawTrackBackground(Batcher& batcher, int32_t trackCount,
@@ -285,6 +282,46 @@ void NoteRenderSystem::drawBeatLines(
             }
             stepOffset++;
             t = bpmTime + stepOffset * stepDuration;
+        }
+    }
+}
+
+void NoteRenderSystem::drawTimingLines(Batcher& batcher, float viewportHeight,
+                                       float judgmentLineY,
+                                       const Config::EditorConfig& config,
+                                       double                      currentTime,
+                                       const ScrollCache* cache, float leftX,
+                                       float topY, float bottomY,
+                                       float trackAreaW, float renderScaleY)
+{
+    if ( !cache ) return;
+
+    double currentAbsY = cache->getAbsY(currentTime);
+    double startTime   = cache->getTime(
+        currentAbsY - (viewportHeight - judgmentLineY) / renderScaleY);
+    double endTime = cache->getTime(currentAbsY + judgmentLineY / renderScaleY);
+
+    batcher.setTexture(TextureID::None);
+
+    for ( const auto& seg : cache->getSegments() ) {
+        if ( seg.time < startTime || seg.time > endTime ) continue;
+        if ( seg.effects == 0 ) continue;  // 忽略没有效果的段（通常是第0段）
+
+        float y = judgmentLineY -
+                  static_cast<float>(seg.absY - currentAbsY) * renderScaleY;
+
+        if ( y >= topY && y <= bottomY ) {
+            glm::vec4 color = { 1.0f, 1.0f, 1.0f, 0.5f };
+            if ( (seg.effects & SCROLL_EFFECT_BPM) &&
+                 (seg.effects & SCROLL_EFFECT_SCROLL) ) {
+                color = { 1.0f, 0.5f, 0.0f, 0.8f };
+            } else if ( seg.effects & SCROLL_EFFECT_BPM ) {
+                color = { 1.0f, 0.2f, 0.2f, 0.8f };
+            } else if ( seg.effects & SCROLL_EFFECT_SCROLL ) {
+                color = { 0.2f, 1.0f, 0.2f, 0.8f };
+            }
+
+            batcher.pushQuad(leftX, y + 1.0f, trackAreaW, 2.0f, color);
         }
     }
 }

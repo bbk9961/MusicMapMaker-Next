@@ -221,18 +221,43 @@ void NoteRenderSystem::generateSnapshot(
 
     if ( cameraId != "Timeline" ) {
         // 先绘制拍线，使其在物件下方
-        NoteRenderSystem::drawBeatLines(batcher,
-                                        viewportHeight,
-                                        judgmentLineY,
-                                        config,
-                                        timelineRegistry,
-                                        renderTime,
-                                        cache,
-                                        leftX,
-                                        topY,
-                                        bottomY,
-                                        trackAreaW,
-                                        renderScaleY);
+        bool shouldDrawBeatLines = true;
+        bool shouldDrawTimingLines =
+            false;  // 默认主画布不绘制 Timing 线，或者看需求
+
+        if ( cameraId == "Preview" ) {
+            shouldDrawBeatLines   = config.visual.previewConfig.drawBeatLines;
+            shouldDrawTimingLines = config.visual.previewConfig.drawTimingLines;
+        }
+
+        if ( shouldDrawBeatLines ) {
+            NoteRenderSystem::drawBeatLines(batcher,
+                                            viewportHeight,
+                                            judgmentLineY,
+                                            config,
+                                            timelineRegistry,
+                                            renderTime,
+                                            cache,
+                                            leftX,
+                                            topY,
+                                            bottomY,
+                                            trackAreaW,
+                                            renderScaleY);
+        }
+
+        if ( shouldDrawTimingLines ) {
+            NoteRenderSystem::drawTimingLines(batcher,
+                                              viewportHeight,
+                                              judgmentLineY,
+                                              config,
+                                              renderTime,
+                                              cache,
+                                              leftX,
+                                              topY,
+                                              bottomY,
+                                              trackAreaW,
+                                              renderScaleY);
+        }
 
         NoteRenderSystem::renderNotes(registry,
                                       snapshot,
@@ -278,9 +303,9 @@ void NoteRenderSystem::generateSnapshot(
 
     // 预览区包围盒：用户要求作为静态元素且在最上层
     if ( cameraId == "Preview" ) {
-        auto& skin     = Config::SkinManager::instance();
-        auto  boxCol   = skin.getColor("preview.boundingbox");
-        auto  lineCol  = skin.getColor("preview.judgeline");
+        auto& skin       = Config::SkinManager::instance();
+        auto  boxCol     = skin.getColor("preview.boundingbox");
+        auto  lineCol    = skin.getColor("preview.judgeline");
         bool  isDragging = snapshot->isPreviewDragging;
 
         float mainEffectiveH =
@@ -291,9 +316,9 @@ void NoteRenderSystem::generateSnapshot(
         // 1. [展示中] 始终绘制当前主视窗位置的包围盒 (除非正在拖拽)
         if ( !isDragging ) {
             float boxBottom =
-                judgmentLineY +
-                (config.visual.trackLayout.bottom - config.visual.judgeline_pos) *
-                    mainViewportHeight * renderScaleY;
+                judgmentLineY + (config.visual.trackLayout.bottom -
+                                 config.visual.judgeline_pos) *
+                                    mainViewportHeight * renderScaleY;
 
             batcher.setTexture(TextureID::None);
             batcher.pushQuad(leftX,
@@ -312,9 +337,9 @@ void NoteRenderSystem::generateSnapshot(
         // 2. [悬浮中/拖拽中] 绘制参考包围盒
         if ( snapshot->isPreviewHovered || isDragging ) {
             float hoverBoxBottom =
-                snapshot->previewHoverY +
-                (config.visual.trackLayout.bottom - config.visual.judgeline_pos) *
-                    mainViewportHeight * renderScaleY;
+                snapshot->previewHoverY + (config.visual.trackLayout.bottom -
+                                           config.visual.judgeline_pos) *
+                                              mainViewportHeight * renderScaleY;
 
             auto hoverBoxCol = skin.getColor("preview.hoverbox");
             if ( hoverBoxCol.r == 1.0f && hoverBoxCol.g == 0.0f &&

@@ -62,9 +62,14 @@ struct PreviewAreaConfig {
         NLOHMANN_DEFINE_TYPE_INTRUSIVE(AreaMargin, left, top, right, bottom)
     };
     AreaMargin margin;
+    /// @brief 是否绘制分拍线
+    bool drawBeatLines{ true };
+    /// @brief 是否绘制 Timing 线
+    bool drawTimingLines{ true };
 
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(PreviewAreaConfig, areaRatio,
-                                   edgeScrollSensitivity, margin)
+                                   edgeScrollSensitivity, margin, drawBeatLines,
+                                   drawTimingLines)
 };
 
 /// @brief 视觉与渲染相关的整体配置

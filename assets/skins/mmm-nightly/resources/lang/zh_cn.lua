@@ -83,6 +83,8 @@ return {
 	["ui.settings.visual.preview_margin_top"] = "视口上留白",
 	["ui.settings.visual.preview_margin_right"] = "视口右留白",
 	["ui.settings.visual.preview_margin_bottom"] = "视口下留白",
+	["ui.settings.visual.preview_draw_beat_lines"] = "绘制分拍线",
+	["ui.settings.visual.preview_draw_timing_lines"] = "绘制 Timing 线",
 	["ui.settings.visual.timeline_zoom"] = "时间线缩放",
 	["ui.settings.visual.linear_scroll"] = "线性流速映射",
 	["ui.settings.visual.offset"] = "视觉偏移",

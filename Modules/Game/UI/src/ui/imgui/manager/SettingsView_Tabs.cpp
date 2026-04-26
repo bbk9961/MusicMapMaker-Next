@@ -354,6 +354,12 @@ void SettingsView::drawVisualSettings()
         &visual.previewConfig.margin.bottom,
         0.0f,
         20.0f);
+    changed |= ImGui::Checkbox(
+        TR_CACHE("ui.settings.visual.preview_draw_beat_lines").data(),
+        &visual.previewConfig.drawBeatLines);
+    changed |= ImGui::Checkbox(
+        TR_CACHE("ui.settings.visual.preview_draw_timing_lines").data(),
+        &visual.previewConfig.drawTimingLines);
 
     changed |=
         ImGui::SliderFloat(TR_CACHE("ui.settings.visual.timeline_zoom").data(),

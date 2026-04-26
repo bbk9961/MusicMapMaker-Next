@@ -95,6 +95,13 @@ private:
                               float leftX, float topY, float bottomY,
                               float trackAreaW, float renderScaleY);
 
+    static void drawTimingLines(Batcher& batcher, float viewportHeight,
+                                float                       judgmentLineY,
+                                const Config::EditorConfig& config,
+                                double currentTime, const ScrollCache* cache,
+                                float leftX, float topY, float bottomY,
+                                float trackAreaW, float renderScaleY);
+
     static void renderNotes(entt::registry& registry, RenderSnapshot* snapshot,
                             const std::string& cameraId, double currentTime,
                             float judgmentLineY, int32_t trackCount,
