@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
 #include "graphic/imguivk/VKOffScreenRenderer.h"
@@ -57,11 +58,13 @@ public:
 
 
             // 1. 获取 ImGui 窗口分配给内容的实际大小
-            ImVec2 size = ImGui::GetContentRegionAvail();
+            ImVec2 size     = ImGui::GetContentRegionAvail();
+            float  dpiScale = Config::AppConfig::instance().getWindowContentScale();
             if ( size.x > 0 && size.y > 0 ) {
-                // 仅仅是发送请求，不会立刻改变渲染状态
+                // 核心修复：通知渲染器目标尺寸及其缩放倍率
                 view->setTargetSize(static_cast<uint32_t>(size.x),
-                                    static_cast<uint32_t>(size.y));
+                                    static_cast<uint32_t>(size.y),
+                                    dpiScale);
             }
 
             // 1. 必须清空上一帧的顶点

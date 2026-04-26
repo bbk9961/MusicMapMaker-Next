@@ -74,7 +74,8 @@ void TimelineCanvas::update(UI::UIManager* sourceManager)
 
             if ( size.x > 0 && size.y > 0 ) {
                 setTargetSize(static_cast<uint32_t>(size.x),
-                              static_cast<uint32_t>(size.y));
+                              static_cast<uint32_t>(size.y),
+                              dpiScale);
             }
 
             vk::DescriptorSet texID = getDescriptorSet();

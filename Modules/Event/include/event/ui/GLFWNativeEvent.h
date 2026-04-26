@@ -10,6 +10,8 @@ enum class NativeEventType {
     GLFW_CLOSE_WINDOW,
     GLFW_ICONFY_WINDOW,
     GLFW_TOGGLE_WINDOW_MAXIMIZE,
+    GLFW_WINDOW_RESIZED,
+    GLFW_WINDOW_CONTENT_SCALE_CHANGED,
 };
 
 struct GLFWNativeEvent : public BaseEvent {

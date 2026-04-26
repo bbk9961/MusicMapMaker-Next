@@ -58,6 +58,9 @@ public:
                 std::vector<IGraphicUserHook*> uiManagers);
 
     void triggerRecreate(NativeWindow& window);
+    
+    /// @brief 设置软件光标烟雾寿命覆盖值
+    inline void setCursorSmokeLifeOverride(float life) { m_cursorSmokeLifeOverride = life; }
 
     /**
      * @brief 获取描述符池
@@ -167,6 +170,7 @@ private:
     // 光标管理
     // =========================================================================
     std::unique_ptr<CursorManager> m_cursorManager{ nullptr };
+    float                          m_cursorSmokeLifeOverride{ -1.0f };
 
     void initCursorManager(vk::PhysicalDevice& vkPhysicalDevice,
                            vk::Device&         logicalDevice);

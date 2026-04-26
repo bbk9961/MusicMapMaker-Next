@@ -80,7 +80,7 @@ void VKRenderer::render(NativeWindow&                  window,
     // 更新光标管理器
     if ( m_cursorManager &&
          editorCfg.settings.cursorStyle == Config::CursorStyle::Software ) {
-        m_cursorManager->UpdateAndDraw();
+        m_cursorManager->UpdateAndDraw(m_cursorSmokeLifeOverride);
     }
 
     ImGui::Render();  // 生成imgui绘制顶点数据

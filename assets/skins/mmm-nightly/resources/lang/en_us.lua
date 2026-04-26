@@ -45,6 +45,13 @@ return {
 	["ui.settings.software.sync_factor"] = "Integral Tracking Factor",
 	["ui.settings.software.sync_buffer"] = "WaterTank Buffer",
 	["ui.settings.software.sync_interval"] = "Sync Interval",
+	["ui.settings.software.cursor_params"] = "Internal Cursor Parameters",
+	["ui.settings.software.cursor_size"] = "Cursor Head Size",
+	["ui.settings.software.trail_size"] = "Trail Base Size",
+	["ui.settings.software.trail_life"] = "Trail Life Time",
+	["ui.settings.software.smoke_size"] = "Smoke Initial Size",
+	["ui.settings.software.smoke_life"] = "Smoke Life Time",
+	["ui.settings.software.cursor_bpm_sync"] = "Sync Smoke Life with BPM (1 Beat)",
 
 	["ui.settings.visual"] = "Visual Config",
 	["ui.settings.visual.layout"] = "Layout",

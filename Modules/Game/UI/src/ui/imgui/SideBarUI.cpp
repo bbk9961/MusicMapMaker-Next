@@ -1,4 +1,5 @@
 #include "ui/imgui/SideBarUI.h"
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "event/core/EventBus.h"
 #include "event/ui/UISubViewToggleEvent.h"
@@ -38,7 +39,7 @@ void SideBarUI::update(UIManager* sourceManager)
 {
     Config::SkinManager& skinCfg  = Config::SkinManager::instance();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float                dpiScale = viewport->DpiScale;
+    float                dpiScale = MMM::Config::AppConfig::instance().getWindowContentScale();
 
     float sidebarBaseWidth =
         std::stof(skinCfg.getLayoutConfig("side_bar.width"));

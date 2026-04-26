@@ -96,6 +96,49 @@ void SettingsView::drawSoftwareSettings()
         changed              = true;
     }
 
+    if ( settings.cursorStyle == Config::CursorStyle::Software ) {
+        ImGui::Indent();
+        ImGui::SeparatorText(TR_CACHE("ui.settings.software.cursor_params").data());
+        changed |= ImGui::SliderFloat(
+            TR_CACHE("ui.settings.software.cursor_size").data(),
+            &settings.softwareCursorConfig.cursorSize,
+            4.0f,
+            512.0f,
+            "%.1f px");
+        changed |= ImGui::SliderFloat(
+            TR_CACHE("ui.settings.software.trail_size").data(),
+            &settings.softwareCursorConfig.trailSize,
+            4.0f,
+            512.0f,
+            "%.1f px");
+        changed |= ImGui::SliderFloat(
+            TR_CACHE("ui.settings.software.trail_life").data(),
+            &settings.softwareCursorConfig.trailLifeTime,
+            0.05f,
+            5.0f,
+            "%.2f s");
+        changed |= ImGui::SliderFloat(
+            TR_CACHE("ui.settings.software.smoke_size").data(),
+            &settings.softwareCursorConfig.smokeSize,
+            4.0f,
+            512.0f,
+            "%.1f px");
+
+        changed |= ImGui::Checkbox(
+            TR_CACHE("ui.settings.software.cursor_bpm_sync").data(),
+            &settings.softwareCursorConfig.enableBpmSyncSmokeLife);
+
+        if ( settings.softwareCursorConfig.enableBpmSyncSmokeLife ) ImGui::BeginDisabled();
+        changed |= ImGui::SliderFloat(
+            TR_CACHE("ui.settings.software.smoke_life").data(),
+            &settings.softwareCursorConfig.smokeLifeTime,
+            0.05f,
+            10.0f,
+            "%.2f s");
+        if ( settings.softwareCursorConfig.enableBpmSyncSmokeLife ) ImGui::EndDisabled();
+        ImGui::Unindent();
+    }
+
     // 3. 文件选择器样式
     ImGui::Text("%s", TR_CACHE("ui.settings.software.picker_style").data());
     ImGui::SameLine();

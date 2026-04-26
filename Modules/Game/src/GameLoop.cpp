@@ -12,6 +12,8 @@
 #include "graphic/imguivk/VKContext.h"
 #include "log/colorful-log.h"
 #include "logic/EditorEngine.h"
+#include "logic/session/context/SessionContext.h"
+#include "logic/BeatmapSession.h"
 #include "mmm/beatmap/BeatMap.h"
 #include "ui/UIManager.h"
 #include "ui/imgui/DebugWindowUI.h"
@@ -170,6 +172,41 @@ int GameLoop::start(Graphic::NativeWindow& window)
         while ( !window.shouldClose() ) {
             // 3.1 让操作系统处理窗口事件 (缩放、关闭、鼠标按键等)
             window.pollEvents();
+
+            // 3.1.5 处理光标 BPM 同步逻辑
+            float cursorSmokeLifeOverride = -1.0f;
+            auto& settings = Config::AppConfig::instance().getEditorSettings();
+            if ( settings.cursorStyle == Config::CursorStyle::Software &&
+                 settings.softwareCursorConfig.enableBpmSyncSmokeLife ) {
+                auto& engine = Logic::EditorEngine::instance();
+                if ( auto session = engine.getActiveSession() ) {
+                    auto& ctx = session->getContext();
+                    if ( ctx.currentBeatmap ) {
+                        double time = ctx.currentTime;
+                        double bpm =
+                            ctx.currentBeatmap->m_baseMapMetadata.preference_bpm;
+
+                        // 查找当前时间点的 BPM
+                        for ( const auto& t : ctx.currentBeatmap->m_timings ) {
+                            if ( t.m_timingEffect == MMM::TimingEffect::BPM ) {
+                                if ( t.m_timestamp <= time ) {
+                                    bpm = t.m_bpm;
+                                } else {
+                                    break;
+                                }
+                            }
+                        }
+
+                        if ( bpm > 0 ) {
+                            cursorSmokeLifeOverride =
+                                static_cast<float>(60.0 / bpm);
+                        }
+                    }
+                }
+            }
+            context.getRenderer().setCursorSmokeLifeOverride(
+                cursorSmokeLifeOverride);
+
             // 3.2 执行渲染
             context.getRenderer().render(
                 window,

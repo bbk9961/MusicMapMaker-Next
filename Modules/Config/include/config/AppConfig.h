@@ -52,6 +52,12 @@ public:
     /// @brief 设置设备屏幕刷新率（由图形模块在启动时写入）
     void setDeviceRefreshRate(int rate) { m_deviceRefreshRate = rate; }
 
+    /// @brief 获取窗口缩放比例 (DPI Scale)
+    float getWindowContentScale() const { return m_windowContentScale; }
+
+    /// @brief 设置窗口缩放比例 (DPI Scale)
+    void setWindowContentScale(float scale) { m_windowContentScale = scale; }
+
 private:
     AppConfig();
     ~AppConfig() = default;
@@ -63,7 +69,8 @@ private:
 
     EditorConfig       m_editorConfig;
     mutable std::mutex m_mutex;
-    int                m_deviceRefreshRate{ 60 }; // 默认60Hz
+    int                m_deviceRefreshRate{ 60 };  // 默认60Hz
+    float              m_windowContentScale{ 1.0f };
 };
 
 }  // namespace MMM::Config

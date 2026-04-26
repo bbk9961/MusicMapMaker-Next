@@ -51,7 +51,7 @@ void Basic2DCanvas::update(UI::UIManager* sourceManager)
     }
 
     // 交互统一交给 Interaction 处理
-    m_interaction->update(sourceManager, m_currentSnapshot, m_targetWidth, m_targetHeight);
+    m_interaction->update(sourceManager, m_currentSnapshot, m_logicalWidth, m_logicalHeight);
 }
 
 bool Basic2DCanvas::isDirty() const

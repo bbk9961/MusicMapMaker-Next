@@ -1,3 +1,4 @@
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
 #include "event/core/EventBus.h"
@@ -18,6 +19,7 @@ void MainDockSpaceUI::renderMenuBar(UIManager* sourceManager,
                                     float menuBarHeight, float sidebarWidth,
                                     float toolbarWidth, float dpiScale)
 {
+    dpiScale = MMM::Config::AppConfig::instance().getWindowContentScale();
     Config::SkinManager& skinCfg  = Config::SkinManager::instance();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
 

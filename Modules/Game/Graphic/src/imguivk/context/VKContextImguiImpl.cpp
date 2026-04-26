@@ -20,12 +20,12 @@ static void check_vk_result(VkResult err)
  */
 void VKContext::imguiVulkanInit(GLFWwindow* window_handle)
 {
-    float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(
-        glfwGetPrimaryMonitor());  // Valid on GLFW 3.3+ only
+    float main_scale = Config::AppConfig::instance().getWindowContentScale();
     // Setup Dear ImGui context
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImPlot::CreateContext();
+    ImGuiStyle& style = ImGui::GetStyle();
     ImGuiIO& io = ImGui::GetIO();
     (void)io;
     // Enable Keyboard Controls
@@ -50,22 +50,14 @@ void VKContext::imguiVulkanInit(GLFWwindow* window_handle)
     // ImGui::StyleColorsLight();
 
     // Setup scaling
-    ImGuiStyle& style = ImGui::GetStyle();
     // Bake a fixed style scale. (until we have a solution for
     // dynamic style scaling, changing this requires resetting
     // Style + calling this again)
-    style.ScaleAllSizes(main_scale);
-    // Set initial font scale. (using
-    // io.ConfigDpiScaleFonts=true makes this unnecessary. We
-    // leave both here for documentation purpose)
-    style.FontScaleDpi = main_scale;
-    io.ConfigDpiScaleFonts =
-        true;  // [Experimental] Automatically overwrite style.FontScaleDpi in
-               // Begin() when Monitor DPI changes. This will scale fonts but
-               // _NOT_ scale sizes/padding for now.
-    io.ConfigDpiScaleViewports =
-        true;  // [Experimental] Scale Dear ImGui and Platform Windows when
-               // Monitor DPI changes.
+    // style.ScaleAllSizes(main_scale); // Removed manual scaling
+    style.FontScaleDpi = 1.0f;
+
+    io.ConfigDpiScaleFonts     = true;
+    io.ConfigDpiScaleViewports = true;
 
     // When viewports are enabled we tweak WindowRounding/WindowBg so platform
     // windows can look identical to regular ones.
@@ -135,9 +127,11 @@ void VKContext::imguiVulkanInit(GLFWwindow* window_handle)
         config.OversampleH = 2;
         config.OversampleV = 2;
 
+        float scaledSize = size; // Load at logical size
+
         // 加载基础 ASCII 字体
         ImFont* font = io.Fonts->AddFontFromFileTTF(
-            asciiFontPath.generic_string().c_str(), size, &config);
+            asciiFontPath.generic_string().c_str(), scaledSize, &config);
 
         if ( font ) {
             // 配置合并参数加载 CJK 字体
@@ -148,7 +142,7 @@ void VKContext::imguiVulkanInit(GLFWwindow* window_handle)
 
             io.Fonts->AddFontFromFileTTF(
                 chineseFontPath.generic_string().c_str(),
-                size,
+                scaledSize,
                 &mergeConfig,
                 ranges);
 

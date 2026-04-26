@@ -64,6 +64,9 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
             }
         }
 #endif
+        // 同步当前缩放到全局配置
+        Config::AppConfig::instance().setWindowContentScale(xscale);
+        XINFO("Detected content scale: x={} y={}", xscale, yscale);
 
         GLFWmonitor*       monitor = glfwGetPrimaryMonitor();
         const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
@@ -103,6 +106,18 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
                                    &NativeWindow::framebufferResizeCallback);
     glfwSetKeyCallback(m_windowHandle, GLFW_KeyCallback);
     glfwSetDropCallback(m_windowHandle, GLFW_DropCallback);
+
+    // 监听内容缩放变化 (跨显示器移动)
+    glfwSetWindowContentScaleCallback(
+        m_windowHandle, [](GLFWwindow* w, float xscale, float yscale) {
+            Config::AppConfig::instance().setWindowContentScale(xscale);
+            XINFO("Content scale changed: x={} y={}", xscale, yscale);
+
+            // 发布事件，通知 UI 重载资源
+            Event::EventBus::instance().publish(Event::GLFWNativeEvent{
+                .type           = Event::NativeEventType::GLFW_WINDOW_RESIZED,
+                .hasStateChange = true });
+        });
 
     // 窗口最大化/还原回调 (处理系统级别的状态变更)
     glfwSetWindowMaximizeCallback(

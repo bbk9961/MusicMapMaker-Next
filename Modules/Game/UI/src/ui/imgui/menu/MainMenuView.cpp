@@ -214,8 +214,7 @@ void MainMenuView::update(UIManager* sourceManager)
 
     Config::SkinManager& skinCfg = Config::SkinManager::instance();
 
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float                dpiScale = viewport->DpiScale;
+    float                dpiScale = MMM::Config::AppConfig::instance().getWindowContentScale();
 
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding,
                         ImVec2(8.0f * dpiScale, 8.0f * dpiScale));

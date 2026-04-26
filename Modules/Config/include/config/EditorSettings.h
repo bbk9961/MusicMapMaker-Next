@@ -92,6 +92,25 @@ NLOHMANN_JSON_SERIALIZE_ENUM(CursorStyle,
                                  { CursorStyle::System, "System" },
                              })
 
+struct SoftwareCursorConfig {
+    /// @brief 软件光标主图尺寸 (px)
+    float cursorSize{ 64.0f };
+    /// @brief 拖尾基础尺寸 (px)
+    float trailSize{ 48.0f };
+    /// @brief 拖尾存活时间 (秒)
+    float trailLifeTime{ 0.4f };
+    /// @brief 烟雾初始尺寸 (px)
+    float smokeSize{ 32.0f };
+    /// @brief 烟雾存活时间 (秒)
+    float smokeLifeTime{ 0.8f };
+    /// @brief 是否根据当前谱面 BPM 自动适配烟雾存活时间 (1拍长度)
+    bool enableBpmSyncSmokeLife{ false };
+
+    NLOHMANN_DEFINE_TYPE_INTRUSIVE(SoftwareCursorConfig, cursorSize, trailSize,
+                                   trailLifeTime, smokeSize, smokeLifeTime,
+                                   enableBpmSyncSmokeLife)
+};
+
 enum class UITheme {
     Auto,       ///< 自动跟随皮肤配置 (skin.lua 中的 theme)
     DeepDark,   ///< DeepDark 风格暗色主题
@@ -234,6 +253,9 @@ struct EditorSettings {
     /// @brief 上次打开文件的路径 (用于文件对话框记忆)
     std::string lastFilePickerPath{ "." };
 
+    /// @brief 软件光标配置 (仅在 cursorStyle 为 Software 时生效)
+    SoftwareCursorConfig softwareCursorConfig;
+
     /// @brief 绘制物件(按住Shift)时是否屏蔽滚动加速
     bool disableScrollAccelerationWhileDrawing{ true };
 
@@ -242,7 +264,8 @@ struct EditorSettings {
         theme, beatDivisor, reverseScroll, scrollSnap, recentProjectsLimit,
         language, vsync, scrollSpeedMultiplier, globalVolume, selectionMode,
         marqueeThickness, marqueeRounding, saveFormatPreference,
-        lastFilePickerPath, disableScrollAccelerationWhileDrawing)
+        lastFilePickerPath, disableScrollAccelerationWhileDrawing,
+        softwareCursorConfig)
 };
 
 }  // namespace MMM::Config

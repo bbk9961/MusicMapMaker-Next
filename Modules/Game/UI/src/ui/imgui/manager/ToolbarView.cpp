@@ -1,4 +1,5 @@
 #include "ui/imgui/manager/ToolbarView.h"
+#include "config/AppConfig.h"
 #include "config/EditorConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
@@ -17,14 +18,13 @@ ToolbarView::ToolbarView(const std::string& name) : IUIView(name) {}
 void ToolbarView::update(UIManager* sourceManager)
 {
     Config::SkinManager& skinCfg  = Config::SkinManager::instance();
-    const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float                dpiScale = viewport->DpiScale;
+    float                dpiScale = Config::AppConfig::instance().getWindowContentScale();
 
     // 从逻辑引擎同步当前工具状态
     m_currentTool = Logic::EditorEngine::instance().getCurrentTool();
 
     // 1. 获取图标字体尺寸以计算固定宽度
-    ImFont* toolFont = skinCfg.getFont("setting_internal");
+    ImFont* toolFont = skinCfg.getFont("side_bar");
 
     // 技巧：我们可以在 Begin 之外临时推入字体来获取其尺寸信息，或者直接从
     // SkinManager 配置中估算 这里我们假设 setting_internal 已经加载。

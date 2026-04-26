@@ -129,10 +129,11 @@ void VKOffScreenRenderer::recordCmds(vk::CommandBuffer& cmdBuf)
         // ==========================================
         // ★ 发送 Push Constant：正交投影矩阵
         // ==========================================
-        // 作用：将屏幕像素坐标 (0,0) 到 (width, height) 映射到 Vulkan
+        // 作用：将屏幕像素坐标 (0,0) 到 (logicalWidth, logicalHeight) 映射到 Vulkan
         // 设备标准坐标 (-1 到 1)
+        // 这样 UI 层的坐标计算可以维持在逻辑坐标系下，而渲染输出是物理分辨率
         glm::mat4 ortho = glm::ortho(
-            0.0f, (float)m_width, 0.0f, (float)m_height, -1.0f, 1.0f);
+            0.0f, (float)m_logicalWidth, 0.0f, (float)m_logicalHeight, -1.0f, 1.0f);
 
         cmdBuf.pushConstants(
             m_mainBrushRenderPipeline->m_graphicsPipelineLayout,
@@ -181,7 +182,7 @@ void VKOffScreenRenderer::recordCmds(vk::CommandBuffer& cmdBuf)
                 nullptr);
 
             glm::mat4 ortho = glm::ortho(
-                0.0f, (float)m_width, 0.0f, (float)m_height, -1.0f, 1.0f);
+                0.0f, (float)m_logicalWidth, 0.0f, (float)m_logicalHeight, -1.0f, 1.0f);
             cmdBuf.pushConstants(
                 m_glowBrushRenderPipeline->m_graphicsPipelineLayout,
                 vk::ShaderStageFlagBits::eVertex |

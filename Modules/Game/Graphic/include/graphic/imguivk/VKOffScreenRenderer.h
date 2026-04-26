@@ -80,12 +80,18 @@ protected:
     const std::chrono::milliseconds m_debounceThreshold{ 150 };
 
     // UI 只设置目标，不改实际尺寸
-    inline void setTargetSize(uint32_t w, uint32_t h)
+    inline void setTargetSize(uint32_t logicalW, uint32_t logicalH,
+                              float dpiScale)
     {
-        if ( w != m_targetWidth || h != m_targetHeight ) {
-            resizeCall(m_targetWidth, m_targetHeight, w, h);
-            m_targetWidth     = w;
-            m_targetHeight    = h;
+        uint32_t physicalW = static_cast<uint32_t>(logicalW * dpiScale);
+        uint32_t physicalH = static_cast<uint32_t>(logicalH * dpiScale);
+
+        if ( physicalW != m_targetWidth || physicalH != m_targetHeight ) {
+            resizeCall(m_targetWidth, m_targetHeight, physicalW, physicalH);
+            m_targetWidth     = physicalW;
+            m_targetHeight    = physicalH;
+            m_logicalWidth    = logicalW;
+            m_logicalHeight   = logicalH;
             m_lastRequestTime = std::chrono::steady_clock::now();
             // 标记为“有变更待处理”
             m_need_reCreate.store(true);
@@ -95,6 +101,10 @@ protected:
     // --- 改变尺寸后的回调 ---
     virtual void resizeCall(uint32_t oldW, uint32_t oldH, uint32_t w,
                             uint32_t h) const = 0;
+
+    /// @brief 逻辑画布尺寸 (ImGui 空间)
+    uint32_t m_logicalWidth{ 0 };
+    uint32_t m_logicalHeight{ 0 };
 
     /// @brief 是否需要重建
     std::atomic<bool> m_need_reCreate{ true };

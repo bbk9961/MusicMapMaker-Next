@@ -1,4 +1,5 @@
 #include "ui/imgui/MainDockSpaceUI.h"
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "event/core/EventBus.h"
 #include "event/logic/LogicCommandEvent.h"
@@ -16,7 +17,7 @@ void MainDockSpaceUI::update(UIManager* sourceManager)
 {
     Config::SkinManager& skinCfg  = Config::SkinManager::instance();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    float                dpiScale = viewport->DpiScale;
+    float                dpiScale = MMM::Config::AppConfig::instance().getWindowContentScale();
 
     if ( !m_initializedWindow && viewport->PlatformHandle ) {
         if ( GLFWwindow* nativeWin = (GLFWwindow*)viewport->PlatformHandle ) {
@@ -133,9 +134,10 @@ void MainDockSpaceUI::reloadTextures(vk::PhysicalDevice& physicalDevice,
                                      vk::Device&         logicalDevice,
                                      vk::CommandPool& cmdPool, vk::Queue& queue)
 {
+    float dpiScale = MMM::Config::AppConfig::instance().getWindowContentScale();
     m_logo_texture = loadTextureResource(
         Config::SkinManager::instance().getAssetPath("logo"),
-        24,
+        static_cast<uint32_t>(24 * dpiScale),
         physicalDevice,
         logicalDevice,
         cmdPool,
