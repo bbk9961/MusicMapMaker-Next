@@ -120,13 +120,14 @@ inline bool saveRMMap(const BeatMap& beatMap, std::filesystem::path path)
         }
     }
 
-    // 按照时间戳排序 (尽管大部分已经是有序的，但为了安全起见重新排序)
-    // std::stable_sort(rm_records.begin(), rm_records.end(), [](const
-    // RMNoteRecord& a, const RMNoteRecord& b){
-    //     return a.note_timestamp < b.note_timestamp;
-    // });
-    // Note: RM 原文件中同一时间的物件可能依赖原先的声明顺序，这里保持我们在
-    // allNotes 里的顺序（稳定）
+    // 按照时间戳排序 (RM 格式要求物件必须严格按时间戳升序排列)
+    std::stable_sort(rm_records.begin(), rm_records.end(), [](const RMNoteRecord& a, const RMNoteRecord& b) {
+        if ( a.note_timestamp != b.note_timestamp ) {
+            return a.note_timestamp < b.note_timestamp;
+        }
+        // 同一时间，保持轨道顺序
+        return a.note_track < b.note_track;
+    });
 
     table_rows = static_cast<int32_t>(rm_records.size());
     write_value(table_rows);
@@ -140,7 +141,11 @@ inline bool saveRMMap(const BeatMap& beatMap, std::filesystem::path path)
         write_value(rec.note_parameter);
     }
 
-    XINFO("Successfully saved RM map to {}", path.string());
+    auto pathToStr = [](const std::filesystem::path& p) {
+        auto u8 = p.u8string();
+        return std::string(reinterpret_cast<const char*>(u8.c_str()), u8.size());
+    };
+    XINFO("Successfully saved RM map to {}", pathToStr(path));
     return true;
 }
 

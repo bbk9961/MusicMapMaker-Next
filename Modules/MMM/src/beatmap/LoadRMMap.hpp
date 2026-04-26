@@ -92,23 +92,34 @@ inline BeatMap loadRMMap(std::filesystem::path path)
 
     // 文件名
     auto fnamestr = pathToStr(basemeta.map_path.filename());
-    // 文件名第一个下划线的位置
+    // 文件名第一个下划线的位置 (Title_nk_Version.imd)
     auto first_pos = fnamestr.find('_');
     // 文件名第二个下划线的位置
-    auto second_pos = fnamestr.find('_', first_pos + 1);
+    auto second_pos = fnamestr.find('_', (first_pos == std::string::npos) ? 0 : first_pos + 1);
 
-    // 读取文件名中的key数
-    try {
-        basemeta.track_count = std::stoi(fnamestr.substr(first_pos + 1, 1));
-    } catch ( std::exception& e ) {
-        XWARN("读取文件名key数失败-" + std::string(e.what()));
+    // 读取文件名中的轨道数 (nk)
+    if ( first_pos != std::string::npos ) {
+        // 尝试寻找 'k'，因为格式是 nk (如 4k, 10k)
+        auto k_pos = fnamestr.find('k', first_pos + 1);
+        // 如果有 k 且在第二个下划线之前（或没有第二个下划线）
+        size_t end_of_num = (k_pos != std::string::npos && (second_pos == std::string::npos || k_pos < second_pos)) ? k_pos : second_pos;
+
+        if ( end_of_num != std::string::npos ) {
+            try {
+                std::string track_str = fnamestr.substr(first_pos + 1, end_of_num - first_pos - 1);
+                basemeta.track_count = std::stoi(track_str);
+            } catch ( std::exception& e ) {
+                XWARN("读取文件名轨道数失败: {}", e.what());
+            }
+        }
     }
+
     // 文件名最后一个点的位置
     auto last_pos = fnamestr.rfind(".");
 
     // 截取第二个_到最后一个.之间的字符串作为版本
     basemeta.version =
-        second_pos < last_pos
+        (second_pos != std::string::npos && second_pos < last_pos)
             ? fnamestr.substr(second_pos + 1, last_pos - second_pos - 1)
             : "unknown";
 
