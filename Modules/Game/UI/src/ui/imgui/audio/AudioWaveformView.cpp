@@ -1,6 +1,7 @@
 #include "ui/imgui/audio/AudioWaveformView.h"
 #include "audio/AudioManager.h"
 #include "config/skin/translation/Translation.h"
+#include "config/AppConfig.h"
 #include "imgui.h"
 #include "implot.h"
 #include "log/colorful-log.h"
@@ -117,7 +118,13 @@ void AudioWaveformView::update(UIManager* sourceManager)
                                m_samplePoints,
                                ImPlotSpec(ImPlotProp_FillAlpha, 0.5f));
 
-            double playheadX[2] = { currentTime, currentTime };
+            // 获取视觉偏移并绘制游标
+            float visualOffset = Config::AppConfig::instance()
+                                     .getVisualConfig()
+                                     .visualOffset;
+            double adjustedTime = currentTime + visualOffset;
+
+            double playheadX[2] = { adjustedTime, adjustedTime };
             double playheadY[2] = { -1.1, 1.1 };
             ImPlot::PlotLine("##Playhead",
                              playheadX,

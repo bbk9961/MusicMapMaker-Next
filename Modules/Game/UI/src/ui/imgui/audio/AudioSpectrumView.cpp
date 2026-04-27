@@ -1,6 +1,7 @@
 #include "ui/imgui/audio/AudioSpectrumView.h"
 #include "audio/AudioManager.h"
 #include "config/skin/translation/Translation.h"
+#include "config/AppConfig.h"
 #include "graphic/imguivk/VKContext.h"
 #include "graphic/imguivk/VKTexture.h"
 #include "imgui.h"
@@ -169,7 +170,9 @@ void AudioSpectrumView::update(UIManager* sourceManager)
     auto renderChannelBank =
         [&](const std::vector<std::unique_ptr<Graphic::VKTexture>>& textures) {
             ImGui::BeginGroup();
-            float xCursorStart = ImGui::GetCursorPosX();
+
+            // 捕获绘图区域在屏幕上的绝对起始位置
+            ImVec2 plotStartPos = ImGui::GetCursorScreenPos();
 
             // 计算全局像素坐标范围
             double pixelStart = viewStart * m_cacheSegmentsPerSecond;
@@ -204,6 +207,28 @@ void AudioSpectrumView::update(UIManager* sourceManager)
                              ImVec2(uv1_x, 1));
                 ImGui::SameLine(0, 0);
             }
+
+            // --- 绘制游标 ---
+            float visualOffset = Config::AppConfig::instance()
+                                     .getVisualConfig()
+                                     .visualOffset;
+            double adjustedTime = currentTime + visualOffset;
+
+            if ( adjustedTime >= viewStart && adjustedTime <= viewEnd ) {
+                float relativePos = static_cast<float>(
+                    (adjustedTime - viewStart) / (viewEnd - viewStart));
+
+                float       lineX      = plotStartPos.x + (relativePos * avail.x);
+                float       lineTop    = plotStartPos.y;
+                float       lineBottom = plotStartPos.y + plotH;
+
+                ImDrawList* drawList   = ImGui::GetWindowDrawList();
+                drawList->AddLine(ImVec2(lineX, lineTop),
+                                  ImVec2(lineX, lineBottom),
+                                  IM_COL32(255, 0, 0, 255),
+                                  2.0f);
+            }
+
             ImGui::EndGroup();
         };
 
