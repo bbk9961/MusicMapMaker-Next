@@ -7,6 +7,11 @@
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 
+#ifdef _WIN32
+#    define pclose _pclose
+#    define popen _popen
+#endif
+
 namespace MMM::Utils
 {
 
