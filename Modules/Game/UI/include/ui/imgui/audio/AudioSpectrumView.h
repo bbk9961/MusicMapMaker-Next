@@ -107,43 +107,36 @@ private:
     /// @brief 后台计算是否已完成 (主线程读取后重置)
     std::atomic<bool> m_calcFinished{ false };
 
-    // --- 像素缓冲与纹理 ---
+    // --- 像素缓冲与纹理 (全量静态存储) ---
 
-    /// @brief CPU 侧 RGBA 像素缓冲 (L 通道)，尺寸 = texW × texH × 4
-    std::vector<unsigned char> m_pixelBufferL;
+    /// @brief 纹理分块存储 (L/R 通道)
+    std::vector<std::unique_ptr<Graphic::VKTexture>> m_texturesL;
+    std::vector<std::unique_ptr<Graphic::VKTexture>> m_texturesR;
 
-    /// @brief CPU 侧 RGBA 像素缓冲 (R 通道)
-    std::vector<unsigned char> m_pixelBufferR;
+    /// @brief 纹理分块的数据缓冲区 (待上传)
+    struct TextureChunkData {
+        std::vector<unsigned char> pixels;
+        uint32_t                   width;
+        uint32_t                   height;
+    };
+    std::vector<TextureChunkData> m_pendingChunksL;
+    std::vector<TextureChunkData> m_pendingChunksR;
 
-    /// @brief 当前纹理宽度 (像素)
-    int m_texW{ 0 };
+    /// @brief 纹理是否需要重新加载 (全量)
+    bool m_texturesNeedReload{ false };
 
-    /// @brief 当前纹理高度 (像素)
-    int m_texH{ 0 };
+    /// @brief 分块宽度 (通常取 16384 或更小以适配硬件限制)
+    static constexpr uint32_t MAX_TEXTURE_W{ 16384 };
 
-    /// @brief L 通道的 GPU 纹理
-    std::unique_ptr<Graphic::VKTexture> m_textureL;
-
-    /// @brief R 通道的 GPU 纹理
-    std::unique_ptr<Graphic::VKTexture> m_textureR;
-
-    /// @brief 纹理是否需要重新上传 GPU
-    bool m_textureDirty{ false };
-
-    /// @brief 需要等待 GPU 空闲后再销毁旧纹理
-    bool m_pendingTextureDestroy{ false };
+    /// @brief 构建全量像素缓冲并准备上传
+    void prepareFullGlobalTextures();
 
     // --- 色图查找表 ---
     /// @brief 256 级预计算颜色表 (RGBA u8 × 4)
     std::array<std::array<unsigned char, 4>, 256> m_colormapLUT;
 
     // --- 视图状态 ---
-    float  m_zoom{ 1.0f };
-    double m_lastViewStart{ -1e9 };
-    double m_lastViewEnd{ -1e9 };
-
-    /// @brief 视图窗口变化阈值 (秒)
-    static constexpr double VIEW_CHANGE_THRESHOLD{ 0.002 };
+    float m_zoom{ 1.0f };
 };
 
 }  // namespace MMM::UI

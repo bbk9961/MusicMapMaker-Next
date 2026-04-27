@@ -54,14 +54,12 @@ AudioSpectrumView::AudioSpectrumView(const std::string& name)
 
 AudioSpectrumView::~AudioSpectrumView()
 {
-    // 等待后台线程完成
     if ( m_calcThread && m_calcThread->joinable() ) {
         m_calcThread->request_stop();
         m_calcThread->join();
     }
     m_calcThread.reset();
 
-    // 关键修复：确保 GPU 已完成对纹理的使用，避免验证层报错
     auto context = Graphic::VKContext::get();
     if ( context ) {
         (void)context->get().getLogicalDevice().waitIdle();
@@ -74,7 +72,6 @@ AudioSpectrumView::~AudioSpectrumView()
 
 void AudioSpectrumView::buildColormapLUT()
 {
-    // 预构建 Hot 色图的 256 级查找表 (从 ImPlot)
     ImPlot::PushColormap(ImPlotColormap_Hot);
     for ( int i = 0; i < 256; ++i ) {
         float  t         = static_cast<float>(i) / 255.0f;
@@ -122,7 +119,6 @@ void AudioSpectrumView::update(UIManager* sourceManager)
         return;
     }
 
-    // --- 后台计算进度模态窗口 ---
     if ( m_isCalculating.load() ) {
         ImGui::OpenPopup("###SpectrumCalcModal");
     }
@@ -137,18 +133,15 @@ void AudioSpectrumView::update(UIManager* sourceManager)
         ImGui::ProgressBar(progress, ImVec2(400, 0));
         ImGui::Text("%.0f%%", progress * 100.0f);
 
-        // 后台线程已完成 → 关闭弹窗
         if ( m_calcFinished.load() ) {
             m_calcFinished.store(false);
             m_isCalculating.store(false);
-            // 强制重新光栅化
-            m_lastViewStart = -1e9;
-            m_lastViewEnd   = -1e9;
+            // 计算完成，立即触发全量光栅化
+            prepareFullGlobalTextures();
             ImGui::CloseCurrentPopup();
         }
         ImGui::EndPopup();
 
-        // 计算进行中，不渲染下面的内容
         if ( m_isCalculating.load() ) return;
     }
 
@@ -157,7 +150,7 @@ void AudioSpectrumView::update(UIManager* sourceManager)
 
     ImGui::SetNextItemWidth(100);
     ImGui::SliderFloat(
-        TR("ui.waveform.zoom").data(), &m_zoom, 0.1f, 5.0f, "%.1fs");
+        TR("ui.waveform.zoom").data(), &m_zoom, 0.1f, 10.0f, "%.1fs");
     ImGui::SameLine();
     if ( ImGui::Button("Sync Effects") ) {
         startAsyncRecalculate();
@@ -165,42 +158,73 @@ void AudioSpectrumView::update(UIManager* sourceManager)
 
     syncEQ();
 
-    // --- 脏检查：仅在视图窗口显著变化时重新光栅化 ---
+    // --- 渲染逻辑：计算视口范围并绘制静态贴图块 ---
+    ImVec2 avail = ImGui::GetContentRegionAvail();
+    float  textH = ImGui::GetTextLineHeightWithSpacing();
+    float  plotH = (avail.y - 2.0f * textH) * 0.5f;
+
     double viewStart = currentTime - m_zoom;
     double viewEnd   = currentTime + m_zoom;
 
-    if ( std::abs(viewStart - m_lastViewStart) > VIEW_CHANGE_THRESHOLD ||
-         std::abs(viewEnd - m_lastViewEnd) > VIEW_CHANGE_THRESHOLD ) {
-        updateSpectrum(currentTime, totalTime);
-        m_lastViewStart = viewStart;
-        m_lastViewEnd   = viewEnd;
-    }
+    auto renderChannelBank =
+        [&](const std::vector<std::unique_ptr<Graphic::VKTexture>>& textures) {
+            ImGui::BeginGroup();
+            float xCursorStart = ImGui::GetCursorPosX();
 
-    // --- 渲染纹理：每通道一张 ImGui::Image ---
-    ImVec2 avail = ImGui::GetContentRegionAvail();
-    float  halfH = avail.y * 0.5f - 4.0f;
-    ImVec2 imgSize(avail.x, halfH);
+            // 计算全局像素坐标范围
+            double pixelStart = viewStart * m_cacheSegmentsPerSecond;
+            double pixelEnd   = viewEnd * m_cacheSegmentsPerSecond;
+            double pixelWidth = pixelEnd - pixelStart;
 
-    // L 通道
+            for ( size_t i = 0; i < textures.size(); ++i ) {
+                double texGlobalStart = static_cast<double>(i * MAX_TEXTURE_W);
+                double texGlobalEnd   = texGlobalStart + textures[i]->width();
+
+                // 检查贴图块是否在视口内
+                if ( texGlobalEnd < pixelStart || texGlobalStart > pixelEnd )
+                    continue;
+
+                // 计算贴图在视口内的局部 UV
+                double intersectStart = std::max(texGlobalStart, pixelStart);
+                double intersectEnd   = std::min(texGlobalEnd, pixelEnd);
+
+                float uv0_x = static_cast<float>(
+                    (intersectStart - texGlobalStart) / textures[i]->width());
+                float uv1_x = static_cast<float>(
+                    (intersectEnd - texGlobalStart) / textures[i]->width());
+
+                // 计算屏幕上的宽度比例
+                float screenW = static_cast<float>(
+                    (intersectEnd - intersectStart) / pixelWidth * avail.x);
+
+                // 绘制贴图块
+                ImGui::Image(textures[i]->getImTextureID(),
+                             ImVec2(screenW, plotH),
+                             ImVec2(uv0_x, 0),
+                             ImVec2(uv1_x, 1));
+                ImGui::SameLine(0, 0);
+            }
+            ImGui::EndGroup();
+        };
+
     ImGui::Text("L (Hz)");
-    if ( m_textureL ) {
-        ImGui::Image(m_textureL->getImTextureID(), imgSize);
+    if ( !m_texturesL.empty() ) {
+        renderChannelBank(m_texturesL);
     } else {
-        ImGui::Dummy(imgSize);
+        ImGui::Dummy(ImVec2(avail.x, plotH));
     }
 
-    // R 通道
     ImGui::Text("R (Hz)");
-    if ( m_textureR ) {
-        ImGui::Image(m_textureR->getImTextureID(), imgSize);
+    if ( !m_texturesR.empty() ) {
+        renderChannelBank(m_texturesR);
     } else {
-        ImGui::Dummy(imgSize);
+        ImGui::Dummy(ImVec2(avail.x, plotH));
     }
 }
 
 bool AudioSpectrumView::needReload()
 {
-    return m_textureDirty;
+    return m_texturesNeedReload;
 }
 
 void AudioSpectrumView::reloadTextures(vk::PhysicalDevice& physicalDevice,
@@ -208,38 +232,35 @@ void AudioSpectrumView::reloadTextures(vk::PhysicalDevice& physicalDevice,
                                        vk::CommandPool&    cmdPool,
                                        vk::Queue&          queue)
 {
-    if ( !m_textureDirty || m_texW <= 0 || m_texH <= 0 ) return;
+    if ( !m_texturesNeedReload ) return;
 
-    // 关键修复：等待 GPU 空闲，确保所有使用旧纹理描述符集的
-    // CommandBuffer 已执行完毕，避免 vkFreeDescriptorSets 验证错误
-    if ( m_textureL || m_textureR ) {
-        (void)logicalDevice.waitIdle();
-    }
+    // 清理旧纹理
+    (void)logicalDevice.waitIdle();
+    m_texturesL.clear();
+    m_texturesR.clear();
 
-    // 销毁旧纹理 (现在安全了)
-    m_textureL.reset();
-    m_textureR.reset();
+    // 上传新分块
+    auto upload =
+        [&](const std::vector<TextureChunkData>&              chunks,
+            std::vector<std::unique_ptr<Graphic::VKTexture>>& target) {
+            for ( const auto& chunk : chunks ) {
+                target.push_back(
+                    std::make_unique<Graphic::VKTexture>(chunk.pixels.data(),
+                                                         chunk.width,
+                                                         chunk.height,
+                                                         physicalDevice,
+                                                         logicalDevice,
+                                                         cmdPool,
+                                                         queue));
+            }
+        };
 
-    // 从 CPU 像素缓冲创建 GPU 纹理
-    m_textureL =
-        std::make_unique<Graphic::VKTexture>(m_pixelBufferL.data(),
-                                             static_cast<uint32_t>(m_texW),
-                                             static_cast<uint32_t>(m_texH),
-                                             physicalDevice,
-                                             logicalDevice,
-                                             cmdPool,
-                                             queue);
+    upload(m_pendingChunksL, m_texturesL);
+    upload(m_pendingChunksR, m_texturesR);
 
-    m_textureR =
-        std::make_unique<Graphic::VKTexture>(m_pixelBufferR.data(),
-                                             static_cast<uint32_t>(m_texW),
-                                             static_cast<uint32_t>(m_texH),
-                                             physicalDevice,
-                                             logicalDevice,
-                                             cmdPool,
-                                             queue);
-
-    m_textureDirty = false;
+    m_pendingChunksL.clear();
+    m_pendingChunksR.clear();
+    m_texturesNeedReload = false;
 }
 
 void AudioSpectrumView::syncEQ()
@@ -270,10 +291,8 @@ void AudioSpectrumView::syncEQ()
 
 void AudioSpectrumView::startAsyncRecalculate()
 {
-    // 如果已有线程在运行，忽略
     if ( m_isCalculating.load() ) return;
 
-    // 等待上一次线程结束
     if ( m_calcThread && m_calcThread->joinable() ) {
         m_calcThread->join();
     }
@@ -317,7 +336,6 @@ void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq)
     const size_t hopSize =
         static_cast<size_t>(sampleRate / m_cacheSegmentsPerSecond);
 
-    // 计算可用线程数 (全核 x 80%，至少 1)
     unsigned int hwThreads = std::thread::hardware_concurrency();
     unsigned int numWorkers =
         std::max(1u, static_cast<unsigned int>(hwThreads * 0.8));
@@ -327,31 +345,25 @@ void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq)
           numTotalSegments,
           m_numFrequencyBins);
 
-    // Hann 窗（共享，只读）
     std::vector<double> window(fftSize);
     for ( int i = 0; i < fftSize; ++i ) {
         window[i] = 0.5 * (1.0 - std::cos(2.0 * M_PI * i / (fftSize - 1)));
     }
 
-    // 分配输出缓冲
     std::vector<double> heatmapL(
         static_cast<size_t>(m_numFrequencyBins) * numTotalSegments, -100.0);
     std::vector<double> heatmapR(
         static_cast<size_t>(m_numFrequencyBins) * numTotalSegments, -100.0);
 
-    // 进度追踪
     std::atomic<int> completedSegments{ 0 };
     int              totalWork = numTotalSegments * (numChannels > 1 ? 2 : 1);
 
-    // 互斥锁保护 FFTW plan 创建 (fftw_plan_* 不是线程安全的)
     static std::mutex s_fftwPlanMutex;
 
-    // 处理单通道的函数 (由多线程调用)
     auto processChannel = [&](int                  chIdx,
                               std::vector<double>& heatmap,
                               int                  startSeg,
                               int                  endSeg) {
-        // 每个线程拥有自己的 FFTW plan 和缓冲
         double*       localIn  = (double*)fftw_malloc(sizeof(double) * fftSize);
         fftw_complex* localOut = (fftw_complex*)fftw_malloc(
             sizeof(fftw_complex) * (fftSize / 2 + 1));
@@ -363,7 +375,6 @@ void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq)
                 fftw_plan_dft_r2c_1d(fftSize, localIn, localOut, FFTW_MEASURE);
         }
 
-        // 每个线程拥有自己的音频处理链
         auto localRawBuffer  = std::make_unique<ice::AudioBuffer>();
         auto localProcBuffer = std::make_unique<ice::AudioBuffer>();
         localRawBuffer->resize(ice::ICEConfig::internal_format, fftSize);
@@ -437,7 +448,6 @@ void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq)
         fftw_free(localOut);
     };
 
-    // 为每个通道启动 worker 线程
     auto runChannel = [&](int chIdx, std::vector<double>& heatmap) {
         std::vector<std::thread> workers;
         int segsPerWorker = (numTotalSegments + numWorkers - 1) / numWorkers;
@@ -454,97 +464,77 @@ void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq)
         for ( auto& t : workers ) t.join();
     };
 
-    // L 通道
     runChannel(0, heatmapL);
 
-    // R 通道
     if ( numChannels > 1 ) {
         runChannel(1, heatmapR);
     } else {
         heatmapR = heatmapL;
     }
 
-    // 将结果写入成员 (主线程在 m_isCalculating == true 时不会读取)
     m_cachedHeatmapL         = std::move(heatmapL);
     m_cachedHeatmapR         = std::move(heatmapR);
     m_cachedNumTotalSegments = numTotalSegments;
 
     m_calcProgress.store(1.0f);
     m_calcFinished.store(true);
-
-    XINFO("Spectrum heatmap recalculated: {} bins x {} segments @ {}seg/s",
-          m_numFrequencyBins,
-          numTotalSegments,
-          m_cacheSegmentsPerSecond);
 }
 
-void AudioSpectrumView::updateSpectrum(double currentTime, double totalTime)
+void AudioSpectrumView::prepareFullGlobalTextures()
 {
     if ( m_cachedHeatmapL.empty() ) return;
 
-    double viewStart = currentTime - m_zoom;
-    double viewEnd   = currentTime + m_zoom;
+    int totalW = m_cachedNumTotalSegments;
+    int texH   = m_numFrequencyBins;
 
-    // 纹理尺寸：宽度取可视窗口中的缓存段数，高度取频率 bin 数
-    int newTexW =
-        static_cast<int>((viewEnd - viewStart) * m_cacheSegmentsPerSecond);
-    newTexW     = std::clamp(newTexW, 1, 4096);
-    int newTexH = m_numFrequencyBins;
+    m_pendingChunksL.clear();
+    m_pendingChunksR.clear();
 
-    m_texW = newTexW;
-    m_texH = newTexH;
-
-    // 分配像素缓冲
-    size_t pixelCount = static_cast<size_t>(m_texW) * m_texH * 4;
-    m_pixelBufferL.resize(pixelCount);
-    m_pixelBufferR.resize(pixelCount);
-
-    // 光栅化：将缓存数据映射到像素
     const double scaleMin = -80.0;
     const double scaleMax = -10.0;
     const double range    = scaleMax - scaleMin;
 
-    for ( int py = 0; py < m_texH; ++py ) {
-        // 频率 bin: 行 0 → 最高频率 bin (m_numFrequencyBins-1)
-        int b = m_numFrequencyBins - 1 - py;
+    auto dbToIdx = [&](double db) -> int {
+        float t =
+            static_cast<float>(std::clamp((db - scaleMin) / range, 0.0, 1.0));
+        return static_cast<int>(t * 255.0f);
+    };
 
-        for ( int px = 0; px < m_texW; ++px ) {
-            double time    = viewStart + (static_cast<double>(px) / m_texW) *
-                                             (viewEnd - viewStart);
-            int    cachedT = static_cast<int>(time * m_cacheSegmentsPerSecond);
+    int numChunks = (totalW + MAX_TEXTURE_W - 1) / MAX_TEXTURE_W;
 
-            double valL = -100.0;
-            double valR = -100.0;
+    for ( int c = 0; c < numChunks; ++c ) {
+        uint32_t chunkStart = c * MAX_TEXTURE_W;
+        uint32_t chunkW =
+            std::min(MAX_TEXTURE_W, (uint32_t)totalW - chunkStart);
 
-            if ( cachedT >= 0 && cachedT < m_cachedNumTotalSegments ) {
-                valL = m_cachedHeatmapL[b * m_cachedNumTotalSegments + cachedT];
-                valR = m_cachedHeatmapR[b * m_cachedNumTotalSegments + cachedT];
+        TextureChunkData chunkL, chunkR;
+        chunkL.width = chunkR.width = chunkW;
+        chunkL.height = chunkR.height = texH;
+        chunkL.pixels.resize(chunkW * texH * 4);
+        chunkR.pixels.resize(chunkW * texH * 4);
+
+        for ( uint32_t py = 0; py < (uint32_t)texH; ++py ) {
+            int b = texH - 1 - py;
+            for ( uint32_t px = 0; px < chunkW; ++px ) {
+                uint32_t globalX = chunkStart + px;
+                size_t   offset  = (py * chunkW + px) * 4;
+
+                double valL =
+                    m_cachedHeatmapL[b * m_cachedNumTotalSegments + globalX];
+                auto& colL = m_colormapLUT[dbToIdx(valL)];
+                std::memcpy(&chunkL.pixels[offset], colL.data(), 4);
+
+                double valR =
+                    m_cachedHeatmapR[b * m_cachedNumTotalSegments + globalX];
+                auto& colR = m_colormapLUT[dbToIdx(valR)];
+                std::memcpy(&chunkR.pixels[offset], colR.data(), 4);
             }
-
-            // 映射 dB → [0, 255] 色图索引
-            auto dbToIdx = [&](double db) -> int {
-                float t = static_cast<float>(
-                    std::clamp((db - scaleMin) / range, 0.0, 1.0));
-                return static_cast<int>(t * 255.0f);
-            };
-
-            size_t offset = (static_cast<size_t>(py) * m_texW + px) * 4;
-
-            auto& colL                 = m_colormapLUT[dbToIdx(valL)];
-            m_pixelBufferL[offset + 0] = colL[0];
-            m_pixelBufferL[offset + 1] = colL[1];
-            m_pixelBufferL[offset + 2] = colL[2];
-            m_pixelBufferL[offset + 3] = colL[3];
-
-            auto& colR                 = m_colormapLUT[dbToIdx(valR)];
-            m_pixelBufferR[offset + 0] = colR[0];
-            m_pixelBufferR[offset + 1] = colR[1];
-            m_pixelBufferR[offset + 2] = colR[2];
-            m_pixelBufferR[offset + 3] = colR[3];
         }
+        m_pendingChunksL.push_back(std::move(chunkL));
+        m_pendingChunksR.push_back(std::move(chunkR));
     }
 
-    m_textureDirty = true;
+    m_texturesNeedReload = true;
 }
 
 }  // namespace MMM::UI

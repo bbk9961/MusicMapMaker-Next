@@ -90,21 +90,43 @@ void AudioWaveformView::update(UIManager* sourceManager)
     syncEQ();
     updateEnvelopes(currentTime, totalTime, speed);
 
-    auto renderChannel = [&](const char* id, const double* minEnv, const double* maxEnv, const char* label) {
-        if ( ImPlot::BeginPlot(id, ImVec2(-1, ImGui::GetContentRegionAvail().y * 0.5f - 2), ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect) ) {
+    // 计算平分高度
+    float totalAvailH = ImGui::GetContentRegionAvail().y;
+    float channelH    = totalAvailH * 0.5f - ImGui::GetStyle().ItemSpacing.y;
+
+    auto renderChannel = [&](const char* id, const double* minEnv,
+                             const double* maxEnv, const char* label) {
+        if ( ImPlot::BeginPlot(id,
+                               ImVec2(-1, channelH),
+                               ImPlotFlags_NoMenus | ImPlotFlags_NoBoxSelect) ) {
             double viewStart = currentTime - m_zoom;
             double viewEnd   = currentTime + m_zoom;
 
             ImPlot::SetupAxis(ImAxis_X1, nullptr, ImPlotAxisFlags_None);
-            ImPlot::SetupAxis(ImAxis_Y1, label, ImPlotAxisFlags_NoGridLines | ImPlotAxisFlags_Lock);
-            ImPlot::SetupAxisLimits(ImAxis_X1, viewStart, viewEnd, ImGuiCond_Always);
+            ImPlot::SetupAxis(ImAxis_Y1,
+                              label,
+                              ImPlotAxisFlags_NoGridLines | ImPlotAxisFlags_Lock);
+            ImPlot::SetupAxisLimits(
+                ImAxis_X1, viewStart, viewEnd, ImGuiCond_Always);
             ImPlot::SetupAxisLimits(ImAxis_Y1, -1.1, 1.1, ImGuiCond_Always);
 
-            ImPlot::PlotShaded("##Wave", m_times.data(), minEnv, maxEnv, m_samplePoints, ImPlotSpec(ImPlotProp_FillAlpha, 0.5f));
-            
+            ImPlot::PlotShaded("##Wave",
+                               m_times.data(),
+                               minEnv,
+                               maxEnv,
+                               m_samplePoints,
+                               ImPlotSpec(ImPlotProp_FillAlpha, 0.5f));
+
             double playheadX[2] = { currentTime, currentTime };
             double playheadY[2] = { -1.1, 1.1 };
-            ImPlot::PlotLine("##Playhead", playheadX, playheadY, 2, ImPlotSpec(ImPlotProp_LineColor, ImVec4(1, 0, 0, 1), ImPlotProp_LineWeight, 2.0f));
+            ImPlot::PlotLine("##Playhead",
+                             playheadX,
+                             playheadY,
+                             2,
+                             ImPlotSpec(ImPlotProp_LineColor,
+                                        ImVec4(1, 0, 0, 1),
+                                        ImPlotProp_LineWeight,
+                                        2.0f));
             ImPlot::EndPlot();
         }
     };
