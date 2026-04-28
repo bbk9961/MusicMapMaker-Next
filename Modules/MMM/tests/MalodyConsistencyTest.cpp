@@ -1,6 +1,8 @@
+#include "FormatTestHelpers.hpp"
 #include "TestHelper.hpp"
 #include "mmm/beatmap/BeatMap.h"
-#include <iostream>
+
+static constexpr int TOTAL_MALODY_SECTIONS = 4;
 
 int main(int argc, char* argv[])
 {
@@ -8,8 +10,11 @@ int main(int argc, char* argv[])
     std::filesystem::path input  = argv[1];
     std::filesystem::path output = argv[2];
 
-    XINFO("Running Malody Consistency Test: {}", input.string());
+    XINFO("========================================");
+    XINFO("  Malody Consistency Test: {}", input.filename().string());
+    XINFO("========================================");
 
+    // ── 第一轮：JSON 分段落对比 ──
     MMM::BeatMap m1 = MMM::BeatMap::loadFromFile(input);
     m1.sync();
 
@@ -18,15 +23,36 @@ int main(int argc, char* argv[])
     MMM::BeatMap m2 = MMM::BeatMap::loadFromFile(output);
     m2.sync();
 
-    if ( !MMM::Test::compareBeatMaps(m1, m2) ) {
-        XERROR("Malody Consistency Check Failed!");
-        // 进一步检查哪些物件重复了
-        XERROR("m1 total: {}, m2 total: {}",
+    // JSON 分段落对比
+    int sectionPassed = MMM::Test::compareMalodySections(input, output);
+    XINFO("Malody JSON Section Comparison: {}/{} sections passed",
+          sectionPassed,
+          TOTAL_MALODY_SECTIONS);
+
+    // ── 第二轮：逻辑一致性对比 ──
+    bool logicPassed = MMM::Test::compareBeatMaps(m1, m2);
+    if ( logicPassed ) {
+        XINFO("[Malody Logical Consistency]: PASS");
+    } else {
+        XERROR("[Malody Logical Consistency]: FAIL");
+        XERROR("  m1 total notes: {}, m2 total notes: {}",
                m1.m_allNotes.size(),
                m2.m_allNotes.size());
-        return 1;
     }
 
-    XINFO("Malody Consistency Check Passed.");
-    return 0;
+    // ── 汇总 ──
+    int totalPassed = sectionPassed + (logicPassed ? 1 : 0);
+    int totalTests  = TOTAL_MALODY_SECTIONS + 1;
+    XINFO("========================================");
+    if ( sectionPassed == TOTAL_MALODY_SECTIONS && logicPassed ) {
+        XINFO(
+            "  Malody Consistency: ALL {}/{} PASSED", totalPassed, totalTests);
+        return 0;
+    } else {
+        XERROR("  Malody Consistency: {}/{} passed, {} failed",
+               totalPassed,
+               totalTests,
+               totalTests - totalPassed);
+        return 1;
+    }
 }

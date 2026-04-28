@@ -1,6 +1,8 @@
+#include "FormatTestHelpers.hpp"
 #include "TestHelper.hpp"
 #include "mmm/beatmap/BeatMap.h"
-#include <iostream>
+
+static constexpr int TOTAL_IMD_CHUNKS = 5;
 
 int main(int argc, char* argv[])
 {
@@ -8,8 +10,11 @@ int main(int argc, char* argv[])
     std::filesystem::path input  = argv[1];
     std::filesystem::path output = argv[2];
 
-    XINFO("Running IMD Consistency Test: {}", input.string());
+    XINFO("========================================");
+    XINFO("  IMD Consistency Test: {}", input.filename().string());
+    XINFO("========================================");
 
+    // ── 第一轮：原始二进制分块对比 (Load → Save 后直接对比原始文件流) ──
     MMM::BeatMap m1 = MMM::BeatMap::loadFromFile(input);
     m1.sync();
 
@@ -18,11 +23,32 @@ int main(int argc, char* argv[])
     MMM::BeatMap m2 = MMM::BeatMap::loadFromFile(output);
     m2.sync();
 
-    if ( !MMM::Test::compareBeatMaps(m1, m2) ) {
-        XERROR("IMD Consistency Check Failed!");
-        return 1;
+    // 二进制分块对比
+    int binaryPassed = MMM::Test::compareIMDChunks(input, output);
+    XINFO("IMD Binary Chunk Comparison: {}/{} chunks passed",
+          binaryPassed,
+          TOTAL_IMD_CHUNKS);
+
+    // ── 第二轮：逻辑一致性对比 ──
+    bool logicPassed = MMM::Test::compareBeatMaps(m1, m2);
+    if ( logicPassed ) {
+        XINFO("[IMD Logical Consistency]: PASS");
+    } else {
+        XERROR("[IMD Logical Consistency]: FAIL");
     }
 
-    XINFO("IMD Consistency Check Passed.");
-    return 0;
+    // ── 汇总 ──
+    int totalPassed = binaryPassed + (logicPassed ? 1 : 0);
+    int totalTests  = TOTAL_IMD_CHUNKS + 1;
+    XINFO("========================================");
+    if ( binaryPassed == TOTAL_IMD_CHUNKS && logicPassed ) {
+        XINFO("  IMD Consistency: ALL {}/{} PASSED", totalPassed, totalTests);
+        return 0;
+    } else {
+        XERROR("  IMD Consistency: {}/{} passed, {} failed",
+               totalPassed,
+               totalTests,
+               totalTests - totalPassed);
+        return 1;
+    }
 }
