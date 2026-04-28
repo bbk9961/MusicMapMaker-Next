@@ -1,7 +1,9 @@
 #include "mmm/note/Hold.h"
 #include "mmm/SafeParse.h"
 #include <cmath>
+#include <iomanip>
 #include <ranges>
+#include <sstream>
 
 namespace MMM
 {
@@ -70,6 +72,7 @@ std::string Hold::to_osu_description(int32_t orbit_count)
      */
 
     std::ostringstream oss;
+    oss << std::fixed << std::setprecision(0);
 
     // x 坐标 (根据轨道数计算)
     // 原公式: orbit = floor(x * orbit_count / 512)

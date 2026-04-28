@@ -180,12 +180,18 @@ inline bool saveOSUMap(const BeatMap& beatMap, std::filesystem::path path)
 
     ofs << "[HitObjects]\n";
     auto all_notes = beatMap.m_allNotes;
-    std::sort(all_notes.begin(),
-              all_notes.end(),
-              [](const std::reference_wrapper<Note>& a,
-                 const std::reference_wrapper<Note>& b) {
-                  return a.get().m_timestamp < b.get().m_timestamp;
-              });
+    std::stable_sort(all_notes.begin(),
+                      all_notes.end(),
+                      [](const std::reference_wrapper<Note>& a_ref,
+                         const std::reference_wrapper<Note>& b_ref) {
+                          const Note& a = a_ref.get();
+                          const Note& b = b_ref.get();
+                          if ( std::abs(a.m_timestamp - b.m_timestamp) > 1e-4 )
+                              return a.m_timestamp < b.m_timestamp;
+                          if ( a.m_track != b.m_track )
+                              return a.m_track < b.m_track;
+                          return a.m_type < b.m_type;
+                      });
 
     for ( const auto& noteRef : all_notes ) {
         Note& note = noteRef.get();

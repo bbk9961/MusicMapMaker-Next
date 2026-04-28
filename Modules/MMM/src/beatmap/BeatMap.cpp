@@ -93,12 +93,18 @@ void BeatMap::sync()
         m_allNotes.push_back(std::ref(poly));
     }
 
-    // 按时间戳排序
+    // 确定性排序：时间戳为主键，轨道和类型为次键
     std::stable_sort(m_allNotes.begin(),
                      m_allNotes.end(),
-                     [](const std::reference_wrapper<Note>& a,
-                        const std::reference_wrapper<Note>& b) {
-                         return a.get().m_timestamp < b.get().m_timestamp;
+                     [](const std::reference_wrapper<Note>& a_ref,
+                        const std::reference_wrapper<Note>& b_ref) {
+                         const Note& a = a_ref.get();
+                         const Note& b = b_ref.get();
+                         if ( std::abs(a.m_timestamp - b.m_timestamp) > 1e-4 )
+                             return a.m_timestamp < b.m_timestamp;
+                         if ( a.m_track != b.m_track )
+                             return a.m_track < b.m_track;
+                         return a.m_type < b.m_type;
                      });
 }
 

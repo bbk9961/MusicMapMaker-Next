@@ -7,7 +7,9 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <numeric>
 #include <nlohmann/json.hpp>
+#include <set>
 #include <vector>
 
 namespace MMM
@@ -40,14 +42,18 @@ inline bool saveMalodyMap(const BeatMap& beatMap, std::filesystem::path path)
              beatMap.m_metadata.map_properties.find(MapMetadataType::MALODY);
          it != beatMap.m_metadata.map_properties.end() ) {
         for ( const auto& [key, val] : it->second ) {
-            if ( key == "id" || key == "preview" || key == "mode" ) {
-                meta[key] = MMM::Internal::safeStoi(val);
-            } else if ( key == "aimode" ) {
-                meta[key] = val;
-            } else if ( key == "mode_ext" ) {
+            if ( key == "mode_ext" ) {
                 try {
                     meta["mode_ext"] = json::parse(val);
                 } catch ( ... ) {
+                    meta["mode_ext"] = val;
+                }
+            } else {
+                try {
+                    // 尝试解析为数字或对象，如果失败则存为字符串
+                    meta[key] = json::parse(val);
+                } catch ( ... ) {
+                    meta[key] = val;
                 }
             }
         }
@@ -79,11 +85,30 @@ inline bool saveMalodyMap(const BeatMap& beatMap, std::filesystem::path path)
             currentBpm = t.m_bpm;
         }
         lastBeat += (time - lastTime) / (60000.0 / currentBpm);
+
         int    integerBeat = static_cast<int>(std::floor(lastBeat + 1e-6));
         double fraction    = lastBeat - integerBeat;
-        return json::array({ integerBeat,
-                             static_cast<int>(std::round(fraction * 1920)),
-                             1920 });
+
+        if ( fraction < 1e-6 ) return json::array({ integerBeat, 0, 1 });
+        if ( fraction > 1.0 - 1e-6 )
+            return json::array({ integerBeat + 1, 0, 1 });
+
+        // 尝试常见分母拟合，寻找最简约分
+        for ( int den :
+              { 1, 2, 3, 4, 6, 8, 12, 16, 24, 32, 48, 64, 96, 192, 1920 } ) {
+            double num     = fraction * den;
+            double rounded = std::round(num);
+            if ( std::abs(num - rounded) < 1e-4 ) {
+                int n   = static_cast<int>(rounded);
+                int gcd = std::gcd(n, den);
+                return json::array({ integerBeat, n / gcd, den / gcd });
+            }
+        }
+
+        // 兜底方案
+        int n   = static_cast<int>(std::round(fraction * 1920));
+        int gcd = std::gcd(n, 1920);
+        return json::array({ integerBeat, n / gcd, 1920 / gcd });
     };
 
     // Time & Effect
@@ -108,26 +133,16 @@ inline bool saveMalodyMap(const BeatMap& beatMap, std::filesystem::path path)
         }
     }
 
-    // 收集所有子物件，通过 (timestamp, track) 唯一标识
-    struct NoteInfo {
-        double time;
-        int    track;
-    };
-    std::vector<NoteInfo> subNotes;
+    // 收集所有子物件的指针，用于去重
+    std::set<const Note*> subNotePtrs;
     for ( const auto& poly : beatMap.m_noteData.polylines ) {
         for ( const auto& subNoteRef : poly.m_subNotes ) {
-            const auto& sn = subNoteRef.get();
-            subNotes.push_back({ sn.m_timestamp, (int)sn.m_track });
+            subNotePtrs.insert(&subNoteRef.get());
         }
     }
 
     auto isSubNote = [&](const Note& note) {
-        for ( const auto& sn : subNotes ) {
-            if ( std::abs(sn.time - note.m_timestamp) < 5.0 &&
-                 sn.track == (int)note.m_track )
-                return true;
-        }
-        return false;
+        return subNotePtrs.count(&note) > 0;
     };
 
     auto serializeToMalody = [&](const Note& note) {
@@ -141,9 +156,10 @@ inline bool saveMalodyMap(const BeatMap& beatMap, std::filesystem::path path)
             const auto& p = static_cast<const Polyline&>(note);
             nj["seg"]     = json::array();
 
-            double rootBeatVal =
-                timeToBeat(p.m_timestamp)[0].get<double>() +
-                (timeToBeat(p.m_timestamp)[1].get<double>() / 1920.0);
+            auto rootBeatArr = timeToBeat(p.m_timestamp);
+            double rootBeatVal = rootBeatArr[0].get<double>() +
+                                 (rootBeatArr[1].get<double>() /
+                                  rootBeatArr[2].get<double>());
 
             std::vector<std::pair<double, uint32_t>> targets;
             for ( size_t i = 0; i < p.m_subNotes.size(); ++i ) {
@@ -173,19 +189,43 @@ inline bool saveMalodyMap(const BeatMap& beatMap, std::filesystem::path path)
             }
 
             for ( const auto& target : targets ) {
-                json   sj;
-                double subBeatVal =
-                    timeToBeat(target.first)[0].get<double>() +
-                    (timeToBeat(target.first)[1].get<double>() / 1920.0);
-                double relBeat = subBeatVal - rootBeatVal;
-                int intRelBeat = static_cast<int>(std::floor(relBeat + 1e-6));
-                double relFrac = relBeat - intRelBeat;
-                sj["beat"] =
-                    json::array({ intRelBeat,
-                                  static_cast<int>(std::round(relFrac * 1920)),
-                                  1920 });
-                int x_offset = (int(target.second) - int(p.m_track)) *
-                               43;  // Assume bestW=43
+                auto   relBeatArr = timeToBeat(target.first);
+                double relBeatVal = relBeatArr[0].get<double>() +
+                                    (relBeatArr[1].get<double>() /
+                                     relBeatArr[2].get<double>()) -
+                                    rootBeatVal;
+
+                int    intRelBeat = static_cast<int>(std::floor(relBeatVal + 1e-6));
+                double relFrac    = relBeatVal - intRelBeat;
+
+                json sj;
+                if ( relFrac < 1e-6 ) {
+                    sj["beat"] = json::array({ intRelBeat, 0, 1 });
+                } else {
+                    bool fitted = false;
+                    for ( int den : { 1,  2,  3,  4,  6,  8,  12,   16,
+                                      24, 32, 48, 64, 96, 192, 1920 } ) {
+                        double num     = relFrac * den;
+                        double rounded = std::round(num);
+                        if ( std::abs(num - rounded) < 1e-4 ) {
+                            int n   = static_cast<int>(rounded);
+                            int gcd = std::gcd(n, den);
+                            sj["beat"] =
+                                json::array({ intRelBeat, n / gcd, den / gcd });
+                            fitted = true;
+                            break;
+                        }
+                    }
+                    if ( !fitted ) {
+                        int n   = static_cast<int>(std::round(relFrac * 1920));
+                        int gcd = std::gcd(n, 1920);
+                        sj["beat"] =
+                            json::array({ intRelBeat, n / gcd, 1920 / gcd });
+                    }
+                }
+                float w = 256.0f / beatMap.m_baseMapMetadata.track_count;
+                int x_offset = static_cast<int>(
+                    std::round((int(target.second) - int(p.m_track)) * w));
                 if ( x_offset != 0 ) {
                     sj["x"] = x_offset;
                 }

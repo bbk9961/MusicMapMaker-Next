@@ -404,7 +404,7 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                             0u,
                             (uint32_t)std::max(0, basemeta.track_count - 1));
 
-                        if ( stepTime > runningTime ) {
+                        if ( stepTime > runningTime + 1e-7 ) {
                             // Hold segment
                             Hold& h  = beatMap.m_noteData.holds.emplace_back();
                             h.m_type = NoteType::HOLD;
