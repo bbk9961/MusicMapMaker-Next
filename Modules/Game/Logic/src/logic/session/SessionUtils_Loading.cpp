@@ -88,11 +88,12 @@ void SessionUtils::loadBeatmap(SessionContext&               ctx,
     // 1. 加载 Timing 点
     for ( const auto& timing : beatmap->m_timings ) {
         auto entity = ctx.timelineRegistry.create();
-        ctx.timelineRegistry.emplace<TimelineComponent>(
+        auto& tc = ctx.timelineRegistry.emplace<TimelineComponent>(
             entity,
             timing.m_timestamp / 1000.0,  // 毫秒转秒
             timing.m_timingEffect,
             timing.m_timingEffectParameter);
+        tc.m_metadata = timing.m_metadata;
     }
 
     // 用于追踪子物件，防止在折线之外重复绘制
@@ -105,12 +106,13 @@ void SessionUtils::loadBeatmap(SessionContext&               ctx,
 
         int track = static_cast<int>(note.m_track);
 
-        ctx.noteRegistry.emplace<NoteComponent>(
+        auto& nc = ctx.noteRegistry.emplace<NoteComponent>(
             entity,
             note.m_type,
             note.m_timestamp / 1000.0,  // 毫秒转秒
             0.0,
             track);
+        nc.m_metadata = note.m_metadata;
 
         ctx.noteRegistry.emplace<TransformComponent>(
             entity,
@@ -125,12 +127,13 @@ void SessionUtils::loadBeatmap(SessionContext&               ctx,
 
         int track = static_cast<int>(hold.m_track);
 
-        ctx.noteRegistry.emplace<NoteComponent>(
+        auto& nc = ctx.noteRegistry.emplace<NoteComponent>(
             entity,
             hold.m_type,
             hold.m_timestamp / 1000.0,  // 毫秒转秒
             hold.m_duration / 1000.0,   // 毫秒转秒
             track);
+        nc.m_metadata = hold.m_metadata;
 
         ctx.noteRegistry.emplace<TransformComponent>(
             entity,
@@ -145,12 +148,13 @@ void SessionUtils::loadBeatmap(SessionContext&               ctx,
 
         int track = static_cast<int>(flick.m_track);
 
-        ctx.noteRegistry.emplace<NoteComponent>(entity,
+        auto& nc = ctx.noteRegistry.emplace<NoteComponent>(entity,
                                                 flick.m_type,
                                                 flick.m_timestamp / 1000.0,
                                                 0.0,
                                                 track,
                                                 flick.m_dtrack);
+        nc.m_metadata = flick.m_metadata;
 
         ctx.noteRegistry.emplace<TransformComponent>(
             entity,
@@ -166,6 +170,7 @@ void SessionUtils::loadBeatmap(SessionContext&               ctx,
 
         auto& comp = ctx.noteRegistry.emplace<NoteComponent>(
             entity, polyline.m_type, polyline.m_timestamp / 1000.0, 0.0, track);
+        comp.m_metadata = polyline.m_metadata;
 
         // 填充子物件并标记它们为 SubNote
         for ( const auto& subNoteRef : polyline.m_subNotes ) {
@@ -193,6 +198,7 @@ void SessionUtils::loadBeatmap(SessionContext&               ctx,
                 const auto& f = static_cast<const ::MMM::Flick&>(subNote);
                 sn.dtrack     = f.m_dtrack;
             }
+            sn.metadata = subNote.m_metadata;
             comp.m_subNotes.push_back(sn);
         }
 
@@ -339,7 +345,7 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
             timing.m_bpm         = currentBPM;  // 继承当前红线BPM
             timing.m_beat_length = tc.m_value;
         }
-
+        timing.m_metadata = tc.m_metadata;
         ctx.currentBeatmap->m_timings.push_back(timing);
     }
 
@@ -358,6 +364,7 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
             n.m_type      = ::MMM::NoteType::NOTE;
             n.m_timestamp = nc.m_timestamp * 1000.0;
             n.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
+            n.m_metadata  = nc.m_metadata;
             ctx.currentBeatmap->m_noteData.notes.push_back(std::move(n));
             auto& ref = ctx.currentBeatmap->m_noteData.notes.back();
             entityToRef.emplace(entity, ref);
@@ -368,6 +375,7 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
             h.m_timestamp = nc.m_timestamp * 1000.0;
             h.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
             h.m_duration  = nc.m_duration * 1000.0;
+            h.m_metadata  = nc.m_metadata;
             ctx.currentBeatmap->m_noteData.holds.push_back(std::move(h));
             auto& ref = ctx.currentBeatmap->m_noteData.holds.back();
             entityToRef.emplace(entity, ref);
@@ -378,6 +386,7 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
             f.m_timestamp = nc.m_timestamp * 1000.0;
             f.m_track     = static_cast<uint32_t>(nc.m_trackIndex);
             f.m_dtrack    = nc.m_dtrack;
+            f.m_metadata  = nc.m_metadata;
             ctx.currentBeatmap->m_noteData.flicks.push_back(std::move(f));
             auto& ref = ctx.currentBeatmap->m_noteData.flicks.back();
             entityToRef.emplace(entity, ref);
@@ -394,6 +403,7 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
         p.m_type      = ::MMM::NoteType::POLYLINE;
         p.m_timestamp = note_component.m_timestamp * 1000.0;
         p.m_track     = static_cast<uint32_t>(note_component.m_trackIndex);
+        p.m_metadata  = note_component.m_metadata;
 
         // 查找子实体
         struct TempSub {
@@ -437,6 +447,7 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
                     n.m_type      = ::MMM::NoteType::NOTE;
                     n.m_timestamp = sub_note.timestamp * 1000.0;
                     n.m_track     = static_cast<uint32_t>(sub_note.trackIndex);
+                    n.m_metadata  = sub_note.metadata;
                     ctx.currentBeatmap->m_noteData.notes.push_back(
                         std::move(n));
                     auto& ref = ctx.currentBeatmap->m_noteData.notes.back();
@@ -448,6 +459,7 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
                     h.m_timestamp = sub_note.timestamp * 1000.0;
                     h.m_track     = static_cast<uint32_t>(sub_note.trackIndex);
                     h.m_duration  = sub_note.duration * 1000.0;
+                    h.m_metadata  = sub_note.metadata;
                     ctx.currentBeatmap->m_noteData.holds.push_back(
                         std::move(h));
                     auto& ref = ctx.currentBeatmap->m_noteData.holds.back();
@@ -460,6 +472,7 @@ void SessionUtils::syncBeatmap(SessionContext& ctx)
                     f.m_timestamp = sub_note.timestamp * 1000.0;
                     f.m_track     = static_cast<uint32_t>(sub_note.trackIndex);
                     f.m_dtrack    = sub_note.dtrack;
+                    f.m_metadata  = sub_note.metadata;
                     ctx.currentBeatmap->m_noteData.flicks.push_back(
                         std::move(f));
                     auto& ref = ctx.currentBeatmap->m_noteData.flicks.back();

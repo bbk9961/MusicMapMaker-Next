@@ -32,13 +32,17 @@ struct NoteComponent {
     /// @brief 如果是子物件，指向所属的 Polyline 父实体
     entt::entity m_parentPolyline{ entt::null };
 
+    /// @brief 原始元数据备份 (用于导出时保持结构一致性)
+    ::MMM::NoteMetadata m_metadata;
+
     /// @brief 折线子物件定义 (如果是 Polyline 类型)
     struct SubNote {
-        ::MMM::NoteType type;
-        double          timestamp;
-        double          duration;
-        int             trackIndex;
-        int             dtrack;
+        ::MMM::NoteType     type;
+        double              timestamp;
+        double              duration;
+        int                 trackIndex;
+        int                 dtrack;
+        ::MMM::NoteMetadata metadata;
     };
     std::vector<SubNote> m_subNotes;
 };

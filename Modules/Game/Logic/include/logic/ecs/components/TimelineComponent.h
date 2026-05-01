@@ -19,6 +19,9 @@ struct TimelineComponent {
 
     /// @brief 效果参数 (如 BPM 值 或 流速倍率/基础流速)
     double m_value{ 1.0 };
+
+    /// @brief 原始元数据备份
+    ::MMM::TimingMetadata m_metadata;
 };
 
 }  // namespace MMM::Logic
