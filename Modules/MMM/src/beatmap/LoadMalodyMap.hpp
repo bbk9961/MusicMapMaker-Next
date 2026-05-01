@@ -127,6 +127,9 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
             ev.raw   = t;
             if ( t.contains("delay") ) {
                 initialDelay = t["delay"];
+                beatMap.m_metadata.map_properties[MapMetadataType::MALODY]
+                                                 ["initialDelay"] =
+                    std::to_string(initialDelay);
             }
             rawEvents.push_back(ev);
         }
@@ -170,14 +173,26 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
 
     // 默认轨道数取 column 字段最大值
     int   finalK = std::max(0, maxColumnField + 1);
-    float bestW  = 43.0f;  // 默认为 6k 间距
-    float bestS  = 21.0f;
 
-    // 如果没有 column 字段但有 x 坐标，或者处于模式 7 (Mode 7)
-    // 通过拟合常见 Mania 布局 (4k-9k) 来寻找最合适的“虚拟轨道”
-    if ( hasX && (finalK == 0 || malodyMode == 7) ) {
+    // 如果没有通过 column 识别出轨道数，则回退到元数据中的配置
+    if ( finalK <= 0 ) {
+        if ( fileData.contains("meta") && fileData["meta"].contains("mode_ext") ) {
+            finalK = fileData["meta"]["mode_ext"].value("column", 4);
+        } else {
+            finalK = 4;
+        }
+    }
+
+    // 根据轨道数计算默认间距 (Malody 默认画布宽度为 256)
+    float bestW = 256.0f / (float)finalK;
+    float bestS = bestW / 2.0f;
+
+    // 如果存在 x 坐标，通过统计学拟合寻找最匹配的网格系统
+    if ( hasX ) {
         double minTotalError = 1e18;
-        int    bestK         = 6;
+        bool   foundBetter   = false;
+
+        // 尝试常见轨道数 (4k-9k)
         for ( int k : { 4, 5, 6, 7, 8, 9 } ) {
             float  w     = 256.0f / k;
             float  s     = w / 2.0f;
@@ -188,15 +203,16 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
             }
             if ( error < minTotalError ) {
                 minTotalError = error;
-                bestK         = k;
-                bestW         = w;
-                bestS         = s;
+                // 只有当拟合误差显著小时才更新轨道参数
+                if ( error < (double)fileData["note"].size() * 5.0 ) {
+                    finalK      = k;
+                    bestW       = w;
+                    bestS       = s;
+                    foundBetter = true;
+                }
             }
         }
-        finalK = bestK;
     }
-
-    if ( finalK <= 0 ) finalK = 4;  // 最终保底
 
     // 更新元数据
     basemeta.track_count = finalK;
@@ -259,6 +275,9 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                 if ( strToPath(soundFile) == basemeta.main_audio_path ||
                      soundFile.empty() ) {
                     audioOffset = n.value("offset", 0.0);
+                    beatMap.m_metadata.map_properties[MapMetadataType::MALODY]
+                                                     ["audioOffset"] =
+                        std::to_string(audioOffset);
                     XINFO("找到 Malody 音频偏移: {} ms, 音频文件: {}",
                           audioOffset,
                           pathToStr(basemeta.main_audio_path));
@@ -356,28 +375,18 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
             Note* notePtr = nullptr;
 
             if ( n.contains("seg") ) {
-                auto& segs = n["seg"];
-
-                // 1. 获取根节点的绝对拍数 (用于计算子段落的绝对时间)
+                auto segs = n["seg"];
                 double rootBeatRaw = beatToDouble(n["beat"]);
-
-                // 2. 预判定第一个节点的时间和轨道
-                double firstSegBeat = rootBeatRaw + beatToDouble(segs[0].value(
-                                                        "beat", json::array()));
+                double firstSegBeat = rootBeatRaw + beatToDouble(segs[0].value("beat", json::array()));
                 double firstTime    = getAbsTime(firstSegBeat) - audioOffset;
 
                 int      rootX   = n.value("x", 0);
                 int      xOffset = segs[0].value("x", 0);
                 int      firstX  = rootX + xOffset;
-                uint32_t firstSegTrack =
-                    std::clamp(getTrackIndexFromX(firstX),
-                               0u,
-                               (uint32_t)std::max(0, basemeta.track_count - 1));
+                uint32_t firstSegTrack = std::clamp(getTrackIndexFromX(firstX), 0u, (uint32_t)std::max(0, basemeta.track_count - 1));
 
-                // 2. 优化：针对单段垂直物件或单段位移物件，直接转换为对应类型，避免生成冗余的 Polyline
-                if ( !notePtr && segs.size() == 1 ) {
+                if ( segs.size() == 1 ) {
                     if ( firstSegTrack == track ) {
-                        // 垂直物件 -> 直接转为 Hold (时长可以为 0，符合用户对于“0长度Hold”的预期)
                         Hold& h       = beatMap.m_noteData.holds.emplace_back();
                         h.m_type      = NoteType::HOLD;
                         h.m_timestamp = startTime;
@@ -385,7 +394,6 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                         h.m_duration  = std::max(0.0, firstTime - startTime);
                         notePtr       = &h;
                     } else if ( firstTime == startTime ) {
-                        // 瞬发跳变 -> 直接转为 Flick
                         Flick& f      = beatMap.m_noteData.flicks.emplace_back();
                         f.m_type      = NoteType::FLICK;
                         f.m_timestamp = startTime;
@@ -395,10 +403,8 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                     }
                 }
 
-                // 3. 构造 Polyline (针对多段或滑动 Hold)
                 if ( !notePtr ) {
-                    Polyline& poly =
-                        beatMap.m_noteData.polylines.emplace_back();
+                    Polyline& poly = beatMap.m_noteData.polylines.emplace_back();
                     poly.m_type      = NoteType::POLYLINE;
                     poly.m_timestamp = startTime;
                     poly.m_track     = track;
@@ -427,6 +433,7 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                             h.m_timestamp = runningTime;
                             h.m_track     = runningTrack;
                             h.m_duration = std::max(0.0, stepTime - runningTime);
+                            h.m_isSubNote = true;
                             
                             poly.m_subNotes.push_back(h);
                             poly.m_subHolds.push_back(h);
@@ -439,6 +446,7 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                                 f.m_track     = runningTrack;
                                 f.m_dtrack =
                                     (int32_t)stepTrack - (int32_t)runningTrack;
+                                f.m_isSubNote = true;
                                 poly.m_subNotes.push_back(f);
                                 poly.m_subFlicks.push_back(f);
                             }
@@ -450,6 +458,7 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
                             f.m_track     = runningTrack;
                             f.m_dtrack =
                                 (int32_t)stepTrack - (int32_t)runningTrack;
+                            f.m_isSubNote = true;
                             poly.m_subNotes.push_back(f);
                             poly.m_subFlicks.push_back(f);
                         }
@@ -494,13 +503,15 @@ inline BeatMap loadMalodyMap(std::filesystem::path path)
 
             // 物件元数据存储
             if ( notePtr ) {
-                auto& malody_note_props =
-                    notePtr->m_metadata
-                        .note_properties[NoteMetadataType::MALODY];
+                auto& props = notePtr->m_metadata.note_properties[NoteMetadataType::MALODY];
+                if ( n.contains("endbeat") ) props["original_structure"] = "endbeat";
+                if ( n.contains("seg") )     props["original_structure"] = "seg";
+                if ( n.contains("dir") )     props["original_structure_flick"] = "dir";
+
                 for ( auto it = n.begin(); it != n.end(); ++it ) {
                     if ( it.key() != "endbeat" &&
                          it.key() != "column" && it.key() != "seg" ) {
-                        malody_note_props[it.key()] = it.value().dump();
+                        props[it.key()] = it.value().dump();
                     }
                 }
                 // beatMap.m_allNotes.push_back(*notePtr); // 统一由 sync() 处理

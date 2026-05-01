@@ -33,6 +33,9 @@ public:
     /// @brief 轨道位置索引
     uint32_t m_track{ 0 };
 
+    /// @brief 是否为子物件（隶属于 Polyline）
+    bool m_isSubNote{ false };
+
     /// @brief 所有物件元数据
     NoteMetadata m_metadata;
 
