@@ -79,6 +79,68 @@ void SettingsView::drawSoftwareSettings()
         changed        = true;
     }
 
+    // 1.7 字体选择
+    auto& skinMgr = Config::SkinManager::instance();
+    auto& asciiFonts = skinMgr.getAsciiFonts();
+    auto& cjkFonts   = skinMgr.getCjkFonts();
+
+    std::string currentAscii = settings.preferredAsciiFont.empty()
+                                   ? "Default"
+                                   : settings.preferredAsciiFont;
+    std::string currentCjk = settings.preferredCjkFont.empty()
+                                 ? "Default"
+                                 : settings.preferredCjkFont;
+
+    bool fontChanged = false;
+
+    // ASCII 字体
+    if ( currentAscii == "Default" && !asciiFonts.empty() ) {
+        currentAscii = asciiFonts.begin()->first;
+        // 注意：这里不直接写入 settings，除非用户手动点击，
+        // 或者在加载配置时就已经处理好。
+    }
+
+    ImGui::Text("%s", TR_CACHE("ui.settings.software.font.ascii").data());
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200.0f);
+    if ( ImGui::BeginCombo("##AsciiFontCombo", currentAscii.c_str()) ) {
+        for ( const auto& [name, path] : asciiFonts ) {
+            bool isSelected = (currentAscii == name);
+            if ( ImGui::Selectable(name.c_str(), isSelected) ) {
+                settings.preferredAsciiFont = name;
+                fontChanged                 = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    // CJK 字体
+    if ( currentCjk == "Default" && !cjkFonts.empty() ) {
+        currentCjk = cjkFonts.begin()->first;
+    }
+
+    ImGui::Text("%s", TR_CACHE("ui.settings.software.font.cjk").data());
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(200.0f);
+    if ( ImGui::BeginCombo("##CjkFontCombo", currentCjk.c_str()) ) {
+        for ( const auto& [name, path] : cjkFonts ) {
+            bool isSelected = (currentCjk == name);
+            if ( ImGui::Selectable(name.c_str(), isSelected) ) {
+                settings.preferredCjkFont = name;
+                fontChanged               = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+
+    if ( fontChanged ) {
+        changed = true;
+        ImGui::SameLine();
+        ImGui::TextColored(Utils::UIThemeUtils::getWarningColor(),
+                           "%s",
+                           TR_CACHE("ui.settings.software.font.restart").data());
+    }
+
     // 2. 光标样式
     ImGui::Text("%s", TR_CACHE("ui.settings.editor.cursor_style").data());
     ImGui::SameLine();

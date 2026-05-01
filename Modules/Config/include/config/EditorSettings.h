@@ -259,13 +259,19 @@ struct EditorSettings {
     /// @brief 绘制物件(按住Shift)时是否屏蔽滚动加速
     bool disableScrollAccelerationWhileDrawing{ true };
 
+    /// @brief 偏好的 ASCII 字体名称
+    std::string preferredAsciiFont{ "Default" };
+
+    /// @brief 偏好的 CJK 字体名称
+    std::string preferredCjkFont{ "Default" };
+
     NLOHMANN_DEFINE_TYPE_INTRUSIVE(
         EditorSettings, syncConfig, sfxConfig, filePickerStyle, cursorStyle,
         theme, beatDivisor, reverseScroll, scrollSnap, recentProjectsLimit,
         language, vsync, scrollSpeedMultiplier, globalVolume, selectionMode,
         marqueeThickness, marqueeRounding, saveFormatPreference,
         lastFilePickerPath, disableScrollAccelerationWhileDrawing,
-        softwareCursorConfig)
+        softwareCursorConfig, preferredAsciiFont, preferredCjkFont)
 };
 
 }  // namespace MMM::Config

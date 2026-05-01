@@ -68,7 +68,7 @@ void AudioWaveformView::update(UIManager* sourceManager)
     if ( m_isCalculating ) {
         ImGui::OpenPopup("ProcessingWaveform");
         if ( ImGui::BeginPopupModal("ProcessingWaveform", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar) ) {
-            ImGui::Text("Applying Effects to Waveform... Please wait.");
+            ImGui::Text("%s", TR("ui.waveform.processing.text").data());
             ImGui::EndPopup();
         }
         return;
@@ -84,7 +84,7 @@ void AudioWaveformView::update(UIManager* sourceManager)
     if (ImGui::Button(TR("ui.waveform.reset_zoom").data())) m_zoom = 1.0f;
     ImGui::SameLine();
     
-    if (ImGui::Button("Sync Effects")) {
+    if ( ImGui::Button(TR("ui.waveform.sync_effects").data()) ) {
         fullRecalculate();
     }
 
@@ -138,8 +138,10 @@ void AudioWaveformView::update(UIManager* sourceManager)
         }
     };
 
-    renderChannel("##WaveL", m_viewMinL.data(), m_maxEnvelopeL.data(), "L");
-    renderChannel("##WaveR", m_viewMinR.data(), m_maxEnvelopeR.data(), "R");
+    renderChannel(
+        "##WaveL", m_viewMinL.data(), m_maxEnvelopeL.data(), TR("ui.waveform.channel_l").data());
+    renderChannel(
+        "##WaveR", m_viewMinR.data(), m_maxEnvelopeR.data(), TR("ui.waveform.channel_r").data());
 }
 
 void AudioWaveformView::syncEQ()

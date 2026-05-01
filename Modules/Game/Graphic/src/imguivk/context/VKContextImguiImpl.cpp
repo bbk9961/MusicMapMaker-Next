@@ -1,5 +1,6 @@
 #include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
+#include "config/fonticon/NerdFontData.h"
 #include "graphic/glfw/window/NativeWindow.h"
 #include "graphic/imguivk/VKContext.h"
 #include "imgui_impl_glfw.h"
@@ -115,42 +116,88 @@ void VKContext::imguiVulkanInit(GLFWwindow* window_handle)
     // io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf");
     // IM_ASSERT(font != nullptr);
 
-    auto& skinMgr         = Config::SkinManager::instance();
-    auto  asciiFontPath   = skinMgr.getFontPath("ascii");
-    auto  chineseFontPath = skinMgr.getFontPath("cjk");
-    XDEBUG("asciiFontPath: {}", asciiFontPath.generic_string());
+    auto& skinMgr = Config::SkinManager::instance();
+
+    // --- 字体范围定义 ---
+    // ASCII 范围：基本拉丁文 + 拉丁文补充
+    static const ImWchar ascii_ranges[] = { 0x0020, 0x00FF, 0 };
+    // CJK 范围：排除 ASCII，包含常用标点、符号、简繁汉字、全角字符
+    static const ImWchar cjk_ranges[] = {
+        0x2000, 0x206F, // 常用标点
+        0x3000, 0x30FF, // CJK 符号、平假名、片假名
+        0x3105, 0x312D, // 注音符号
+        0x4E00, 0x9FFF, // CJK 统一汉字 (常用)
+        0xFF00, 0xFFEF, // 全角形式
+        0
+    };
+    // NerdFont 图标范围：私有使用区 (PUA)
+    static const ImWchar nerd_ranges[] = { 0xE000, 0xF8FF, 0 };
 
     // 辅助 Lambda: 加载并合并 CJK 字体
     auto loadFontWithSize = [&](const std::string& key, float size) {
+        auto& settings      = Config::AppConfig::instance().getEditorSettings();
+        auto  asciiFontPath = skinMgr.getFontPath("ascii");
+        auto  cjkFontPath   = skinMgr.getFontPath("cjk");
+
+        // 尝试加载偏好 ASCII 字体
+        if ( !settings.preferredAsciiFont.empty() &&
+             settings.preferredAsciiFont != "Default" ) {
+            const auto& asciiFonts = skinMgr.getAsciiFonts();
+            if ( auto it = asciiFonts.find(settings.preferredAsciiFont);
+                 it != asciiFonts.end() ) {
+                asciiFontPath = it->second;
+            }
+        }
+
+        // 尝试加载偏好 CJK 字体
+        if ( !settings.preferredCjkFont.empty() &&
+             settings.preferredCjkFont != "Default" ) {
+            const auto& cjkFonts = skinMgr.getCjkFonts();
+            if ( auto it = cjkFonts.find(settings.preferredCjkFont);
+                 it != cjkFonts.end() ) {
+                cjkFontPath = it->second;
+            }
+        }
+
         ImFontConfig config;
         config.OversampleH = 2;
         config.OversampleV = 2;
+        config.PixelSnapH  = true;
 
         // Load at physical pixel size for sharpness
         float atlasSize = size * native_scale;
 
-        // 加载基础 ASCII 字体
+        // 1. 加载基础 ASCII 字体 (严格限制范围)
         ImFont* font = io.Fonts->AddFontFromFileTTF(
-            asciiFontPath.generic_string().c_str(), atlasSize, &config);
+            asciiFontPath.generic_string().c_str(),
+            atlasSize,
+            &config,
+            ascii_ranges);
 
         if ( font ) {
-            // 配置合并参数加载 CJK 字体
+            // 2. 配置合并参数加载 CJK 字体 (严格限制范围)
             ImFontConfig mergeConfig;
             mergeConfig.MergeMode  = true;
             mergeConfig.PixelSnapH = true;
-            const ImWchar* ranges  = io.Fonts->GetGlyphRangesChineseFull();
 
-            io.Fonts->AddFontFromFileTTF(
-                chineseFontPath.generic_string().c_str(),
-                atlasSize,
-                &mergeConfig,
-                ranges);
+            io.Fonts->AddFontFromFileTTF(cjkFontPath.generic_string().c_str(),
+                                         atlasSize,
+                                         &mergeConfig,
+                                         cjk_ranges);
+
+            // 3. 合并嵌入的 NerdFont 图标
+            ImFontConfig iconConfig;
+            iconConfig.MergeMode            = true;
+            iconConfig.PixelSnapH           = true;
+            iconConfig.FontDataOwnedByAtlas = false;  // 数据在静态区，不要释放
+
+            io.Fonts->AddFontFromMemoryTTF((void*)Config::g_nerdfont_data,
+                                           Config::g_nerdfont_data_size,
+                                           atlasSize,
+                                           &iconConfig,
+                                           nerd_ranges);
 
             // 设置缩放以匹配 UI 布局
-            // 如果是在 Wayland 等逻辑缩放环境下，atlasSize 是
-            // 2x，但我们希望它在 ImGui 中只占用 1x 的逻辑空间 如果是在 X11
-            // 等物理缩放环境下，atlasSize 是 2x，我们也希望它占用 2x 的空间
-            // (ui_scale=2.0)
             font->Scale = ui_scale / native_scale;
 
             skinMgr.setFont(key, font);

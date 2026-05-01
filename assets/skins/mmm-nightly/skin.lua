@@ -1,5 +1,11 @@
 -- assets/skins/mmm-nightly/skin.lua
 local ressPath = __SKINLUA_DIR__
+
+local f_ascii_reg  = "font/ComicShannsMonoNerdFontPropo-Regular.otf"
+local f_ascii_bold = "font/ComicShannsMonoNerdFontPropo-Bold.otf"
+local f_cjk_reg    = "font/NotoSansMonoCJKsc-Regular.otf"
+local f_cjk_bold   = "font/NotoSansMonoCJKsc-Bold.otf"
+
 local Skin = {
 	meta = {
 		name = "MMM Nightly",
@@ -74,10 +80,22 @@ local Skin = {
 		zh_cn = "lang/zh_cn.lua",
 	},
 
-	-- 字体文件配置
+	-- 字体文件定义
 	fonts = {
-		ascii = "font/ComicShannsMonoNerdFontPropo-Regular.otf",
-		cjk = "font/NotoSansMonoCJKsc-Regular.otf",
+		ascii = f_ascii_reg,
+		cjk = f_cjk_reg,
+	},
+
+	-- 可选 ASCII 字体列表
+	ascii_fonts = {
+		["Comic Sans (Regular)"] = f_ascii_reg,
+		["Comic Sans (Bold)"] = f_ascii_bold,
+	},
+
+	-- 可选 CJK 字体列表
+	cjk_fonts = {
+		["Noto Sans CJK (Regular)"] = f_cjk_reg,
+		["Noto Sans CJK (Bold)"] = f_cjk_bold,
 	},
 
 	-- 字体尺寸配置

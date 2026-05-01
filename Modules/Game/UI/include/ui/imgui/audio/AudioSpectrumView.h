@@ -62,7 +62,8 @@ private:
         std::vector<double> gains;
         std::vector<double> qs;
     };
-    void backgroundRecalculate(const EQSettings& eq);
+    void backgroundRecalculate(const EQSettings& eq, float maxFreq,
+                               float logBias);
 
     /// @brief 构建 "Hot" 色图查找表 (256 级)
     void buildColormapLUT();
@@ -137,6 +138,8 @@ private:
 
     // --- 视图状态 ---
     float m_zoom{ 1.0f };
+    float m_maxFreq{ 20000.0f };
+    float m_logBias{ 6.91f };
 };
 
 }  // namespace MMM::UI

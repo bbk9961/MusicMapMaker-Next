@@ -1,7 +1,7 @@
 #include "ui/imgui/audio/AudioSpectrumView.h"
 #include "audio/AudioManager.h"
-#include "config/skin/translation/Translation.h"
 #include "config/AppConfig.h"
+#include "config/skin/translation/Translation.h"
 #include "graphic/imguivk/VKContext.h"
 #include "graphic/imguivk/VKTexture.h"
 #include "imgui.h"
@@ -125,11 +125,11 @@ void AudioSpectrumView::update(UIManager* sourceManager)
     }
 
     if ( ImGui::BeginPopupModal(
-             "Calculating Spectrum###SpectrumCalcModal",
+             (std::string(TR("ui.spectrum.calc_modal.title").data()) + "###SpectrumCalcModal").c_str(),
              nullptr,
              ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoMove) ) {
         float progress = m_calcProgress.load();
-        ImGui::Text("Generating high-resolution spectrum heatmap...");
+        ImGui::Text("%s", TR("ui.spectrum.calc_modal.text").data());
         ImGui::Spacing();
         ImGui::ProgressBar(progress, ImVec2(400, 0));
         ImGui::Text("%.0f%%", progress * 100.0f);
@@ -149,11 +149,33 @@ void AudioSpectrumView::update(UIManager* sourceManager)
     double currentTime = audioManager.getCurrentTime();
     double totalTime   = audioManager.getTotalTime();
 
-    ImGui::SetNextItemWidth(100);
     ImGui::SliderFloat(
         TR("ui.waveform.zoom").data(), &m_zoom, 0.1f, 10.0f, "%.1fs");
+
+    ImGui::SetNextItemWidth(120);
+    if ( ImGui::SliderFloat(TR("ui.spectrum.max_freq").data(),
+                            &m_maxFreq,
+                            2000.0f,
+                            24000.0f,
+                            "%.0f Hz") ) {
+        if ( ImGui::IsItemDeactivatedAfterEdit() ) {
+            startAsyncRecalculate();
+        }
+    }
     ImGui::SameLine();
-    if ( ImGui::Button("Sync Effects") ) {
+
+    ImGui::SetNextItemWidth(120);
+    if ( ImGui::SliderFloat(TR("ui.spectrum.log_bias").data(),
+                            &m_logBias,
+                            0.01f,
+                            20.0f,
+                            "%.2f") ) {
+        if ( ImGui::IsItemDeactivatedAfterEdit() ) {
+            startAsyncRecalculate();
+        }
+    }
+
+    if ( ImGui::Button(TR("ui.spectrum.sync_effects").data()) ) {
         startAsyncRecalculate();
     }
 
@@ -209,20 +231,19 @@ void AudioSpectrumView::update(UIManager* sourceManager)
             }
 
             // --- 绘制游标 ---
-            float visualOffset = Config::AppConfig::instance()
-                                     .getVisualConfig()
-                                     .visualOffset;
+            float visualOffset =
+                Config::AppConfig::instance().getVisualConfig().visualOffset;
             double adjustedTime = currentTime + visualOffset;
 
             if ( adjustedTime >= viewStart && adjustedTime <= viewEnd ) {
                 float relativePos = static_cast<float>(
                     (adjustedTime - viewStart) / (viewEnd - viewStart));
 
-                float       lineX      = plotStartPos.x + (relativePos * avail.x);
-                float       lineTop    = plotStartPos.y;
-                float       lineBottom = plotStartPos.y + plotH;
+                float lineX      = plotStartPos.x + (relativePos * avail.x);
+                float lineTop    = plotStartPos.y;
+                float lineBottom = plotStartPos.y + plotH;
 
-                ImDrawList* drawList   = ImGui::GetWindowDrawList();
+                ImDrawList* drawList = ImGui::GetWindowDrawList();
                 drawList->AddLine(ImVec2(lineX, lineTop),
                                   ImVec2(lineX, lineBottom),
                                   IM_COL32(255, 0, 0, 255),
@@ -232,14 +253,14 @@ void AudioSpectrumView::update(UIManager* sourceManager)
             ImGui::EndGroup();
         };
 
-    ImGui::Text("L (Hz)");
+    ImGui::Text("%s", TR("ui.spectrum.channel_l").data());
     if ( !m_texturesL.empty() ) {
         renderChannelBank(m_texturesL);
     } else {
         ImGui::Dummy(ImVec2(avail.x, plotH));
     }
 
-    ImGui::Text("R (Hz)");
+    ImGui::Text("%s", TR("ui.spectrum.channel_r").data());
     if ( !m_texturesR.empty() ) {
         renderChannelBank(m_texturesR);
     } else {
@@ -339,10 +360,13 @@ void AudioSpectrumView::startAsyncRecalculate()
     m_calcFinished.store(false);
 
     m_calcThread = std::make_unique<std::jthread>(
-        [this, eq = std::move(eq)]() { backgroundRecalculate(eq); });
+        [this, eq = std::move(eq), maxFreq = m_maxFreq, logBias = m_logBias]() {
+            backgroundRecalculate(eq, maxFreq, logBias);
+        });
 }
 
-void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq)
+void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq,
+                                              float maxFreq, float logBias)
 {
     auto& audioManager = Audio::AudioManager::instance();
     auto  track        = audioManager.getBGMTrack();
@@ -365,10 +389,14 @@ void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq)
     unsigned int numWorkers =
         std::max(1u, static_cast<unsigned int>(hwThreads * 0.8));
 
-    XINFO("Spectrum async recalculate: {} workers, {} segments, {} bins",
-          numWorkers,
-          numTotalSegments,
-          m_numFrequencyBins);
+    XINFO(
+        "Spectrum async recalculate: {} workers, {} segments, {} bins, "
+        "maxFreq: {}, logBias: {}",
+        numWorkers,
+        numTotalSegments,
+        m_numFrequencyBins,
+        maxFreq,
+        logBias);
 
     std::vector<double> window(fftSize);
     for ( int i = 0; i < fftSize; ++i ) {
@@ -434,12 +462,23 @@ void AudioSpectrumView::backgroundRecalculate(const EQSettings& eq)
 
             fftw_execute(localPlan);
 
+            double fmin       = 20.0;
+            double fmax       = static_cast<double>(maxFreq);
+            double k          = static_cast<double>(logBias);
+            double fRange     = fmax - fmin;
+            double expKMinus1 = std::exp(k) - 1.0;
+
             for ( int b = 0; b < m_numFrequencyBins; ++b ) {
-                double freqStart =
-                    20.0 * std::pow(1000.0, (double)b / m_numFrequencyBins);
-                double freqEnd =
-                    20.0 *
-                    std::pow(1000.0, (double)(b + 1) / m_numFrequencyBins);
+                auto getFreq = [&](double progress) {
+                    if ( std::abs(k) < 1e-4 ) {
+                        return fmin + fRange * progress;
+                    }
+                    return fmin +
+                           fRange * (std::exp(k * progress) - 1.0) / expKMinus1;
+                };
+
+                double freqStart = getFreq((double)b / m_numFrequencyBins);
+                double freqEnd = getFreq((double)(b + 1) / m_numFrequencyBins);
                 int bStart = static_cast<int>(freqStart * fftSize / sampleRate);
                 int bEnd =
                     std::min(static_cast<int>(freqEnd * fftSize / sampleRate),

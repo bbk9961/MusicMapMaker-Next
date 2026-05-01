@@ -88,6 +88,30 @@ bool SkinManager::loadSkin(const std::string& luaFilePath)
         m_data.fontPaths[key] = m_data.skinPath / "resources" / rpath;
     }
 
+    // 解析 AsciiFonts
+    sol::optional<sol::table> asciiFontsTableOpt = skinTable["ascii_fonts"];
+    m_data.asciiFonts.clear();
+    if ( asciiFontsTableOpt ) {
+        sol::table asciiFontsTable = asciiFontsTableOpt.value();
+        for ( const auto& kv : asciiFontsTable ) {
+            std::string name       = kv.first.as<std::string>();
+            std::string rpath      = kv.second.as<std::string>();
+            m_data.asciiFonts[name] = m_data.skinPath / "resources" / rpath;
+        }
+    }
+
+    // 解析 CjkFonts
+    sol::optional<sol::table> cjkFontsTableOpt = skinTable["cjk_fonts"];
+    m_data.cjkFonts.clear();
+    if ( cjkFontsTableOpt ) {
+        sol::table cjkFontsTable = cjkFontsTableOpt.value();
+        for ( const auto& kv : cjkFontsTable ) {
+            std::string name       = kv.first.as<std::string>();
+            std::string rpath      = kv.second.as<std::string>();
+            m_data.cjkFonts[name] = m_data.skinPath / "resources" / rpath;
+        }
+    }
+
     // 解析 Theme 并保存为皮肤的默认推荐主题
     sol::optional<std::string> themeOpt = skinTable["theme"];
     if ( themeOpt ) {
