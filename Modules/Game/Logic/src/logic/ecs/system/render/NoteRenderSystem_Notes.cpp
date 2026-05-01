@@ -166,16 +166,24 @@ void NoteRenderSystem::generateNoteHitboxes(
                                                drawH });
             } else if ( note.m_type == ::MMM::NoteType::HOLD &&
                         visualH > ctx.noteH * 0.1f ) {
-                float headX = leftX + note.m_trackIndex * singleTrackW +
-                              (singleTrackW - ctx.noteW) * 0.5f;
-                // Hold Body 从 Head 中心向上拉到 End 中心 (visualH
-                // 是两者的距离)
+                float bodyW  = ctx.noteW;
+                auto  itBody = snapshot->uvMap.find(
+                    static_cast<uint32_t>(TextureID::HoldBodyVertical));
+                if ( itBody != snapshot->uvMap.end() ) {
+                    float baseWRatio =
+                        snapshot->uvMap.at(uint32_t(TextureID::Note)).z;
+                    bodyW = ctx.noteW * (itBody->second.z / baseWRatio);
+                }
+
+                float bodyX = leftX + note.m_trackIndex * singleTrackW +
+                              (singleTrackW - bodyW) * 0.5f;
+
                 snapshot->hitboxes.push_back({ entity,
                                                HoverPart::HoldBody,
                                                -1,
-                                               headX,
+                                               bodyX,
                                                screenY - visualH,
-                                               ctx.noteW,
+                                               bodyW,
                                                visualH });
             }
         }
@@ -218,9 +226,12 @@ void NoteRenderSystem::generateNoteHitboxes(
                 if ( it != snapshot->uvMap.end() ) {
                     float baseWRatio =
                         snapshot->uvMap.at(uint32_t(TextureID::Note)).z;
+                    float baseHRatio =
+                        snapshot->uvMap.at(uint32_t(TextureID::Note)).w;
                     float wRatio = it->second.z / baseWRatio;
+                    float hRatio = it->second.w / baseHRatio;
                     arrowW       = ctx.noteW * wRatio;
-                    arrowH       = arrowW * (it->second.w / it->second.z);
+                    arrowH       = ctx.noteH * hRatio;
                 }
 
                 float arrowX =
@@ -235,14 +246,28 @@ void NoteRenderSystem::generateNoteHitboxes(
                                                arrowW,
                                                arrowH });
             } else if ( note.m_type == ::MMM::NoteType::HOLD ) {
+                auto it = snapshot->uvMap.find(
+                    static_cast<uint32_t>(TextureID::HoldEnd));
+                float endW = ctx.noteW;
+                float endH = ctx.noteH;
+                if ( it != snapshot->uvMap.end() ) {
+                    float baseWRatio =
+                        snapshot->uvMap.at(uint32_t(TextureID::Note)).z;
+                    float baseHRatio =
+                        snapshot->uvMap.at(uint32_t(TextureID::Note)).w;
+                    endW = ctx.noteW * (it->second.z / baseWRatio);
+                    endH = ctx.noteH * (it->second.w / baseHRatio);
+                }
+
                 snapshot->hitboxes.push_back(
                     { entity,
                       HoverPart::HoldEnd,
                       -1,
-                      headX,
-                      screenY - visualH - ctx.noteH * 0.5f,
-                      ctx.noteW,
-                      ctx.noteH });
+                      leftX + note.m_trackIndex * singleTrackW +
+                          (singleTrackW - endW) * 0.5f,
+                      screenY - visualH - endH * 0.5f,
+                      endW,
+                      endH });
             }
         }
     }

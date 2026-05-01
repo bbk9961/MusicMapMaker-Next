@@ -14,15 +14,14 @@ static glm::vec2 getDrawSize(RenderSnapshot* snapshot, TextureID id,
 {
     auto itBase = snapshot->uvMap.find(static_cast<uint32_t>(TextureID::Note));
     if ( itBase == snapshot->uvMap.end() ) return { baseW, baseH };
-    float baseWRatio = itBase->second.z;
 
     auto it = snapshot->uvMap.find(static_cast<uint32_t>(id));
     if ( it == snapshot->uvMap.end() ) return { baseW, baseH };
 
-    float wRatio = it->second.z / baseWRatio;
-    float drawW  = baseW * wRatio;
-    float drawH  = drawW * (it->second.w / it->second.z);
-    return { drawW, drawH };
+    float wRatio = it->second.z / itBase->second.z;
+    float hRatio = it->second.w / itBase->second.w;
+
+    return { baseW * wRatio, baseH * hRatio };
 }
 
 /**
