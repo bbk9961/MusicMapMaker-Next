@@ -1,3 +1,4 @@
+#include "config/AppConfig.h"
 #include "graphic/glfw/window/NativeWindow.h"
 #include "graphic/imguivk/IGraphicUserHook.h"
 #include "graphic/imguivk/VKRenderer.h"
@@ -43,12 +44,56 @@ void VKRenderer::render(NativeWindow&                  window,
     }
 
     // 恢复fence
-    m_vkLogicalDevice.resetFences(m_cmdAvailableFences[m_currentFrameIndex]);
+    (void)m_vkLogicalDevice.resetFences(
+        m_cmdAvailableFences[m_currentFrameIndex]);
+
+    // --- [优化] 在准备新帧之前获取图像 ---
+    // 请求下一个可绘制的图像 - 查到的同时发出图像可用信号量
+    // 在 FIFO (VSync) 模式下，这里是主要的阻塞点，会等待垂直同步
+    vk::ResultValue<uint32_t> imageResult =
+        m_vkLogicalDevice.acquireNextImageKHR(
+            m_vkSwapChain.m_swapchain,
+            std::numeric_limits<uint64_t>::max(),
+            m_imageAvailableSems[m_currentFrameIndex]);
+
+    if ( imageResult.result == vk::Result::eErrorOutOfDateKHR ) {
+        triggerRecreate(window);
+        return;
+    } else if ( imageResult.result != vk::Result::eSuccess &&
+                imageResult.result != vk::Result::eSuboptimalKHR ) {
+        XWARN("acquire ImageKHR failed: {}",
+              static_cast<int>(imageResult.result));
+        return;
+    }
+
+    // 获取到实际查询到的可绘制的图像下标
+    uint32_t imageIndex = imageResult.value;
+
+    // 安全检查：防止越界
+    if ( imageIndex >= m_vkSwapChain.m_vkImageBuffers.size() ) {
+        XERROR("Invalid image index acquired: {}", imageIndex);
+        return;
+    }
+
+    // --- [关键优化] 在 VSync 阻塞解除后立即处理输入 ---
+    // 这样能保证本帧使用的输入数据是最新鲜的
+    window.pollEvents();
 
     // --- 1. ImGui 准备新帧 ---
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+
+    // 根据配置决定是否隐藏系统光标
+    auto& editorCfg = Config::AppConfig::instance().getEditorConfig();
+    if ( editorCfg.settings.cursorStyle == Config::CursorStyle::Software ) {
+        ImGui::SetMouseCursor(ImGuiMouseCursor_None);
+        glfwSetInputMode(
+            window.getWindowHandle(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+    } else {
+        glfwSetInputMode(
+            window.getWindowHandle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
 
     // 准备所有资源
     for ( auto& graphicUserHook : graphicUserHooks ) {
@@ -59,42 +104,22 @@ void VKRenderer::render(NativeWindow&                  window,
                                             m_LogicDeviceGraphicsQueue);
     }
 
-
     // 录制所有ui
     for ( auto& graphicUserHook : graphicUserHooks ) {
         graphicUserHook->onUpdateUI();
     }
 
     // 更新光标管理器
-    if ( m_cursorManager ) {
-        m_cursorManager->UpdateAndDraw();
+    if ( m_cursorManager &&
+         editorCfg.settings.cursorStyle == Config::CursorStyle::Software ) {
+        m_cursorManager->UpdateAndDraw(m_cursorSmokeLifeOverride);
     }
 
     ImGui::Render();  // 生成imgui绘制顶点数据
 
-    // 请求下一个可绘制的图像 - 查到的同时发出图像可用信号量
-    auto imageResult = m_vkLogicalDevice.acquireNextImageKHR(
-        m_vkSwapChain.m_swapchain,
-        std::numeric_limits<uint64_t>::max(),
-        m_imageAvailableSems[m_currentFrameIndex]);
-
-    // if ( imageResult.result == vk::Result::eErrorOutOfDateKHR ) {
-    //     // 先结束 ImGui 帧
-    //     ImGui::EndFrame();
-    //     // 标记需要重建
-    //     triggerRecreate(window);
-    //     return;
-    // }
-
-    if ( imageResult.result != vk::Result::eSuccess ) {
-        XWARN("acquire ImageKHR failed");
-    }
-    // 获取到实际查询到的可绘制的图像下标
-    auto imageIndex = imageResult.value;
-
     // 重置命令缓冲
     auto& currentCmdBuffer = m_vkCommandBuffers[m_currentFrameIndex];
-    currentCmdBuffer.reset();
+    (void)currentCmdBuffer.reset();
 
     // 准备开始输入命令
     vk::CommandBufferBeginInfo commandBufferBeginInfo;
@@ -116,11 +141,12 @@ void VKRenderer::render(NativeWindow&                  window,
     clearValues[1].setDepthStencil({ 1.0f, 0 });
 
     // 命令录制
-    currentCmdBuffer.begin(commandBufferBeginInfo);
+    (void)currentCmdBuffer.begin(commandBufferBeginInfo);
 
     // 录制所有离屏渲染命令
     for ( auto& graphicUserHook : graphicUserHooks ) {
-        graphicUserHook->onRecordOffscreen(currentCmdBuffer);
+        graphicUserHook->onRecordOffscreen(currentCmdBuffer,
+                                           (uint32_t)m_currentFrameIndex);
     }
 
     {
@@ -153,7 +179,7 @@ void VKRenderer::render(NativeWindow&                  window,
         // 结束渲染流程
         currentCmdBuffer.endRenderPass();
     }
-    currentCmdBuffer.end();  // 结束命令录制
+    (void)currentCmdBuffer.end();  // 结束命令录制
 
     // 准备等待的阶段掩码
     // 这表示：在流水线的“颜色附件输出”阶段等待信号量
@@ -173,7 +199,7 @@ void VKRenderer::render(NativeWindow&                  window,
         .setWaitDstStageMask(waitStages)
         // 发出信号量
         .setSignalSemaphores(m_renderFinishedSems[imageIndex]);
-    m_LogicDeviceGraphicsQueue.submit(
+    (void)m_LogicDeviceGraphicsQueue.submit(
         submitInfo, m_cmdAvailableFences[m_currentFrameIndex]);
 
     // 呈现
@@ -185,15 +211,15 @@ void VKRenderer::render(NativeWindow&                  window,
         .setSwapchains(m_vkSwapChain.m_swapchain)
         // 等待信号量
         .setWaitSemaphores(m_renderFinishedSems[imageIndex]);
-    auto presentResult = m_LogicDevicePresentQueue.presentKHR(presentInfo);
 
-    if ( presentResult != vk::Result::eSuccess ) {
-        if ( presentResult == vk::Result::eSuboptimalKHR ) {
-            // triggerRecreate(window);
-            XWARN("Size Missed");
-        } else {
-            XWARN("Present failed");
-        }
+    vk::Result presentResult =
+        m_LogicDevicePresentQueue.presentKHR(presentInfo);
+
+    if ( presentResult == vk::Result::eErrorOutOfDateKHR ||
+         presentResult == vk::Result::eSuboptimalKHR ) {
+        m_vkSwapChain.markDirty();
+    } else if ( presentResult != vk::Result::eSuccess ) {
+        XWARN("Present failed: {}", static_cast<int>(presentResult));
     }
 
     // 并发帧数步进

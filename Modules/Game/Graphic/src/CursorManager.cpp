@@ -1,4 +1,5 @@
 #include "graphic/CursorManager.h"
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "imgui_internal.h"
 #include "log/colorful-log.h"
@@ -47,11 +48,23 @@ CursorManager::CursorManager(vk::PhysicalDevice& phyDevice,
 CursorManager::~CursorManager() {}
 
 // 渲染更新函数，每帧调用一次
-void CursorManager::UpdateAndDraw()
+void CursorManager::UpdateAndDraw(float smokeLifeOverride)
 {
     ImGuiIO& io        = ImGui::GetIO();
     ImVec2   mousePos  = io.MousePos;
     float    deltaTime = io.DeltaTime;
+
+    auto& config    = Config::AppConfig::instance();
+    float dpiScale  = config.getWindowContentScale();
+    auto& cursorCfg = config.getEditorSettings().softwareCursorConfig;
+
+    // 同步配置参数
+    float cursorSize    = cursorCfg.cursorSize * dpiScale;
+    float trailSize     = cursorCfg.trailSize * dpiScale;
+    float trailLifeTime = cursorCfg.trailLifeTime;
+    float smokeSize     = cursorCfg.smokeSize * dpiScale;
+    float smokeLifeTime = (smokeLifeOverride > 0.0f) ? smokeLifeOverride
+                                                     : cursorCfg.smokeLifeTime;
 
     // 1. 生成新的点
     bool isMoving =
@@ -72,7 +85,7 @@ void CursorManager::UpdateAndDraw()
     // 2. 绘制烟雾 (最底层)
     for ( int i = (int)m_smokePoints.size() - 1; i >= 0; --i ) {
         TrailPoint& p = m_smokePoints[i];
-        p.life -= deltaTime / m_smokeLifeTime;
+        p.life -= deltaTime / smokeLifeTime;
         if ( p.life <= 0.0f ) {
             m_smokePoints.pop_back();
             continue;
@@ -84,7 +97,7 @@ void CursorManager::UpdateAndDraw()
 
         // 扩张公式：初始大小 * (1.0 + (1.0 - 剩余寿命) * 扩张系数)
         float currentSize =
-            m_smokeSize * (1.0f + (1.0f - p.life) * m_smokeExpansion);
+            smokeSize * (1.0f + (1.0f - p.life) * m_smokeExpansion);
         float hs = currentSize * 0.5f;
 
         if ( m_texSmoke ) {
@@ -100,7 +113,7 @@ void CursorManager::UpdateAndDraw()
     // 3. 绘制拖尾 (中间层)
     for ( int i = (int)m_trailPoints.size() - 1; i >= 0; --i ) {
         TrailPoint& p = m_trailPoints[i];
-        p.life -= deltaTime / m_trailLifeTime;
+        p.life -= deltaTime / trailLifeTime;
         if ( p.life <= 0.0f ) {
             m_trailPoints.pop_back();
             continue;
@@ -108,7 +121,7 @@ void CursorManager::UpdateAndDraw()
 
         int   alpha       = (int)(p.life * 255.0f);
         ImU32 color       = IM_COL32(255, 255, 255, alpha);
-        float currentSize = m_trailSize * (0.3f + 0.7f * p.life);  // 拖尾会收缩
+        float currentSize = trailSize * (0.3f + 0.7f * p.life);  // 拖尾会收缩
         float hs          = currentSize * 0.5f;
 
         if ( m_texTrail ) {
@@ -123,7 +136,7 @@ void CursorManager::UpdateAndDraw()
 
     // 4. 绘制主光标头 (最顶层)
     if ( m_texCursor ) {
-        float hs = m_cursorSize * 0.5f;
+        float hs = cursorSize * 0.5f;
         drawList->AddImage(m_texCursor->getImTextureID(),
                            ImVec2(mousePos.x - hs, mousePos.y - hs),
                            ImVec2(mousePos.x + hs, mousePos.y + hs));

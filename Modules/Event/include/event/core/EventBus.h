@@ -82,23 +82,35 @@ public:
         // 1. 确保继承关系被缓存（懒加载，仅在首次发布某类型时执行）
         cache_inheritance<EventType>();
 
-        std::shared_lock lock(m_mutex);
-        auto             index = std::type_index(typeid(EventType));
+        auto index = std::type_index(typeid(EventType));
 
-        // 2. 获取该类型及其所有父类的类型索引列表
-        const auto& relatedTypes = m_inheritanceCache[index];
+        // 2. 安全地获取相关类型索引列表 (克隆一份以保证线程安全)
+        std::vector<std::type_index> relatedTypes;
+        {
+            std::lock_guard cacheLock(m_cacheMutex);
+            relatedTypes = m_inheritanceCache[index];
+        }
 
-        // 3. 遍历所有相关类型，并调用它们的订阅者
-        for ( const auto& targetType : relatedTypes ) {
-            if ( auto subIt = m_subscribers.find(targetType);
-                 subIt != m_subscribers.end() ) {
-                for ( const auto& subInfo : subIt->second ) {
-                    // 传递事件指针。注意：底层我们要求事件具有相同的内存布局或正确的基类偏移。
-                    // 对于纯粹的 struct 继承，static_cast
-                    // 处理指针时会自动调整偏移。
-                    subInfo.callback(&event);
+        // 3. 收集该类型及其所有父类的所有订阅者回调
+        // 关键修复：在调用回调前释放锁，防止订阅者执行 publish/subscribe 导致死锁或升级锁冲突
+        std::vector<SubscriberInfo> subsToCall;
+        {
+            std::shared_lock lock(m_mutex);
+            for ( const auto& targetType : relatedTypes ) {
+                if ( auto subIt = m_subscribers.find(targetType);
+                     subIt != m_subscribers.end() ) {
+                    // 复制订阅者信息（含 std::function 拷贝）
+                    for ( const auto& subInfo : subIt->second ) {
+                        subsToCall.push_back(subInfo);
+                    }
                 }
             }
+        }
+
+        // 4. 在锁外依次调用订阅者
+        for ( const auto& subInfo : subsToCall ) {
+            // 传递事件指针
+            subInfo.callback(&event);
         }
     }
 
@@ -147,7 +159,7 @@ private:
         m_inheritanceCache[index] = std::move(hierarchy);
     }
 
-    template<typename DerivedType, typename Tuple, size_t Index = 0>
+    template<typename EventType, typename Tuple, size_t Index = 0>
     void collect_parents(std::vector<std::type_index>& hierarchy)
     {
         if constexpr ( Index < std::tuple_size_v<Tuple> ) {
@@ -164,9 +176,53 @@ private:
             }
 
             // 处理 Tuple 中的下一个父类
-            collect_parents<DerivedType, Tuple, Index + 1>(hierarchy);
+            collect_parents<EventType, Tuple, Index + 1>(hierarchy);
         }
     }
+};
+
+/**
+ * @brief RAII 风格的订阅令牌，超出作用域自动取消订阅
+ */
+template<typename EventType> class ScopedSubscription
+{
+public:
+    ScopedSubscription() = default;
+    ScopedSubscription(SubscriptionID id) : m_id(id) {}
+    ~ScopedSubscription()
+    {
+        if ( m_id != 0 ) {
+            EventBus::instance().unsubscribe<EventType>(m_id);
+        }
+    }
+
+    // 禁用拷贝，允许移动
+    ScopedSubscription(const ScopedSubscription&)            = delete;
+    ScopedSubscription& operator=(const ScopedSubscription&) = delete;
+    ScopedSubscription(ScopedSubscription&& other) noexcept : m_id(other.m_id)
+    {
+        other.m_id = 0;
+    }
+    ScopedSubscription& operator=(ScopedSubscription&& other) noexcept
+    {
+        if ( this != &other ) {
+            if ( m_id != 0 ) EventBus::instance().unsubscribe<EventType>(m_id);
+            m_id       = other.m_id;
+            other.m_id = 0;
+        }
+        return *this;
+    }
+
+    void reset()
+    {
+        if ( m_id != 0 ) {
+            EventBus::instance().unsubscribe<EventType>(m_id);
+            m_id = 0;
+        }
+    }
+
+private:
+    SubscriptionID m_id{ 0 };
 };
 
 }  // namespace MMM::Event

@@ -26,6 +26,7 @@ add_library(Graphic STATIC
  src/imguivk/VKShader.cpp
  src/imguivk/VKSwapchain.cpp
  src/imguivk/VKTexture.cpp
+ src/imguivk/VKTextureAtlas.cpp
  src/CursorManager.cpp
 )
 
@@ -39,9 +40,11 @@ target_link_libraries(Graphic
   Font
   Event
   Config
+  Common
   3rd_glfw
   3rd_glm
   3rd_imgui
+  3rd_implot
   3rd_clay
   3rd_stb
   3rd_lunasvg

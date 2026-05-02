@@ -22,6 +22,6 @@ public:
 
 protected:
     /// @brief 子视图名称
-    const std::string& m_subViewName;
+    const std::string m_subViewName;
 };
 }  // namespace MMM::UI

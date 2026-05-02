@@ -8,6 +8,7 @@
 #include "log/colorful-log.h"
 #include "ui/IRenderableView.h"
 #include "ui/ITextureLoader.h"
+#include "ui/imgui/audio/AudioTrackControllerUI.h"
 #include <vector>
 
 namespace MMM::UI
@@ -70,6 +71,22 @@ void UIManager::onPrepareResources(vk::PhysicalDevice&   physicalDevice,
 /// @brief 更新ui
 void UIManager::onUpdateUI()
 {
+    // 清理已关闭的 IUIView
+    std::vector<std::string> toRemove;
+    for ( auto& [name, view] : m_uiviews ) {
+        if ( !view->isOpen() ) {
+            toRemove.push_back(name);
+        }
+    }
+
+    for ( const auto& name : toRemove ) {
+        m_uiviews.erase(name);
+        std::erase(m_uiSequence, name);
+        // 同时也从纹理加载器和可渲染序列中移除（如果存在）
+        std::erase(m_renderableUiSequence, name);
+        std::erase(m_textureLoaderSequence, name);
+    }
+
     // 按注册顺序更新ui
     for ( const auto& name : m_uiSequence ) {
         // 派发 ImGui 事件
@@ -80,13 +97,13 @@ void UIManager::onUpdateUI()
 }
 
 /// @brief 录制所有离屏渲染指令
-void UIManager::onRecordOffscreen(vk::CommandBuffer& cmd)
+void UIManager::onRecordOffscreen(vk::CommandBuffer& cmd, uint32_t frameIndex)
 {
     for ( const auto& name : m_renderableUiSequence ) {
         auto renderableView =
             dynamic_cast<IRenderableView*>(m_uiviews[name].get());
         if ( renderableView ) {
-            renderableView->recordCmds(cmd);
+            renderableView->recordCmds(cmd, frameIndex);
         }
     }
 }

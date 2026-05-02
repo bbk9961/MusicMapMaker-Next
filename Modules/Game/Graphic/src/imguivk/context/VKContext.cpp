@@ -1,8 +1,12 @@
 #include "graphic/imguivk/VKContext.h"
+#include "common/LogicCommands.h"
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "event/core/EventBus.h"
 #include "event/input/MMMInput.h"
 #include "event/input/glfw/GLFWKeyEvent.h"
+#include "event/logic/LogicCommandEvent.h"
+
 #include "graphic/glfw/window/NativeWindow.h"
 #include "imgui_impl_glfw.h"
 #include "log/colorful-log.h"
@@ -49,43 +53,65 @@ VKContext::VKContext()
     initVkInstanceCreateInfo();
 
     // 创建vk实例
-    m_vkInstance = vk::createInstance(m_vkInstanceCreateInfo);
-    XINFO("VK Instance created.");
+    m_vkInstance = vk::createInstance(m_vkInstanceCreateInfo).value;
+    XDEBUG("VK Instance created.");
 
     // 初始化vk动态加载器(要在创建vkInstance后)
     // (它会去找到扩展函数 如 vkCreateDebugUtilsMessengerEXT的地址)
     m_vkDldy.init(m_vkInstance, vkGetInstanceProcAddr);
-    XINFO("VK dldy initialized.");
+    XDEBUG("VK dldy initialized.");
 
     if ( is_debug() ) {
         // debug模式初始化vk调试信息工具
         // 创建 Messenger 对象
         // 这里必须传入 dldy 否则会链接报错
-        m_vkDebugMessenger = m_vkInstance.createDebugUtilsMessengerEXT(
-            m_vkDebugUtilCreateInfo, nullptr, m_vkDldy);
-        XINFO("Vulkan Debug Messenger Initialize Successed");
+        m_vkDebugMessenger = m_vkInstance
+                                 .createDebugUtilsMessengerEXT(
+                                     m_vkDebugUtilCreateInfo, nullptr, m_vkDldy)
+                                 .value;
+        XDEBUG("Vulkan Debug Messenger Initialize Successed");
     }
 
     // 初始化窗口表面和
     // 后续显卡设备初始化
     // 放在窗口相关资源初始化函数中
 
-    Event::EventBus::instance().subscribe<Event::GLFWKeyEvent>(
-        [&](Event::GLFWKeyEvent e) {
-            if ( e.key == Event::Input::Key::F7 &&
-                 e.action == Event::Input::Action::Press ) {
-                /// @brief f7 开启垂直同步
-                setVSync(true);
+    MMM::Event::EventBus::instance().subscribe<MMM::Event::GLFWKeyEvent>(
+        [&](MMM::Event::GLFWKeyEvent e) {
+            if ( e.key == MMM::Event::Input::Key::F7 &&
+                 e.action == MMM::Event::Input::Action::Press ) {
+                /// @brief F7 切换垂直同步状态
+                auto& config =
+                    MMM::Config::AppConfig::instance().getEditorConfig();
+                config.settings.vsync = !config.settings.vsync;
+
+                // 发布配置更新事件，触发所有监听者（包括本类中的
+                // LogicCommandEvent 监听器）
+                MMM::Event::EventBus::instance().publish(
+                    MMM::Event::LogicCommandEvent(
+                        MMM::Logic::CmdUpdateEditorConfig{ config }));
+
+                // 持久化配置
+                MMM::Config::AppConfig::instance().save();
+
+                XDEBUG("VSync toggled by shortcut: {}",
+                       config.settings.vsync ? "ON" : "OFF");
             }
-            if ( e.key == Event::Input::Key::F8 &&
-                 e.action == Event::Input::Action::Press ) {
-                /// @brief f8 关闭垂直同步
-                setVSync(false);
-            }
-            if ( e.key == Event::Input::Key::F11 &&
-                 e.action == Event::Input::Action::Press ) {
-                /// @brief f8 切换全屏
+            if ( e.key == MMM::Event::Input::Key::F11 &&
+                 e.action == MMM::Event::Input::Action::Press ) {
+                /// @brief F11 切换全屏
                 ToggleFullscreen();
+            }
+        });
+
+    MMM::Event::EventBus::instance().subscribe<MMM::Event::LogicCommandEvent>(
+        [&](MMM::Event::LogicCommandEvent e) {
+            if ( std::holds_alternative<MMM::Logic::CmdUpdateEditorConfig>(
+                     e.command) ) {
+                auto& cmd =
+                    std::get<MMM::Logic::CmdUpdateEditorConfig>(e.command);
+                setVSync(cmd.config.settings.vsync);
+                applyTheme();
             }
         });
 }
@@ -93,7 +119,7 @@ VKContext::VKContext()
 VKContext::~VKContext()
 {
     if ( m_vkLogicalDevice ) {
-        m_vkLogicalDevice.waitIdle();
+        (void)m_vkLogicalDevice.waitIdle();
     }
 
     // 在关闭 ImGui之前必须先释放渲染器中imgui对纹理的引用！
@@ -103,7 +129,7 @@ VKContext::~VKContext()
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    XINFO("ImGui Destroyed.");
+    XDEBUG("ImGui Destroyed.");
 
     // 销毁渲染器
     m_vkRenderer.reset();
@@ -123,22 +149,22 @@ VKContext::~VKContext()
     // 销毁逻辑设备
     if ( m_vkLogicalDevice ) {
         m_vkLogicalDevice.destroy();
-        XINFO("VK Logical Device destroyed.");
+        XDEBUG("VK Logical Device destroyed.");
     }
 
     // 销毁vk表面
     if ( m_vkSurface ) m_vkInstance.destroySurfaceKHR(m_vkSurface);
-    XINFO("VK Surface destroyed.");
+    XDEBUG("VK Surface destroyed.");
 
     // 销毁可能的vk调试信息工具实例
     if ( is_debug() && m_vkDebugMessenger ) {
         m_vkInstance.destroyDebugUtilsMessengerEXT(
             m_vkDebugMessenger, nullptr, m_vkDldy);
-        XINFO("VK Debug Messenger destroyed.");
+        XDEBUG("VK Debug Messenger destroyed.");
     }
     // 销毁vk实例
     m_vkInstance.destroy();
-    XINFO("VK Instance destroyed.");
+    XDEBUG("VK Instance destroyed.");
 
     // 释放GLFW上下文
     releaseGLFW();
@@ -187,11 +213,14 @@ void VKContext::initVKWindowRess(NativeWindow* native_window_ptr, int w, int h)
 
     // 转换为 vk::SurfaceKHR
     m_vkSurface = surface;
-    XINFO("Vulkan Surface created.");
+    XDEBUG("Vulkan Surface created.");
 
     // 使用imgui自动选择物理设备和队列族
     imguiAutoSelect();
 
+    // 在创建交换链之前，根据配置预设全局呈现模式，避免启动后再次重建
+    updateGlobalPresentMode(
+        Config::AppConfig::instance().getEditorSettings().vsync);
 
     // 初始化逻辑设备
     initLogicDevice();
@@ -203,7 +232,7 @@ void VKContext::initVKWindowRess(NativeWindow* native_window_ptr, int w, int h)
                                                 m_queueFamilyIndices,
                                                 w,
                                                 h);
-    setVSync(true);
+
 
 
     // 创建最终呈现的渲染流程
@@ -226,7 +255,7 @@ void VKContext::initVKWindowRess(NativeWindow* native_window_ptr, int w, int h)
 
     // 初始化 ImGui
     imguiVulkanInit(native_window_ptr->getWindowHandle());
-    setImguiStyle();
+    applyTheme();
 }
 
 /**
@@ -242,13 +271,10 @@ void VKContext::recreateSwapchain(GLFWwindow* window_context, int width,
     }
 
     // 2. 等待设备空闲
-    m_vkLogicalDevice.waitIdle();
+    (void)m_vkLogicalDevice.waitIdle();
 
     // 3. 【只清理尺寸相关的资源】
     // 不需要销毁 Device! 不需要销毁 Renderer!
-
-    // 清理旧的 Framebuffers (可以在 swapchain 类内部实现)
-    m_swapchain->destroyFramebuffers();
 
     // 4. 【重建交换链】
     // 传入旧的 swapchain 句柄可以加速创建 (oldSwapchain)
@@ -264,7 +290,7 @@ void VKContext::recreateSwapchain(GLFWwindow* window_context, int width,
     // 后续如果渲染器内部存了 imageCount 之类的缓存，更新它
     // m_vkRenderer->onSwapchainChanged();
 
-    XINFO("Swapchain recreation finished.");
+    XDEBUG("Swapchain recreation finished.");
 }
 
 /**
@@ -273,29 +299,42 @@ void VKContext::recreateSwapchain(GLFWwindow* window_context, int width,
 void VKContext::setVSync(bool enabled)
 {
     // 1. 等待设备空闲，因为要修改交换链
-    m_vkLogicalDevice.waitIdle();
+    (void)m_vkLogicalDevice.waitIdle();
 
     // 2. 修改交换链配置类里的 PresentMode 偏好
+    updateGlobalPresentMode(enabled);
+
+    // 3. 标记需要重建
+    if ( m_swapchain ) {
+        m_swapchain->markDirty();
+    }
+}
+
+/**
+ * @brief 仅更新全局呈现模式参数，不触发重建
+ */
+void VKContext::updateGlobalPresentMode(bool enabled)
+{
     if ( enabled ) {
         VKSwapchain::s_globalPresentMode = vk::PresentModeKHR::eFifo;
     } else {
         // fallback 为立即模式
         VKSwapchain::s_globalPresentMode = vk::PresentModeKHR::eImmediate;
         // 查询物理设备支持的呈现模式
-        std::vector<vk::PresentModeKHR> supported_presentModes =
-            m_vkPhysicalDevice.getSurfacePresentModesKHR(m_vkSurface);
-        for ( const auto& presentMode : supported_presentModes ) {
-            // 无限帧数优选mailbox模式
-            // 直接取当前时刻gpu产出的最新的图像用于绘制(刷新率高且不撕裂)
-            if ( presentMode == vk::PresentModeKHR::eMailbox ) {
-                VKSwapchain::s_globalPresentMode = vk::PresentModeKHR::eMailbox;
-                break;
+        if ( m_vkPhysicalDevice && m_vkSurface ) {
+            std::vector<vk::PresentModeKHR> supported_presentModes =
+                m_vkPhysicalDevice.getSurfacePresentModesKHR(m_vkSurface).value;
+            for ( const auto& presentMode : supported_presentModes ) {
+                // 无限帧数优选mailbox模式
+                // 直接取当前时刻gpu产出的最新的图像用于绘制(刷新率高且不撕裂)
+                if ( presentMode == vk::PresentModeKHR::eMailbox ) {
+                    VKSwapchain::s_globalPresentMode =
+                        vk::PresentModeKHR::eMailbox;
+                    break;
+                }
             }
         }
     }
-
-    // 3. 标记需要重建
-    m_swapchain->markDirty();
 }
 
 /**

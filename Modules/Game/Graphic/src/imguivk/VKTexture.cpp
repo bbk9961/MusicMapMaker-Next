@@ -31,7 +31,7 @@ VKTexture::VKTexture(const std::string&  filePath,
                    queue);
 
     stbi_image_free(pixels);
-    XINFO("Texture loaded from file: {}", filePath);
+    XDEBUG("Texture loaded from file: {}", filePath);
 }
 
 // 构造函数 B：从内存数据
@@ -43,7 +43,54 @@ VKTexture::VKTexture(const unsigned char* pixels, uint32_t width,
 {
     // 直接调用共通逻辑
     initFromPixels(pixels, width, height, physicalDevice, commandPool, queue);
-    XINFO("Texture created from memory buffer [{}x{}]", width, height);
+    XDEBUG("Texture created from memory buffer [{}x{}]", width, height);
+}
+
+VKTexture::VKTexture(VKTexture&& other) noexcept
+    : m_device(other.m_device)
+    , m_image(other.m_image)
+    , m_memory(other.m_memory)
+    , m_imageView(other.m_imageView)
+    , m_sampler(other.m_sampler)
+    , m_descriptorSet(other.m_descriptorSet)
+    , m_nativeSets(std::move(other.m_nativeSets))
+    , m_nativePool(other.m_nativePool)
+    , m_width(other.m_width)
+    , m_height(other.m_height)
+{
+    other.m_device        = nullptr;
+    other.m_image         = nullptr;
+    other.m_memory        = nullptr;
+    other.m_imageView     = nullptr;
+    other.m_sampler       = nullptr;
+    other.m_descriptorSet = nullptr;
+    other.m_nativePool    = nullptr;
+}
+
+VKTexture& VKTexture::operator=(VKTexture&& other) noexcept
+{
+    if ( this != &other ) {
+        this->~VKTexture();
+        m_device        = other.m_device;
+        m_image         = other.m_image;
+        m_memory        = other.m_memory;
+        m_imageView     = other.m_imageView;
+        m_sampler       = other.m_sampler;
+        m_descriptorSet = other.m_descriptorSet;
+        m_nativeSets    = std::move(other.m_nativeSets);
+        m_nativePool    = other.m_nativePool;
+        m_width         = other.m_width;
+        m_height        = other.m_height;
+
+        other.m_device        = nullptr;
+        other.m_image         = nullptr;
+        other.m_memory        = nullptr;
+        other.m_imageView     = nullptr;
+        other.m_sampler       = nullptr;
+        other.m_descriptorSet = nullptr;
+        other.m_nativePool    = nullptr;
+    }
+    return *this;
 }
 
 VKTexture::~VKTexture()
@@ -53,6 +100,12 @@ VKTexture::~VKTexture()
     // 顺序非常重要：先从 ImGui 注销，再销毁资源
     if ( m_descriptorSet ) {
         ImGui_ImplVulkan_RemoveTexture((VkDescriptorSet)m_descriptorSet);
+    }
+
+    if ( m_nativePool ) {
+        for ( auto& [layout, set] : m_nativeSets ) {
+            (void)m_device.freeDescriptorSets(m_nativePool, set);
+        }
     }
 
     m_device.destroySampler(m_sampler);
@@ -73,7 +126,7 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
     // 1. 创建 Staging Buffer 并上传
     vk::BufferCreateInfo stagingBufferInfo(
         {}, imageSize, vk::BufferUsageFlagBits::eTransferSrc);
-    vk::Buffer stagingBuffer = m_device.createBuffer(stagingBufferInfo);
+    vk::Buffer stagingBuffer = m_device.createBuffer(stagingBufferInfo).value;
 
     vk::MemoryRequirements memReqs =
         m_device.getBufferMemoryRequirements(stagingBuffer);
@@ -84,10 +137,10 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
                        vk::MemoryPropertyFlagBits::eHostVisible |
                            vk::MemoryPropertyFlagBits::eHostCoherent));
 
-    vk::DeviceMemory stagingMemory = m_device.allocateMemory(allocInfo);
-    m_device.bindBufferMemory(stagingBuffer, stagingMemory, 0);
+    vk::DeviceMemory stagingMemory = m_device.allocateMemory(allocInfo).value;
+    (void)m_device.bindBufferMemory(stagingBuffer, stagingMemory, 0);
 
-    void* data = m_device.mapMemory(stagingMemory, 0, imageSize);
+    void* data = m_device.mapMemory(stagingMemory, 0, imageSize).value;
     memcpy(data, pixels, static_cast<size_t>(imageSize));
     m_device.unmapMemory(stagingMemory);
 
@@ -104,7 +157,7 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
         vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
         vk::SharingMode::eExclusive);
 
-    m_image = m_device.createImage(imageInfo);
+    m_image = m_device.createImage(imageInfo).value;
     memReqs = m_device.getImageMemoryRequirements(m_image);
 
     vk::MemoryAllocateInfo imgAllocInfo(
@@ -112,8 +165,8 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
         findMemoryType(physDevice,
                        memReqs.memoryTypeBits,
                        vk::MemoryPropertyFlagBits::eDeviceLocal));
-    m_memory = m_device.allocateMemory(imgAllocInfo);
-    m_device.bindImageMemory(m_image, m_memory, 0);
+    m_memory = m_device.allocateMemory(imgAllocInfo).value;
+    (void)m_device.bindImageMemory(m_image, m_memory, 0);
 
     // 3. 数据拷贝 (Undefined -> Dst -> ShaderRead)
     transitionImageLayout(pool,
@@ -138,7 +191,7 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
         vk::Format::eR8G8B8A8Unorm,
         {},
         { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
-    m_imageView = m_device.createImageView(viewInfo);
+    m_imageView = m_device.createImageView(viewInfo).value;
 
     // 5. 创建 Sampler
     vk::SamplerCreateInfo samplerInfo({},
@@ -157,7 +210,41 @@ void VKTexture::initFromPixels(const unsigned char* pixels, uint32_t width,
                                       0.0f,
                                       vk::BorderColor::eIntOpaqueBlack,
                                       VK_FALSE);
-    m_sampler = m_device.createSampler(samplerInfo);
+    m_sampler = m_device.createSampler(samplerInfo).value;
+}
+
+vk::DescriptorSet VKTexture::getNativeDescriptorSet(
+    vk::DescriptorPool pool, vk::DescriptorSetLayout layout)
+{
+    VkDescriptorSetLayout lHandle = (VkDescriptorSetLayout)layout;
+
+    if ( m_nativeSets.count(lHandle) ) {
+        return m_nativeSets[lHandle];
+    }
+
+    // 如果 pool 变更了，逻辑上应该清空所有旧 pool 的 set
+    if ( m_nativePool && m_nativePool != pool ) {
+        for ( auto& [oldLayout, set] : m_nativeSets ) {
+            (void)m_device.freeDescriptorSets(m_nativePool, set);
+        }
+        m_nativeSets.clear();
+    }
+    m_nativePool = pool;
+
+    vk::DescriptorSetAllocateInfo allocInfo(pool, 1, &layout);
+    vk::DescriptorSet             newSet =
+        m_device.allocateDescriptorSets(allocInfo).value[0];
+
+    vk::DescriptorImageInfo imageInfo(
+        m_sampler, m_imageView, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+    vk::WriteDescriptorSet descriptorWrite(
+        newSet, 0, 0, 1, vk::DescriptorType::eCombinedImageSampler, &imageInfo);
+
+    m_device.updateDescriptorSets(descriptorWrite, nullptr);
+
+    m_nativeSets[lHandle] = newSet;
+    return newSet;
 }
 
 uint32_t VKTexture::findMemoryType(vk::PhysicalDevice&     physDevice,
@@ -182,9 +269,9 @@ void VKTexture::transitionImageLayout(vk::CommandPool pool, vk::Queue queue,
 {
     vk::CommandBufferAllocateInfo allocInfo(
         pool, vk::CommandBufferLevel::ePrimary, 1);
-    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo)[0];
+    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo).value[0];
 
-    cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+    (void)cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
 
     vk::ImageMemoryBarrier barrier(
         {},
@@ -216,11 +303,11 @@ void VKTexture::transitionImageLayout(vk::CommandPool pool, vk::Queue queue,
 
     cmd.pipelineBarrier(
         sourceStage, destinationStage, {}, nullptr, nullptr, barrier);
-    cmd.end();
+    (void)cmd.end();
 
     vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, &cmd);
-    queue.submit(submitInfo, nullptr);
-    queue.waitIdle();
+    (void)queue.submit(submitInfo, nullptr);
+    (void)queue.waitIdle();
     m_device.freeCommandBuffers(pool, cmd);
 }
 
@@ -230,9 +317,9 @@ void VKTexture::copyBufferToImage(vk::CommandPool pool, vk::Queue queue,
 {
     vk::CommandBufferAllocateInfo allocInfo(
         pool, vk::CommandBufferLevel::ePrimary, 1);
-    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo)[0];
+    vk::CommandBuffer cmd = m_device.allocateCommandBuffers(allocInfo).value[0];
 
-    cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
+    (void)cmd.begin({ vk::CommandBufferUsageFlagBits::eOneTimeSubmit });
     vk::BufferImageCopy region(0,
                                0,
                                0,
@@ -241,11 +328,11 @@ void VKTexture::copyBufferToImage(vk::CommandPool pool, vk::Queue queue,
                                { width, height, 1 });
     cmd.copyBufferToImage(
         buffer, m_image, vk::ImageLayout::eTransferDstOptimal, region);
-    cmd.end();
+    (void)cmd.end();
 
     vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, &cmd);
-    queue.submit(submitInfo, nullptr);
-    queue.waitIdle();
+    (void)queue.submit(submitInfo, nullptr);
+    (void)queue.waitIdle();
     m_device.freeCommandBuffers(pool, cmd);
 }
 

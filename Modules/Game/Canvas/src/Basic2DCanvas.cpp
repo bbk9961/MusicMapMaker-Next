@@ -1,145 +1,147 @@
 #include "canvas/Basic2DCanvas.h"
-#include "config/skin/SkinConfig.h"
-#include "graphic/imguivk/VKOffScreenRenderer.h"
-#include "graphic/imguivk/VKShader.h"
+#include "canvas/Basic2DCanvasInteraction.h"
+#include "event/canvas/interactive/ResizeEvent.h"
+#include "event/core/EventBus.h"
 #include "imgui.h"
 #include "log/colorful-log.h"
-#include "ui/ITextureLoader.h"
-#include "ui/IUIView.h"
-#include "ui/UIManager.h"
-#include <filesystem>
-#include <glm/glm.hpp>
-#include <random>
+#include "logic/BeatmapSyncBuffer.h"
+#include "logic/ecs/system/ScrollCache.h"
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <fmt/format.h>
 #include <utility>
 
 namespace MMM::Canvas
 {
-Basic2DCanvas::Basic2DCanvas(const std::string& name, uint32_t w, uint32_t h)
-    : IUIView(name), IRenderableView(name), m_canvasName(name)
+
+Basic2DCanvas::Basic2DCanvas(
+    const std::string& name, uint32_t w, uint32_t h,
+    std::shared_ptr<Logic::BeatmapSyncBuffer> syncBuffer,
+    const std::string&                        cameraId)
+    : IUIView(name)
+    , IRenderableView(name)
+    , m_canvasName(name)
+    , m_cameraId(cameraId.empty() ? name : cameraId)
+    , m_syncBuffer(std::move(syncBuffer))
 {
     m_targetWidth  = w;
     m_targetHeight = h;
+
+    m_interaction =
+        std::make_unique<Basic2DCanvasInteraction>(m_canvasName, m_cameraId);
 }
 
-// 接口实现
+Basic2DCanvas::~Basic2DCanvas() {}
+
 void Basic2DCanvas::update(UI::UIManager* sourceManager)
 {
-    UI::LayoutContext lctx(m_layoutCtx, m_canvasName.c_str());
+    std::string windowName =
+        fmt::format("{}###{}", TR("canvas.editor"), m_canvasName);
+    UI::LayoutContext lctx(m_layoutCtx, windowName);
     RenderContext     rctx(
         this, m_canvasName.c_str(), m_targetWidth, m_targetHeight);
 
-    // 1. 绘制背景网格或固定图形测试状态机
-    m_brush.setColor(0.1f, 0.1f, 0.1f, 1.0f);
-    m_brush.drawRect(0, 0, m_targetWidth, m_targetHeight);
-
-    // 2. 准备随机数引擎 (改为 static 让图形位置固定，方便观察测试)
-    static std::random_device rd;
-    static std::mt19937       gen(rd());
-
-    // 坐标范围：从 0 到画布宽高
-    std::uniform_real_distribution<float> distX(0.0f, (float)m_targetWidth);
-    std::uniform_real_distribution<float> distY(0.0f, (float)m_targetHeight);
-    // 尺寸范围：10 到 50 像素
-    std::uniform_real_distribution<float> distSize(10.0f, 50.0f);
-    // 颜色范围：0.0 到 1.0
-    std::uniform_real_distribution<float> distCol(0.0f, 1.0f);
-
-    // 3. 循环绘制矩形 (利用新状态机 API)
-    for ( int i = 0; i < 50; ++i ) {
-        m_brush.setColor(distCol(gen), distCol(gen), distCol(gen), 0.8f);
-        m_brush.drawRect(distX(gen), distY(gen), distSize(gen), distSize(gen));
+    // 拉取快照
+    if ( m_syncBuffer ) {
+        m_currentSnapshot = m_syncBuffer->pullLatestSnapshot();
     }
 
-    // 4. 测试绘制圆形
-    for ( int i = 0; i < 20; ++i ) {
-        m_brush.setColor(distCol(gen), distCol(gen), distCol(gen), 0.9f);
-        m_brush.drawCircle(distX(gen), distY(gen), distSize(gen) * 0.8f, 32);
+    if ( m_currentSnapshot ) {
+        // 更新背景纹理
+        updateBackgroundTexture();
+
+        // --- 亚帧时间补偿 (直接修改动态顶点 Y 坐标) ---
+        // 当播放中时，逻辑线程生成快照的时刻 (snapshotSysTime) 与 UI
+        // 线程实际渲染的时刻之间存在时间差。
+        // 在 effectTiming 段落中，由于可见物体更多导致逻辑线程帧率下降，
+        // 这个时间差被放大为可见的周期性停顿。
+        // 通过直接修改动态顶点（拍线、音符等）的 Y 坐标来补偿，
+        // 而静态顶点（轨道底板、判定区）保持不变。
+        float newYOffset = 0.0f;
+
+        if ( m_currentSnapshot->isPlaying &&
+             m_currentSnapshot->snapshotSysTime > 0.0 ) {
+            double now =
+                std::chrono::duration<double>(
+                    std::chrono::steady_clock::now().time_since_epoch())
+                    .count();
+            double dt = now - m_currentSnapshot->snapshotSysTime;
+            if ( dt > 0.0 && dt < 0.1 ) {
+                double      scrollSpeed  = 500.0;
+                double      snapshotTime = m_currentSnapshot->currentTime;
+                const auto& segs         = m_currentSnapshot->scrollSegments;
+                if ( !segs.empty() ) {
+                    auto it = std::upper_bound(
+                        segs.begin(),
+                        segs.end(),
+                        snapshotTime,
+                        [](double                              val,
+                           const Logic::System::ScrollSegment& seg) {
+                            return val < seg.time;
+                        });
+                    if ( it != segs.begin() ) {
+                        --it;
+                    }
+                    scrollSpeed = it->speed;
+                }
+                newYOffset = static_cast<float>(
+                    dt * m_currentSnapshot->playbackSpeed * scrollSpeed);
+            }
+        }
+
+        // 应用顶点级 Y 偏移 (仅修改动态顶点: 拍线、音符等)
+        uint32_t startVtx = m_currentSnapshot->staticVertexCount;
+        auto&    vertices = m_currentSnapshot->vertices;
+        uint32_t endVtx   = m_currentSnapshot->dynamicVertexCount > 0
+                                ? (startVtx + m_currentSnapshot->dynamicVertexCount)
+                                : static_cast<uint32_t>(vertices.size());
+
+        // 如果是同一个快照被复用，先撤销上一帧的偏移
+        if ( m_lastOffsetSnapshot == m_currentSnapshot &&
+             std::abs(m_lastAppliedYOffset) > 0.0001f ) {
+            for ( size_t i = startVtx; i < endVtx && i < vertices.size(); ++i ) {
+                vertices[i].pos.y -= m_lastAppliedYOffset;
+            }
+        }
+
+        // 应用新偏移
+        if ( std::abs(newYOffset) > 0.0001f ) {
+            for ( size_t i = startVtx; i < endVtx && i < vertices.size(); ++i ) {
+                vertices[i].pos.y += newYOffset;
+            }
+        }
+
+        m_lastOffsetSnapshot = m_currentSnapshot;
+        m_lastAppliedYOffset = newYOffset;
+    } else {
+        m_lastOffsetSnapshot = nullptr;
+        m_lastAppliedYOffset = 0.0f;
     }
+
+    // 交互统一交给 Interaction 处理
+    m_interaction->update(
+        sourceManager, m_currentSnapshot, m_logicalWidth, m_logicalHeight);
 }
 
-///@brief 是否需要重新记录命令 (比如数据变了)
 bool Basic2DCanvas::isDirty() const
 {
-    return false;
+    return true;
 }
 
-/**
- * @brief 获取 Shader 源码接口 (在固定时刻需要创建)
- */
-std::vector<std::string> Basic2DCanvas::getShaderSources(
-    const std::string& shader_name)
+void Basic2DCanvas::resizeCall(uint32_t oldW, uint32_t oldH, uint32_t w,
+                               uint32_t h) const
 {
-    // 如果缓存里有，直接返回内存里的字符串拷贝
-    if ( m_shaderSourceCache.find(shader_name) != m_shaderSourceCache.end() ) {
-        return m_shaderSourceCache[shader_name];
-    }
-
-    // 读取spv源码初始化shader
-    Config::SkinData::CanvasConfig canvas_config =
-        Config::SkinManager::instance().getCanvasConfig(m_canvasName);
-    if ( canvas_config.canvas_name == "" ) {
-        XERROR("无法获取画布{}的配置", m_canvasName);
-        return {};
-    }
-
-    // 获取着色器源码
-    if ( auto shaderModuleIt =
-             canvas_config.canvas_shader_modules.find(shader_name);
-         shaderModuleIt != canvas_config.canvas_shader_modules.end() ) {
-        // 着色器spv文件路径
-        auto shader_spv_path = shaderModuleIt->second;
-        if ( !std::filesystem::exists(shader_spv_path) ) {
-            XWARN("Shader module {} not defiend.", shader_name);
-            return {};
-        }
-
-        // 读取着色器文件内容
-        std::string vertexShaderSource = Graphic::VKShader::readFile(
-            (shader_spv_path / "VertexShader.spv").generic_string());
-        std::string fragmentShaderSource = Graphic::VKShader::readFile(
-            (shader_spv_path / "FragmentShader.spv").generic_string());
-
-        // 源码列表
-        std::vector<std::string> result;
-
-        if ( auto geometryShaderPath = (shader_spv_path / "GeometryShader.spv");
-             std::filesystem::exists(geometryShaderPath) ) {
-            result = { vertexShaderSource,
-                       Graphic::VKShader::readFile(
-                           geometryShaderPath.generic_string()),
-                       fragmentShaderSource };
-        } else {
-            result = { vertexShaderSource, fragmentShaderSource };
-        }
-
-        // 存入缓存
-        m_shaderSourceCache[shader_name] = result;
-        return result;
-    } else {
-        XERROR("无法获取画布{}的{}着色器配置", m_canvasName, shader_name);
-        return {};
-    }
+    Event::CanvasResizeEvent e;
+    e.canvasName = m_cameraId;
+    e.lastSize   = { oldW, oldH };
+    e.newSize    = { w, h };
+    Event::EventBus::instance().publish(e);
 }
 
-/**
- * @brief 获取 Shader 名称(需要按名称储存和销毁)
- */
-std::string Basic2DCanvas::getShaderName(const std::string& shader_module_name)
-{
-    return m_canvasName + ":" + shader_module_name;
-}
-
-/// @brief 是否需要重载
 bool Basic2DCanvas::needReload()
 {
     return std::exchange(m_needReload, false);
-}
-
-/// @brief 重载纹理
-void Basic2DCanvas::reloadTextures(vk::PhysicalDevice& physicalDevice,
-                                   vk::Device&         logicalDevice,
-                                   vk::CommandPool& cmdPool, vk::Queue& queue)
-{
 }
 
 }  // namespace MMM::Canvas

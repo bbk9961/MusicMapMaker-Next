@@ -11,6 +11,10 @@
 #include <expected>
 #include <memory>
 #include <unordered_map>
+
+#ifndef VULKAN_HPP_NO_EXCEPTIONS
+#    define VULKAN_HPP_NO_EXCEPTIONS
+#endif
 #include <vulkan/vulkan.hpp>
 
 namespace MMM::Graphic
@@ -68,6 +72,12 @@ public:
     inline VKRenderer& getRenderer() { return *m_vkRenderer; }
 
     /**
+     * @brief 获取逻辑设备句柄
+     * @return vk::Device& 逻辑设备引用
+     */
+    inline vk::Device& getLogicalDevice() { return m_vkLogicalDevice; }
+
+    /**
      * @brief 切换垂直同步
      */
     void setVSync(bool enabled);
@@ -77,7 +87,22 @@ public:
      */
     void ToggleFullscreen();
 
+    /**
+     * @brief 设置 ImGui 字体 (供初始化和重载使用)
+     */
+    void setupFonts();
+
+    /**
+     * @brief 热重载 ImGui 字体并重建纹理
+     */
+    void rebuildFonts();
+
 private:
+    /**
+     * @brief 仅更新全局呈现模式参数，不触发重建
+     */
+    void updateGlobalPresentMode(bool enabled);
+
     /**
      * @brief 初始化 GLFW 上下文
      */
@@ -227,9 +252,144 @@ private:
     void imguiVulkanInit(GLFWwindow* iwindow_handle);
 
     /**
-     * @brief 设置imgui样式包
+     * @brief 应用当前主题配置
      */
-    void setImguiStyle();
+    void applyTheme();
+
+    /**
+     * @brief 设置DeepDark样式
+     */
+    void setDeepDarkStyle();
+
+    /**
+     * @brief 设置Dark样式
+     */
+    void setDarkStyle();
+
+    /**
+     * @brief 设置Light样式
+     */
+    void setLightStyle();
+
+    /**
+     * @brief 设置Classic样式
+     */
+    void setClassicStyle();
+
+    /**
+     * @brief 设置Microsoft样式
+     */
+    void setMicrosoftStyle();
+
+    /**
+     * @brief 设置Darcula样式
+     */
+    void setDarculaStyle();
+
+    /**
+     * @brief 设置Photoshop样式
+     */
+    void setPhotoshopStyle();
+
+    /**
+     * @brief 设置Unreal样式
+     */
+    void setUnrealStyle();
+
+    /**
+     * @brief 设置Gold样式
+     */
+    void setGoldStyle();
+
+    /**
+     * @brief 设置RoundedVisualStudio样式
+     */
+    void setRoundedVisualStudioStyle();
+
+    /**
+     * @brief 设置SonicRiders样式
+     */
+    void setSonicRidersStyle();
+
+    /**
+     * @brief 设置DarkRuda样式
+     */
+    void setDarkRudaStyle();
+
+    /**
+     * @brief 设置SoftCherry样式
+     */
+    void setSoftCherryStyle();
+
+    /**
+     * @brief 设置Enemymouse样式
+     */
+    void setEnemymouseStyle();
+
+    /**
+     * @brief 设置DiscordDark样式
+     */
+    void setDiscordDarkStyle();
+
+    /**
+     * @brief 设置Comfy样式
+     */
+    void setComfyStyle();
+
+    /**
+     * @brief 设置PurpleComfy样式
+     */
+    void setPurpleComfyStyle();
+
+    /**
+     * @brief 设置FutureDark样式
+     */
+    void setFutureDarkStyle();
+
+    /**
+     * @brief 设置CleanDark样式
+     */
+    void setCleanDarkStyle();
+
+    /**
+     * @brief 设置Moonlight样式
+     */
+    void setMoonlightStyle();
+
+    /**
+     * @brief 设置ComfortableLight样式
+     */
+    void setComfortableLightStyle();
+
+    /**
+     * @brief 设置HazyDark样式
+     */
+    void setHazyDarkStyle();
+
+    /**
+     * @brief 设置Everforest样式
+     */
+    void setEverforestStyle();
+
+    /**
+     * @brief 设置Windark样式
+     */
+    void setWindarkStyle();
+
+    /**
+     * @brief 设置Rest样式
+     */
+    void setRestStyle();
+
+    /**
+     * @brief 设置ComfortableDarkCyan样式
+     */
+    void setComfortableDarkCyanStyle();
+
+    /**
+     * @brief 设置KazamCherry样式
+     */
+    void setKazamCherryStyle();
 
     friend class VKRenderer;
 };

@@ -1,59 +1,50 @@
 #include "ui/imgui/manager/FileManagerView.h"
 #include "config/skin/SkinConfig.h"
+#include "event/core/EventBus.h"
+#include "event/input/glfw/GLFWDropEvent.h"
 #include "imgui.h"
-#include "imgui_internal.h"
-#include "ui/layout/box/CLayBox.h"
+#include "logic/EditorEngine.h"
+#include <filesystem>
 
 namespace MMM::UI
 {
-// 内部绘制逻辑 (Clay/ImGui)
+
+FileManagerView::FileManagerView(const std::string& subViewName)
+    : ISubView(subViewName)
+{
+    m_currentRoot = std::filesystem::current_path();
+
+    m_dropSubId = Event::EventBus::instance().subscribe<Event::GLFWDropEvent>(
+        [this](const Event::GLFWDropEvent& e) {
+            m_pendingDrops.push_back({ e.paths, e.pos });
+        });
+}
+
+FileManagerView::~FileManagerView()
+{
+    Event::EventBus::instance().unsubscribe<Event::GLFWDropEvent>(m_dropSubId);
+}
+
 void FileManagerView::onUpdate(LayoutContext& layoutContext,
                                UIManager*     sourceManager)
 {
-    CLayVBox rootVBox;
+    // 1. 处理拖拽
+    handleDragDrop(sourceManager);
 
-    CLayHBox labelHBox;
-    auto     fh = ImGui::GetFrameHeight();
-    // 获取翻译文本
-    auto hintText = TR("ui.file_manager.initial_hint");
-    labelHBox.addSpring()
-        .addElement(hintText,
-                    Sizing::Grow(),
-                    Sizing::Fixed(fh),
-                    [=](Clay_BoundingBox r, bool isHovered) {
-                        // 文本在 30px 高度的坑位里垂直居中
-                        float offY = (r.height - ImGui::GetFontSize()) * 0.5f;
-                        ImGui::SetCursorPosY(ImGui::GetCursorPosY() + offY);
+    auto& engine  = Logic::EditorEngine::instance();
+    auto* project = engine.getCurrentProject();
+    auto& skinCfg = Config::SkinManager::instance();
 
-                        // 【技巧】为了真正居中，可以用 ImGui 的居中文字函数
-                        // 或者计算偏移：(r.width - CalcTextSize.x) * 0.5f
-                        ImVec2 textSize = ImGui::CalcTextSize(hintText);
-                        // 移动游标实现垂直居中
-                        ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-                                             (r.width - textSize.x) * 0.5f);
+    ImFont* fileManagerFont = skinCfg.getFont("filemanager");
+    if ( fileManagerFont ) ImGui::PushFont(fileManagerFont);
 
-                        ImGui::TextEx(hintText);
-                    })
-        .addSpring();
-    CLayHBox buttonHBox;
-    buttonHBox.addSpring()
-        .addElement(TR("ui.file_manager.open_directory"),
-                    Sizing::Grow(),
-                    Sizing::Fixed(fh),
-                    [=](Clay_BoundingBox r, bool isHovered) {
-                        if ( ImGui::Button(TR("ui.file_manager.open_directory"),
-                                           { r.width, r.height }) ) {
-                            XINFO("打开文件夹");
-                        }
-                    })
-        .addSpring();
+    if ( !project ) {
+        renderEmptyProjectView(layoutContext);
+    } else {
+        renderActiveProjectView(layoutContext, sourceManager);
+    }
 
-    rootVBox.setPadding(12, 12, 12, 12)
-        .setSpacing(12)
-        .addLayout("labelHBox", labelHBox, Sizing::Grow(), Sizing::Fixed(40))
-        .addLayout("buttonHBox", buttonHBox, Sizing::Grow(), Sizing::Fixed(40))
-        .addSpring();
-    rootVBox.render(layoutContext);
+    if ( fileManagerFont ) ImGui::PopFont();
 }
 
-}  // namespace MMM::UI
+} // namespace MMM::UI

@@ -1,5 +1,7 @@
 #include "graphic/glfw/window/NativeWindow.h"
+#include "config/AppConfig.h"
 #include "event/core/EventBus.h"
+#include "event/input/glfw/GLFWDropEvent.h"
 #include "event/input/glfw/GLFWKeyEvent.h"
 #include "event/input/glfw/GLFWMouseEvent.h"
 #include "event/input/translators/GLFWTranslator.h"
@@ -23,12 +25,86 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
     if ( !glfwVulkanSupported() ) {
         XERROR("GLFW: Vulkan Not Supported");
     }
+
+    XINFO("GLFW Version: {}", glfwGetVersionString());
+    XINFO("GLFW Platform code: {}", glfwGetPlatform());
+
     // 隐藏系统标题栏
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+#if defined(_WIN32) || defined(__linux__)
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+#endif
 
     // 不再需要初始化 ImGui 的辅助窗口
+#ifdef __linux__
+    glfwWindowHintString(GLFW_WAYLAND_APP_ID, "MusicMapMaker-Next");
+    glfwWindowHintString(GLFW_X11_CLASS_NAME, "MusicMapMaker-Next");
+#endif
     m_windowHandle = glfwCreateWindow(w, h, wtitle, nullptr, nullptr);
+
+    // 窗口启动时居中
+    if ( m_windowHandle ) {
+        float xscale, yscale;
+        glfwGetWindowContentScale(m_windowHandle, &xscale, &yscale);
+
+        int actualW, actualH;
+        glfwGetWindowSize(m_windowHandle, &actualW, &actualH);
+
+#if defined(_WIN32) || defined(__linux__)
+        // 获取 framebuffer 尺寸以检测系统是否已经自动处理了逻辑像素缩放 (如
+        // Wayland)
+        int fbW, fbH;
+        glfwGetFramebufferSize(m_windowHandle, &fbW, &fbH);
+        float fbScaleX =
+            (actualW > 0) ? static_cast<float>(fbW) / actualW : 1.0f;
+
+        // 如果内容缩放大于系统已处理的缩放 (fbScaleX)，说明在 X11 或某些
+        // Windows 环境下， 我们需要手动调整窗口尺寸以匹配预期的逻辑大小
+        if ( xscale > fbScaleX ) {
+            int scaledW = static_cast<int>(w * xscale);
+            int scaledH = static_cast<int>(h * yscale);
+            if ( actualW < scaledW ) {
+                glfwSetWindowSize(m_windowHandle, scaledW, scaledH);
+                glfwGetWindowSize(m_windowHandle, &actualW, &actualH);
+                glfwGetFramebufferSize(m_windowHandle, &fbW, &fbH);
+                fbScaleX =
+                    (actualW > 0) ? static_cast<float>(fbW) / actualW : 1.0f;
+            }
+        }
+#else
+        int fbW, fbH;
+        glfwGetFramebufferSize(m_windowHandle, &fbW, &fbH);
+        float fbScaleX =
+            (actualW > 0) ? static_cast<float>(fbW) / actualW : 1.0f;
+#endif
+
+        // 同步缩放到全局配置
+        // nativeContentScale 是原生 DPI (用于字体加载)
+        // uiScale 是我们需要手动补偿的比例 (xscale / fbScaleX)
+        Config::AppConfig::instance().setNativeContentScale(xscale);
+        Config::AppConfig::instance().setUIScale(xscale / fbScaleX);
+
+        XINFO("Detected scales: native={}, fb_auto={}, ui_manual={}",
+              xscale,
+              fbScaleX,
+              xscale / fbScaleX);
+
+        GLFWmonitor*       monitor = glfwGetPrimaryMonitor();
+        const GLFWvidmode* mode    = glfwGetVideoMode(monitor);
+        if ( monitor && mode ) {
+            int xPos = (mode->width - actualW) / 2;
+            int yPos = (mode->height - actualH) / 2;
+            glfwSetWindowPos(m_windowHandle, xPos, yPos);
+
+            // 写入屏幕刷新率到全局配置，供逻辑线程等限制最高帧率使用
+            Config::AppConfig::instance().setDeviceRefreshRate(
+                mode->refreshRate);
+            XINFO("Detected primary monitor refresh rate: {} Hz",
+                  mode->refreshRate);
+        }
+    }
 
     // 在 glfwCreateWindow 之后调用
 #ifdef _WIN32
@@ -37,6 +113,17 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
 
     // 隐藏系统原生光标
     glfwSetInputMode(m_windowHandle, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+#ifdef __linux__
+    // 确保不禁止系统快捷键 (针对 Wayland)
+    if ( glfwRawMouseMotionSupported() ) {  // 只是为了检查是否是现代 GLFW
+        // GLFW_MOUSE_PASSTHROUGH 也可以考虑，但这里不是需要的
+    }
+// 显式确保不拦截系统组合键
+#    if defined(GLFW_KEYBOARD_SHORTCUTS_INHIBIT)
+    glfwSetInputMode(
+        m_windowHandle, GLFW_KEYBOARD_SHORTCUTS_INHIBIT, GLFW_FALSE);
+#    endif
+#endif
 
 
     // 设置用户指针，方便回调函数访问类成员
@@ -44,6 +131,38 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
     glfwSetFramebufferSizeCallback(m_windowHandle,
                                    &NativeWindow::framebufferResizeCallback);
     glfwSetKeyCallback(m_windowHandle, GLFW_KeyCallback);
+    glfwSetDropCallback(m_windowHandle, GLFW_DropCallback);
+
+    // 监听内容缩放变化 (跨显示器移动)
+    glfwSetWindowContentScaleCallback(
+        m_windowHandle, [](GLFWwindow* w, float xscale, float yscale) {
+            int winW, winH, fbW, fbH;
+            glfwGetWindowSize(w, &winW, &winH);
+            glfwGetFramebufferSize(w, &fbW, &fbH);
+            float fbScaleX = (winW > 0) ? static_cast<float>(fbW) / winW : 1.0f;
+
+            Config::AppConfig::instance().setNativeContentScale(xscale);
+            Config::AppConfig::instance().setUIScale(xscale / fbScaleX);
+
+            XINFO("Content scale changed: native={}, ui={}",
+                  xscale,
+                  xscale / fbScaleX);
+
+            // 发布事件，通知 UI 重载资源
+            Event::EventBus::instance().publish(Event::GLFWNativeEvent{
+                .type           = Event::NativeEventType::GLFW_WINDOW_RESIZED,
+                .hasStateChange = true });
+        });
+
+    // 窗口最大化/还原回调 (处理系统级别的状态变更)
+    glfwSetWindowMaximizeCallback(
+        m_windowHandle, [](GLFWwindow* w, int maximized) {
+            Event::EventBus::instance().publish(Event::GLFWNativeEvent{
+                .type = Event::NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE,
+                .hasStateChange = true,
+                .isMaximized    = (maximized == GLFW_TRUE) });
+        });
+
     // 1. 鼠标点击事件封装
     glfwSetMouseButtonCallback(
         m_windowHandle, [](GLFWwindow* w, int button, int action, int mods) {
@@ -102,8 +221,10 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
 
     Event::EventBus::instance().subscribe<Event::GLFWNativeEvent>(
         [&](Event::GLFWNativeEvent e) {
+            if ( e.hasStateChange ) return;  // 忽略仅用于状态通知的事件
+
             switch ( e.type ) {
-            case NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE: {
+            case Event::NativeEventType::GLFW_TOGGLE_WINDOW_MAXIMIZE: {
                 // 获取当前最大化状态
                 int maximized =
                     glfwGetWindowAttrib(m_windowHandle, GLFW_MAXIMIZED);
@@ -116,13 +237,13 @@ NativeWindow::NativeWindow(int w, int h, const char* wtitle)
                 }
                 break;
             }
-            case NativeEventType::GLFW_ICONFY_WINDOW: {
+            case Event::NativeEventType::GLFW_ICONFY_WINDOW: {
                 // 最小化窗口
                 glfwIconifyWindow(m_windowHandle);
                 XINFO("Window iconified.");
                 break;
             }
-            case NativeEventType::GLFW_CLOSE_WINDOW: {
+            case Event::NativeEventType::GLFW_CLOSE_WINDOW: {
                 glfwSetWindowShouldClose(m_windowHandle, GLFW_TRUE);
                 break;
             }
@@ -167,6 +288,22 @@ void NativeWindow::GLFW_KeyCallback(GLFWwindow* w, int key, int scancode,
     MMM::Event::EventBus::instance().publish(e);
 }
 
+
+void NativeWindow::GLFW_DropCallback(GLFWwindow* w, int count,
+                                     const char** paths)
+{
+    XINFO("GLFW Drop Callback triggered! count: {}", count);
+    MMM::Event::GLFWDropEvent e;
+    for ( int i = 0; i < count; ++i ) {
+        XINFO("  Dropped path[{}]: {}", i, paths[i]);
+        e.paths.emplace_back(paths[i]);
+    }
+    double xpos, ypos;
+    glfwGetCursorPos(w, &xpos, &ypos);
+    e.pos = { static_cast<float>(xpos), static_cast<float>(ypos) };
+
+    MMM::Event::EventBus::instance().publish(e);
+}
 
 bool NativeWindow::shouldClose() const
 {

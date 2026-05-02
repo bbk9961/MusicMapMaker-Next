@@ -465,7 +465,7 @@ int main(int, char**)
     SkinManager::instance().loadSkin(
         (assetPath / "skins" / "mmm-nightly" / "skin.lua").generic_string());
 
-    XINFO(TR("tips.welcom"));
+    XINFO(TR("tips.welcome"));
 
     glfwSetErrorCallback(glfw_error_callback);
     if ( !glfwInit() ) return 1;

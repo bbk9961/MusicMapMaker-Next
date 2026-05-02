@@ -57,7 +57,8 @@ bool Translator::switchLang(const std::string& langID)
     auto it = m_Dictionarys.find(langID);
     if ( it != m_Dictionarys.end() ) {
         m_currentDictionary = &(it->second);
-        m_version++;  // 版本号 +1，通知所有宏更新缓存
+        m_version++;             // 版本号 +1，通知所有宏更新缓存
+        m_pointerCache.clear();  // 重要：字典切换，旧的指针缓存必须清空
         return true;
     }
     return false;
@@ -70,26 +71,32 @@ uint32_t Translator::getVersion() const
 }
 
 // 翻译
-const std::string& Translator::translate(uint32_t    keyHash,
-                                         const char* fallbackStr)
+const char* Translator::translate(uint32_t keyHash, const char* fallbackStr)
 {
-    // 如果字典还没加载，或者找不到，返回原文的包装
-    // 需要一个静态 string 来存储 fallback，以返回引用
-    static std::string fallback;
+    // --- 极速路径：指针缓存 (uint32_t 查找) ---
+    auto it_ptr = m_pointerCache.find(keyHash);
+    if ( it_ptr != m_pointerCache.end() ) {
+        return it_ptr->second;
+    }
 
+    // --- 正常路径：字典查找 ---
+    const char* resultStr = fallbackStr;
     if ( m_currentDictionary ) {
-        // 整数查找，非常快
         auto it = m_currentDictionary->find(keyHash);
         if ( it != m_currentDictionary->end() ) {
-            return it->second;
+            resultStr = it->second.c_str();
         }
     }
 
-    // 找不到时，返回 fallbackStr
-    // 为了安全返回引用，需要赋值给静态变量
-    // (非线程安全，但 UI 线程通常是单线程)
-    fallback = fallbackStr;
-    return fallback;
+    // --- 稳定化处理：池化 ---
+    // 只要是在池里的字符串，其地址在程序运行期间就是绝对稳定的。
+    auto [poolIt, success] = m_stringPool.insert(resultStr);
+    const char* stablePtr  = poolIt->c_str();
+
+    // 存入加速缓存
+    m_pointerCache[keyHash] = stablePtr;
+
+    return stablePtr;
 }
 
 }  // namespace Translation

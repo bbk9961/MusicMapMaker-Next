@@ -44,7 +44,7 @@ VKSwapchain::~VKSwapchain()
         m_vkLogicalDevice.destroySwapchainKHR(m_swapchain);
     }
 
-    XINFO("SwapChain destroyed.");
+    XDEBUG("SwapChain destroyed.");
 }
 
 // 提取出的公共初始化逻辑
@@ -63,8 +63,9 @@ void VKSwapchain::createInternal(vk::PhysicalDevice& vkPhysicalDevice,
 
     // 2. 查询物理设备支持情况
     // 查询格式
+    auto formatsResult = vkPhysicalDevice.getSurfaceFormatsKHR(vkSurface);
     std::vector<vk::SurfaceFormatKHR> supported_surfaceFormats =
-        vkPhysicalDevice.getSurfaceFormatsKHR(vkSurface);
+        formatsResult.value;
     vk::SurfaceFormatKHR chosenFormat = supported_surfaceFormats[0];
     for ( const auto& sf : supported_surfaceFormats ) {
         // 将 Srgb 改为 Unorm
@@ -76,21 +77,26 @@ void VKSwapchain::createInternal(vk::PhysicalDevice& vkPhysicalDevice,
     }
 
     // 查询能力 (Extent, Count)
-    vk::SurfaceCapabilitiesKHR caps =
-        vkPhysicalDevice.getSurfaceCapabilitiesKHR(vkSurface);
+    auto capsResult = vkPhysicalDevice.getSurfaceCapabilitiesKHR(vkSurface);
+    vk::SurfaceCapabilitiesKHR caps = capsResult.value;
 
     // 确定图像数量
-    // 推荐做法：min + 1。如果没有上限限制，就用这个值。
-    // 如果有上限限制，取 (min+1) 和 max 之间的较小值。
-    uint32_t imageCount = caps.minImageCount + 1;
+    // 推荐做法：min + 1。
+    // [优化] 如果是 FIFO (垂直同步) 模式，使用 minImageCount (通常是 2)
+    // 以开启双重缓冲，减少 1 帧延迟。 如果是 Mailbox 或其他模式，使用
+    // minImageCount + 1 (通常是 3) 以保证平滑。
+    uint32_t imageCount = (s_globalPresentMode == vk::PresentModeKHR::eFifo)
+                              ? caps.minImageCount
+                              : caps.minImageCount + 1;
+
     if ( caps.maxImageCount > 0 && imageCount > caps.maxImageCount ) {
         imageCount = caps.maxImageCount;
     }
 
-    XINFO("Swapchain image count: requested {}, min {}, max {}",
-          imageCount,
-          caps.minImageCount,
-          caps.maxImageCount);
+    XDEBUG("Swapchain image count: requested {}, min {}, max {}",
+           imageCount,
+           caps.minImageCount,
+           caps.maxImageCount);
 
     // 确定尺寸
     vk::Extent2D extent;
@@ -119,12 +125,13 @@ void VKSwapchain::createInternal(vk::PhysicalDevice& vkPhysicalDevice,
                                  ? vk::SharingMode::eConcurrent
                                  : vk::SharingMode::eExclusive);
 
-    m_swapchain = m_vkLogicalDevice.createSwapchainKHR(m_swapchainCreateInfo);
-    XINFO("SwapChain Created (Extent: {}x{})", extent.width, extent.height);
+    m_swapchain =
+        m_vkLogicalDevice.createSwapchainKHR(m_swapchainCreateInfo).value;
+    XDEBUG("SwapChain Created (Extent: {}x{})", extent.width, extent.height);
 
     // 5. 获取图像并创建 ImageView
-    std::vector<vk::Image> swapchain_images =
-        m_vkLogicalDevice.getSwapchainImagesKHR(m_swapchain);
+    auto imagesResult = m_vkLogicalDevice.getSwapchainImagesKHR(m_swapchain);
+    std::vector<vk::Image> swapchain_images = imagesResult.value;
     m_vkImageBuffers.reserve(swapchain_images.size());
 
     for ( const auto& img : swapchain_images ) {
@@ -136,11 +143,11 @@ void VKSwapchain::createInternal(vk::PhysicalDevice& vkPhysicalDevice,
                 { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 });
 
         m_vkImageBuffers.push_back(
-            { .vk_image       = img,
-              .vk_imageView   = m_vkLogicalDevice.createImageView(viewInfo),
+            { .vk_image     = img,
+              .vk_imageView = m_vkLogicalDevice.createImageView(viewInfo).value,
               .vk_frameBuffer = nullptr });
     }
-    XINFO("Successfully Created [{}] ImageBuffers", m_vkImageBuffers.size());
+    XDEBUG("Successfully Created [{}] ImageBuffers", m_vkImageBuffers.size());
 }
 
 // 清理 ImageView 的逻辑（不销毁 Swapchain 句柄，用于 recreate 过程中间）
@@ -152,7 +159,7 @@ void VKSwapchain::cleanupImageViews()
         }
     }
     m_vkImageBuffers.clear();
-    XINFO("ImageView all destroyed.");
+    XDEBUG("ImageView all destroyed.");
 }
 
 
@@ -180,7 +187,7 @@ void VKSwapchain::recreate(vk::PhysicalDevice& vkPhysicalDevice,
     }
 
     m_needsRecreate = false;
-    XINFO("Swapchain creation completed.");
+    XDEBUG("Swapchain creation completed.");
 }
 
 /**
@@ -217,9 +224,9 @@ void VKSwapchain::createFramebuffers(const VKRenderPass& renderPass)
             // 设置layers - 非3d图像绘制只能拿一个
             .setLayers(1);
         imageBuffer.vk_frameBuffer =
-            m_vkLogicalDevice.createFramebuffer(framebufferCreateInfo);
+            m_vkLogicalDevice.createFramebuffer(framebufferCreateInfo).value;
     }
-    XINFO("Successfully Created [{}] FrameBuffers", m_vkImageBuffers.size());
+    XDEBUG("Successfully Created [{}] FrameBuffers", m_vkImageBuffers.size());
 }
 
 /**
@@ -234,7 +241,7 @@ void VKSwapchain::destroyFramebuffers()
         m_vkLogicalDevice.destroyFramebuffer(imageBuffer.vk_frameBuffer);
         imageBuffer.vk_frameBuffer = nullptr;
     }
-    XINFO("FrameBuffers all destroyed.");
+    XDEBUG("FrameBuffers all destroyed.");
 }
 
 }  // namespace MMM::Graphic

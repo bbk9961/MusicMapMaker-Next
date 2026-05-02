@@ -42,7 +42,7 @@ public:
     CursorManager(vk::PhysicalDevice& phyDevice, vk::Device& logicalDevice,
                   vk::CommandPool commandPool, vk::Queue queue);
     ~CursorManager();
-    void UpdateAndDraw();
+    void UpdateAndDraw(float smokeLifeOverride = -1.0f);
 };
 
 }  // namespace Graphic

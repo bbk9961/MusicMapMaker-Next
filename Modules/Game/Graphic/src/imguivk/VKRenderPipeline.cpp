@@ -21,22 +21,35 @@ namespace MMM::Graphic
 VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
                                    VKRenderPass& renderPass,
                                    VKSwapchain& swapchain, bool is2DCanvas,
-                                   int w, int h)
+                                   int w, int h, bool additiveBlend,
+                                   bool                    blendEnable,
+                                   vk::DescriptorSetLayout sharedLayout)
     : m_logicalDevice(logicalDevice)
 {
-    // 2:创建Descriptor Set布局
-    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
-    // 包括uniform在内的所有描述符绑定配置
-    descriptorSetLayoutCreateInfo.setBindings(
-        { Graphic::BRUSH_TEXTURE_BIND_DESC });
-    m_descriptorSetLayout =
-        logicalDevice.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
-    XINFO("Created VK Descriptor Set Layout.");
+    if ( sharedLayout != VK_NULL_HANDLE ) {
+        m_descriptorSetLayout    = sharedLayout;
+        m_ownDescriptorSetLayout = false;
+        XDEBUG("Using Shared VK Descriptor Set Layout.");
+    } else {
+        // 2:创建Descriptor Set布局
+        vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+        // 包括uniform在内的所有描述符绑定配置
+        descriptorSetLayoutCreateInfo.setBindings(
+            { Graphic::BRUSH_TEXTURE_BIND_DESC });
+        m_descriptorSetLayout =
+            logicalDevice
+                .createDescriptorSetLayout(descriptorSetLayoutCreateInfo)
+                .value;
+        m_ownDescriptorSetLayout = true;
+        XDEBUG("Created VK Descriptor Set Layout.");
+    }
 
     // --- 定义 Push Constant 范围 ---
     vk::PushConstantRange pushConstantRange;
     pushConstantRange
-        .setStageFlags(vk::ShaderStageFlagBits::eVertex)  // 在顶点着色器使用
+        .setStageFlags(
+            vk::ShaderStageFlagBits::eVertex |
+            vk::ShaderStageFlagBits::eFragment)  // 在顶点和片元着色器使用
         .setOffset(0)
         .setSize(sizeof(glm::mat4));  // 大小为一个 4x4 矩阵 (64 bytes)
 
@@ -49,8 +62,8 @@ VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
         // pushConstant范围配置
         .setPushConstantRanges(pushConstantRange);
     m_graphicsPipelineLayout =
-        logicalDevice.createPipelineLayout(pipelineLayoutCreateInfo);
-    XINFO("Created VK Graphics RenderPipeline Layout.");
+        logicalDevice.createPipelineLayout(pipelineLayoutCreateInfo).value;
+    XDEBUG("Created VK Graphics RenderPipeline Layout.");
 
     // 4:图形管线创建信息
     vk::GraphicsPipelineCreateInfo graphicsPipelineCreateInfo;
@@ -170,25 +183,29 @@ VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
     vk::PipelineColorBlendStateCreateInfo pipelineColorBlendStateCreateInfo;
     // 4.9.1:颜色附件配置
     vk::PipelineColorBlendAttachmentState pipelineColorBlendAttachmentState;
-    pipelineColorBlendAttachmentState
-        // 开启混合
-        .setBlendEnable(true)
-        // 设置 RGB 混合因子
-        // 也就是：新颜色(Src) * Alpha + 旧颜色(Dst) * (1 - Alpha)
-        .setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
-        .setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
-        .setColorBlendOp(vk::BlendOp::eAdd)  // 相加
-        // 设置 Alpha 通道混合因子
-        // 通常直接保留新像素的 Alpha，或者两者相加。
-        // 下面配置表示：FinalAlpha = (SrcAlpha * 1) + (DstAlpha * 0) =>
-        // 直接使用新像素的 Alpha
-        .setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
-        .setDstAlphaBlendFactor(vk::BlendFactor::eZero)
-        .setAlphaBlendOp(vk::BlendOp::eAdd)
-        // 需要写出的分量 - rgba都要写出
-        .setColorWriteMask(
-            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
-            vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
+    pipelineColorBlendAttachmentState.setBlendEnable(blendEnable);
+
+    if ( additiveBlend ) {
+        pipelineColorBlendAttachmentState
+            .setSrcColorBlendFactor(vk::BlendFactor::eOne)
+            .setDstColorBlendFactor(vk::BlendFactor::eOne)
+            .setColorBlendOp(vk::BlendOp::eAdd)
+            .setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
+            .setDstAlphaBlendFactor(vk::BlendFactor::eOne)
+            .setAlphaBlendOp(vk::BlendOp::eAdd);
+    } else {
+        pipelineColorBlendAttachmentState
+            .setSrcColorBlendFactor(vk::BlendFactor::eSrcAlpha)
+            .setDstColorBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+            .setColorBlendOp(vk::BlendOp::eAdd)
+            .setSrcAlphaBlendFactor(vk::BlendFactor::eOne)
+            .setDstAlphaBlendFactor(vk::BlendFactor::eOneMinusSrcAlpha)
+            .setAlphaBlendOp(vk::BlendOp::eAdd);
+    }
+
+    pipelineColorBlendAttachmentState.setColorWriteMask(
+        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+        vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
     pipelineColorBlendStateCreateInfo
         // 常规渲染不使用逻辑操作（如异或）
         .setLogicOpEnable(false)
@@ -206,22 +223,24 @@ VKRenderPipeline::VKRenderPipeline(vk::Device& logicalDevice, VKShader& shader,
         nullptr, graphicsPipelineCreateInfo);
     assert(pipelineCreateResult.result == vk::Result::eSuccess);
     m_graphicsPipeline = pipelineCreateResult.value;
-    XINFO("Created VK Graphics RenderPipeline.");
+    XDEBUG("Created VK Graphics RenderPipeline.");
 }
 
 VKRenderPipeline::~VKRenderPipeline()
 {
     // 销毁图形渲染管线
     m_logicalDevice.destroyPipeline(m_graphicsPipeline);
-    XINFO("Destroyed VK Graphics RenderPipeline.");
+    XDEBUG("Destroyed VK Graphics RenderPipeline.");
 
     // 销毁图形渲染管线布局
     m_logicalDevice.destroyPipelineLayout(m_graphicsPipelineLayout);
-    XINFO("Destroyed VK Graphics RenderPipeline Layout.");
+    XDEBUG("Destroyed VK Graphics RenderPipeline Layout.");
 
     // 销毁Descriptor Set布局
-    m_logicalDevice.destroyDescriptorSetLayout(m_descriptorSetLayout);
-    XINFO("Destroyed VK Descriptor Set Layout.");
+    if ( m_ownDescriptorSetLayout ) {
+        m_logicalDevice.destroyDescriptorSetLayout(m_descriptorSetLayout);
+        XDEBUG("Destroyed VK Descriptor Set Layout.");
+    }
 }
 
 }  // namespace MMM::Graphic

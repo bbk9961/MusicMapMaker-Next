@@ -1,6 +1,10 @@
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "log/colorful-log.h"
+#include <algorithm>
 #include <filesystem>
+#include <regex>
+#include <vector>
 
 namespace MMM
 {
@@ -49,18 +53,12 @@ bool SkinManager::loadSkin(const std::string& luaFilePath)
         skinTable["meta"]["author"].get_or<std::string>("Various Artists");
     m_data.themeVersion =
         skinTable["meta"]["version"].get_or<std::string>("1.0");
+    m_data.effectBaseFps = skinTable["meta"]["effectbasefps"].get_or(60.0f);
 
     // 解析 Colors
-    sol::table colorsTable = skinTable["colors"];
-    for ( const auto& kv : colorsTable ) {
-        std::string        key = kv.first.as<std::string>();
-        std::vector<float> val = kv.second.as<std::vector<float>>();
-
-        if ( val.size() >= 3 ) {
-            m_data.colors[key] = {
-                val[0], val[1], val[2], val.size() > 3 ? val[3] : 1.0f
-            };
-        }
+    sol::optional<sol::table> colorsTableOpt = skinTable["colors"];
+    if ( colorsTableOpt ) {
+        parseColorsRecursive(colorsTableOpt.value(), "");
     }
 
     // 解析 langs
@@ -75,8 +73,12 @@ bool SkinManager::loadSkin(const std::string& luaFilePath)
     for ( auto& [langName, langLuaPath] : m_data.langLuaPaths ) {
         m_translator.loadLanguage(langLuaPath.generic_string());
     }
-    // 选择回退语言
-    m_translator.switchLang(m_data.fallBackLang);
+
+    // 从 AppConfig 获取保存的语言设置，如果未设置则回退
+    auto& settings = MMM::Config::AppConfig::instance().getEditorSettings();
+    if ( !m_translator.switchLang(settings.language) ) {
+        m_translator.switchLang(m_data.fallBackLang);
+    }
 
     // 解析 Fonts
     sol::table fontsTable = skinTable["fonts"];
@@ -86,11 +88,113 @@ bool SkinManager::loadSkin(const std::string& luaFilePath)
         m_data.fontPaths[key] = m_data.skinPath / "resources" / rpath;
     }
 
+    // 解析 AsciiFonts
+    sol::optional<sol::table> asciiFontsTableOpt = skinTable["ascii_fonts"];
+    m_data.asciiFonts.clear();
+    if ( asciiFontsTableOpt ) {
+        sol::table asciiFontsTable = asciiFontsTableOpt.value();
+        // 检查是否为数组格式 (ordered)
+        if ( asciiFontsTable[1].valid() ) {
+            for ( size_t i = 1; i <= asciiFontsTable.size(); ++i ) {
+                sol::object entry = asciiFontsTable[i];
+                if ( entry.is<sol::table>() ) {
+                    sol::table t = entry.as<sol::table>();
+                    if ( t[1].valid() && t[2].valid() ) {
+                        m_data.asciiFonts.emplace_back(
+                            t[1].get<std::string>(),
+                            m_data.skinPath / "resources" /
+                                t[2].get<std::string>());
+                    }
+                }
+            }
+        } else {
+            // 回退到字典格式 (unordered)
+            for ( const auto& kv : asciiFontsTable ) {
+                std::string name   = kv.first.as<std::string>();
+                std::string rpath  = kv.second.as<std::string>();
+                m_data.asciiFonts.emplace_back(
+                    name, m_data.skinPath / "resources" / rpath);
+            }
+        }
+    }
+
+    // 解析 CjkFonts
+    sol::optional<sol::table> cjkFontsTableOpt = skinTable["cjk_fonts"];
+    m_data.cjkFonts.clear();
+    if ( cjkFontsTableOpt ) {
+        sol::table cjkFontsTable = cjkFontsTableOpt.value();
+        if ( cjkFontsTable[1].valid() ) {
+            for ( size_t i = 1; i <= cjkFontsTable.size(); ++i ) {
+                sol::object entry = cjkFontsTable[i];
+                if ( entry.is<sol::table>() ) {
+                    sol::table t = entry.as<sol::table>();
+                    if ( t[1].valid() && t[2].valid() ) {
+                        m_data.cjkFonts.emplace_back(
+                            t[1].get<std::string>(),
+                            m_data.skinPath / "resources" /
+                                t[2].get<std::string>());
+                    }
+                }
+            }
+        } else {
+            for ( const auto& kv : cjkFontsTable ) {
+                std::string name  = kv.first.as<std::string>();
+                std::string rpath = kv.second.as<std::string>();
+                m_data.cjkFonts.emplace_back(
+                    name, m_data.skinPath / "resources" / rpath);
+            }
+        }
+    }
+
+    // 解析 Theme 并保存为皮肤的默认推荐主题
+    sol::optional<std::string> themeOpt = skinTable["theme"];
+    if ( themeOpt ) {
+        m_data.defaultTheme = themeOpt.value();
+    }
+
     // 在你的解析代码中
     sol::table assetsTable = skinTable["assets"];
     if ( assetsTable.valid() ) {
         // 初始前缀为空，开始递归
         parseAssetsRecursive(assetsTable, "");
+
+        // 统一分配序列帧的起始 ID (避免在渲染层硬编码偏移)
+        // 从 1000 (TextureID::EffectStart) 开始分配
+        uint32_t                 currentId = 1000;
+        std::vector<std::string> seqKeys;
+        for ( const auto& [key, seq] : m_data.effectSequences ) {
+            seqKeys.push_back(key);
+        }
+        // 排序以保证多平台/多次运行时的 ID 分配确定性
+        std::sort(seqKeys.begin(), seqKeys.end());
+
+        for ( const auto& key : seqKeys ) {
+            m_data.effectSequences[key].startId = currentId;
+            uint32_t frameCount                 = static_cast<uint32_t>(
+                m_data.effectSequences[key].frames.size());
+            XINFO("Assigning sequence {} start ID: {}, frames: {}",
+                  key,
+                  currentId,
+                  frameCount);
+            currentId += frameCount;
+        }
+    }
+
+    sol::table audiosTable = skinTable["audios"];
+    if ( audiosTable.valid() ) {
+        parseAudiosRecursive(audiosTable, "");
+    }
+
+    // 解析特效配置
+    sol::optional<sol::table> effectsTableOpt = skinTable["effects"];
+    if ( effectsTableOpt ) {
+        sol::table                effectsTable = effectsTableOpt.value();
+        sol::optional<sol::table> glowOpt      = effectsTable["glow"];
+        if ( glowOpt ) {
+            m_data.effects.glow.passes = glowOpt.value()["passes"].get_or(8);
+            m_data.effects.glow.intensity =
+                glowOpt.value()["intensity"].get_or(1.0f);
+        }
     }
 
     // 解析 canvases_2d
@@ -134,8 +238,38 @@ bool SkinManager::loadSkin(const std::string& luaFilePath)
         parseLayoutRecursive(layoutTable, "");
     }
 
+    // 解析 fontsize
+    sol::optional<sol::table> fontsizeTableOpt = skinTable["fontsize"];
+    if ( fontsizeTableOpt ) {
+        parseLayoutRecursive(fontsizeTableOpt.value(), "fontsize");
+    }
+
+    // 解析 values
+    sol::optional<sol::table> valuesTableOpt = skinTable["values"];
+    if ( valuesTableOpt ) {
+        parseValuesRecursive(valuesTableOpt.value(), "");
+    }
+
     XINFO("Skin loaded: " + m_data.themeName);
     return true;
+}
+
+void SkinManager::parseAudiosRecursive(const sol::table&  currentTable,
+                                       const std::string& prefix)
+{
+    for ( const auto& kv : currentTable ) {
+        std::string key   = kv.first.as<std::string>();
+        sol::object value = kv.second;
+
+        std::string fullKey = prefix.empty() ? key : prefix + "." + key;
+
+        if ( value.is<std::string>() ) {
+            std::string rpath          = value.as<std::string>();
+            m_data.audioPaths[fullKey] = m_data.skinPath / "resources" / rpath;
+        } else if ( value.is<sol::table>() ) {
+            parseAudiosRecursive(value.as<sol::table>(), fullKey);
+        }
+    }
 }
 
 /**
@@ -156,14 +290,74 @@ void SkinManager::parseAssetsRecursive(const sol::table&  currentTable,
 
         if ( value.is<std::string>() ) {
             // 如果是字符串，说明到了叶子节点，保存路径
-            std::string rpath          = value.as<std::string>();
-            m_data.assetPaths[fullKey] = m_data.skinPath / "resources" / rpath;
+            std::string rpath = value.as<std::string>();
 
-            // 打印日志方便调试
-            // XINFO("Loaded Asset: {} -> {}", fullKey, rpath);
+            // 检查是否是序列帧格式，例如 "image/note/effect/flick/[1 ..
+            // 16].png"
+            std::regex  seqRegex(R"(^(.*)\[(\d+)\s*\.\.\s*(\d+)\](.*)$)");
+            std::smatch match;
+            if ( std::regex_match(rpath, match, seqRegex) ) {
+                std::string prefix = match[1].str();
+                int         start  = std::stoi(match[2].str());
+                int         end    = std::stoi(match[3].str());
+                std::string suffix = match[4].str();
+
+                SkinData::EffectSequence seq;
+                int                      step    = (start <= end) ? 1 : -1;
+                int                      current = start;
+                while ( true ) {
+                    std::string framePath =
+                        prefix + std::to_string(current) + suffix;
+                    seq.frames.push_back(m_data.skinPath / "resources" /
+                                         framePath);
+                    if ( current == end ) break;
+                    current += step;
+                }
+                m_data.effectSequences[fullKey] = seq;
+            } else {
+                m_data.assetPaths[fullKey] =
+                    m_data.skinPath / "resources" / rpath;
+            }
         } else if ( value.is<sol::table>() ) {
             // 如果是表，则递归进入下一层
             parseAssetsRecursive(value.as<sol::table>(), fullKey);
+        }
+    }
+}
+
+/**
+ * @brief 递归解析颜色配置表
+ * @param currentTable 当前处理的 Lua 表
+ * @param prefix 键前缀（用于处理嵌套，如 "preview"）
+ */
+void SkinManager::parseColorsRecursive(const sol::table&  currentTable,
+                                       const std::string& prefix)
+{
+    for ( const auto& kv : currentTable ) {
+        // 获取键名
+        std::string key   = kv.first.as<std::string>();
+        sol::object value = kv.second;
+
+        // 构建完整的键名（如 "preview.boundingbox"）
+        std::string fullKey = prefix.empty() ? key : prefix + "." + key;
+
+        if ( value.is<sol::table>() ) {
+            // 尝试直接作为颜色数组解析
+            sol::table valTable = value.as<sol::table>();
+            // 检查表的第一项是否是数字，从而判断这是颜色数组还是嵌套表
+            sol::object firstElem = valTable[1];
+            if ( firstElem.is<float>() || firstElem.is<double>() ) {
+                // 是颜色数组，解析
+                std::vector<float> val = valTable.as<std::vector<float>>();
+                if ( val.size() >= 3 ) {
+                    m_data.colors[fullKey] = {
+                        val[0], val[1], val[2], val.size() > 3 ? val[3] : 1.0f
+                    };
+                }
+            } else {
+                // 是嵌套表，继续递归
+                parseColorsRecursive(valTable, fullKey);
+            }
         }
     }
 }
@@ -209,6 +403,23 @@ void SkinManager::parseLayoutRecursive(const sol::table&  currentTable,
     }
 }
 
+void SkinManager::parseValuesRecursive(const sol::table&  currentTable,
+                                       const std::string& prefix)
+{
+    for ( const auto& kv : currentTable ) {
+        std::string key   = kv.first.as<std::string>();
+        sol::object value = kv.second;
+
+        std::string fullKey = prefix.empty() ? key : prefix + "." + key;
+
+        if ( value.is<sol::table>() ) {
+            parseValuesRecursive(value.as<sol::table>(), fullKey);
+        } else if ( value.is<double>() ) {
+            m_data.values[fullKey] = static_cast<float>(value.as<double>());
+        }
+    }
+}
+
 std::filesystem::path SkinManager::getFontPath(const std::string& key)
 {
     if ( auto fontPathit = m_data.fontPaths.find(key);
@@ -216,6 +427,16 @@ std::filesystem::path SkinManager::getFontPath(const std::string& key)
         return fontPathit->second;
     }
     XERROR("Asset key not found: " + key);
+    return "";
+}
+
+std::filesystem::path SkinManager::getAudioPath(const std::string& key)
+{
+    if ( auto audioPathit = m_data.audioPaths.find(key);
+         audioPathit != m_data.audioPaths.end() ) {
+        return audioPathit->second;
+    }
+    XERROR("Audio key not found: " + key);
     return "";
 }
 
@@ -227,6 +448,16 @@ std::filesystem::path SkinManager::getAssetPath(const std::string& key)
     }
     XERROR("Asset key not found: " + key);
     return "";
+}
+
+const SkinData::EffectSequence* SkinManager::getEffectSequence(
+    const std::string& key) const
+{
+    if ( auto it = m_data.effectSequences.find(key);
+         it != m_data.effectSequences.end() ) {
+        return &it->second;
+    }
+    return nullptr;
 }
 
 ///@brief 获取画布配置
@@ -251,6 +482,14 @@ std::string SkinManager::getLayoutConfig(const std::string& key)
     return {};
 }
 
+float SkinManager::getValue(const std::string& key, float defaultValue)
+{
+    if ( auto it = m_data.values.find(key); it != m_data.values.end() ) {
+        return it->second;
+    }
+    return defaultValue;
+}
+
 Color SkinManager::getColor(const std::string& key)
 {
     if ( m_data.colors.find(key) != m_data.colors.end() ) {
@@ -258,6 +497,20 @@ Color SkinManager::getColor(const std::string& key)
     }
     // 默认返回紫色以示错误
     return { 1.0f, 0.0f, 1.0f, 1.0f };
+}
+
+ImFont* SkinManager::getFont(const std::string& key)
+{
+    if ( auto it = m_data.runtimeFonts.find(key);
+         it != m_data.runtimeFonts.end() ) {
+        return it->second;
+    }
+    return nullptr;
+}
+
+void SkinManager::setFont(const std::string& key, ImFont* font)
+{
+    m_data.runtimeFonts[key] = font;
 }
 
 }  // namespace Config

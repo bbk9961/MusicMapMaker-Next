@@ -1,41 +1,58 @@
 #include "ui/imgui/SideBarUI.h"
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "event/core/EventBus.h"
 #include "event/ui/UISubViewToggleEvent.h"
 #include "imgui.h"
 #include "log/colorful-log.h"
-#include "ui/ITextureLoader.h"
+#include "ui/Icons.h"
 #include "ui/layout/box/CLayBox.h"
+#include "ui/utils/UIThemeUtils.h"
 #include <lunasvg.h>
 
 namespace MMM::UI
 {
 
-SideBarUI::SideBarUI(const std::string& name)
-    : IUIView(name), ITextureLoader(name)
+SideBarUI::SideBarUI(const std::string& name) : IUIView(name)
 {
+    m_subId =
+        Event::EventBus::instance().subscribe<Event::UISubViewToggleEvent>(
+            [this](const Event::UISubViewToggleEvent& e) {
+                if ( e.targetFloatManagerName == "SideBarManager" ) {
+                    auto tab = SubViewIdToTab(e.subViewId);
+                    if ( tab != SideBarTab::None ) {
+                        m_activeTab = tab;
+                    }
+                }
+            });
 }
 
 SideBarUI::~SideBarUI()
 {
-    m_tabIcons.clear();
+    if ( m_subId != 0 ) {
+        Event::EventBus::instance().unsubscribe<Event::UISubViewToggleEvent>(
+            m_subId);
+    }
 }
 
 void SideBarUI::update(UIManager* sourceManager)
 {
-    Config::SkinManager& skinCfg = Config::SkinManager::instance();
-    static float         sidebarWidth =
-        std::stof(skinCfg.getLayoutConfig("side_bar.width"));
-    static float sidebarIconSize =
-        std::stof(skinCfg.getLayoutConfig("side_bar.icon_size"));
-    const ImGuiViewport* viewport      = ImGui::GetMainViewport();
-    float                menuBarHeight = ImGui::GetFrameHeight();
+    Config::SkinManager& skinCfg  = Config::SkinManager::instance();
+    const ImGuiViewport* viewport = ImGui::GetMainViewport();
+    float                dpiScale = MMM::Config::AppConfig::instance().getWindowContentScale();
+
+    float sidebarWidth = std::floor(std::stof(skinCfg.getLayoutConfig("side_bar.width")) * dpiScale);
+
+    float       extraPaddingY     = std::floor(4.0f * dpiScale);
+    ImGuiStyle& style             = ImGui::GetStyle();
+    float       menuBarHeight =
+        ImGui::GetFontSize() + (style.FramePadding.y + extraPaddingY) * 2.0f;
 
     // ================== C. 左侧侧边栏窗口 ==================
-    // 位置：X=0, Y=菜单高度
+    // 位置：X=0, Y=菜单高度 (使用 WorkPos 确保在多视口/缩放环境下坐标正确)
     ImGui::SetNextWindowPos(
         ImVec2(viewport->WorkPos.x, viewport->WorkPos.y + menuBarHeight));
-    // 尺寸：宽=48, 高=总高 - 菜单高度
+    // 尺寸：宽=sidebarWidth, 高=总高 - 菜单高度
     ImGui::SetNextWindowSize(
         ImVec2(sidebarWidth, viewport->WorkSize.y - menuBarHeight));
     ImGui::SetNextWindowViewport(viewport->ID);
@@ -60,32 +77,33 @@ void SideBarUI::update(UIManager* sourceManager)
 
     // lambda：绘制互斥按钮
     auto DrawSidebarButton =
-        [&](const char* label, SideBarTab tab, Clay_BoundingBox rect) {
+        [&](const char* iconStr, SideBarTab tab, Clay_BoundingBox rect) {
             bool isActive = (m_activeTab == tab);
-            // 获取纹理
-            Graphic::VKTexture* tex = nullptr;
-            if ( m_tabIcons.count(tab) ) tex = m_tabIcons[tab].get();
 
             // --- 样式处理 ---
             if ( isActive ) {
-                // 激活态：深灰色背景（VS Code 风格）
-                ImGui::PushStyleColor(ImGuiCol_Button,
-                                      ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                      ImVec4(0.25f, 0.25f, 0.25f, 1.0f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                      ImVec4(0.3f, 0.3f, 0.3f, 1.0f));
+                ImVec4 activeCol = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+                ImGui::PushStyleColor(ImGuiCol_Button, activeCol);
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, activeCol);
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, activeCol);
             } else {
-                // 非激活态：全透明，仅悬停时有微弱反馈
-                ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0, 0, 0, 0));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
-                                      ImVec4(1.0f, 1.0f, 1.0f, 0.05f));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive,
-                                      ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
+                Utils::UIThemeUtils::pushTransparentButtonStyles();
             }
 
-            // 绘制透明按钮捕捉点击
-            std::string btnId = "##tab_" + std::to_string((int)tab);
+            // 使用不同的文字颜色（未激活时稍显透明）
+            ImVec4 iconVec4 = ImGui::GetStyleColorVec4(ImGuiCol_Text);
+            if ( !isActive ) {
+                iconVec4.w *= 0.7f;  // 非激活状态稍微透明点
+            }
+            ImGui::PushStyleColor(ImGuiCol_Text, iconVec4);
+
+            // 应用侧边栏专用字体大小
+            ImFont* sideBarFont = skinCfg.getFont("side_bar");
+            if ( sideBarFont ) ImGui::PushFont(sideBarFont);
+
+            // 绘制按钮
+            std::string btnId =
+                std::string(iconStr) + "##tab_" + std::to_string((int)tab);
             if ( ImGui::Button(btnId.c_str(), { rect.width, rect.height }) ) {
                 m_activeTab = (m_activeTab == tab) ? SideBarTab::None : tab;
                 // 2. 发布事件通知 FloatingManagerUI
@@ -112,104 +130,71 @@ void SideBarUI::update(UIManager* sourceManager)
                 XINFO("SideBarUI: Published ToggleEvent for {}", evt.subViewId);
             }
 
-            // --- 核心：绘制图标 ---
-            if ( tex ) {
-                // 1. 触发自动注册并获取 ID
-                ImTextureID imTexId = (ImTextureID)tex->getImTextureID();
-
-                // 2. 计算居中位置
-                float iconSize =
-                    sidebarIconSize;  // 图标在 32px 按钮里的实际显示大小
-                ImVec2 p_min = ImGui::GetItemRectMin();
-                ImVec2 p_max = ImGui::GetItemRectMax();
-
-                float offsetX = (rect.width - iconSize) * 0.5f;
-                float offsetY = (rect.height - iconSize) * 0.5f;
-
-                ImVec2 img_p1 = { p_min.x + offsetX, p_min.y + offsetY };
-                ImVec2 img_p2 = { img_p1.x + iconSize, img_p1.y + iconSize };
-
-                // 3. 绘制图标
-                // 使用不同的着色（未激活时稍显灰色）
-                ImU32 tint =
-                    isActive ? IM_COL32_WHITE : IM_COL32(200, 200, 200, 255);
-
-                ImGui::GetWindowDrawList()->AddImage(
-                    imTexId, img_p1, img_p2, { 0, 0 }, { 1, 1 }, tint);
-            }
-
-            // 如果是激活状态，在左侧画一个蓝色的指示条（可选，VS Code 风格）
-            // if ( isActive ) {
-            //     ImVec2 p_min = ImGui::GetItemRectMin();
-            //     ImVec2 p_max = ImGui::GetItemRectMax();
-            //     ImGui::GetWindowDrawList()->AddRectFilled(
-            //         p_min,
-            //         ImVec2(p_min.x + 3.0f, p_max.y),
-            //         IM_COL32(0, 120, 215, 255));
-            // }
+            // --- 悬停提示 ---
+            // 推入内容字体以保持 Tooltip 文字尺寸一致
+            ImFont* contentFont = skinCfg.getFont("content");
+            if ( contentFont ) ImGui::PushFont(contentFont);
+            ImGui::SetItemTooltip("%s", TabToTooltip(tab).c_str());
+            if ( contentFont ) ImGui::PopFont();
 
             // --- 清理状态栈 ---
-            ImGui::PopStyleColor(3);  // 弹出 Button 和 ButtonHovered
+            if ( sideBarFont ) ImGui::PopFont();
+            ImGui::PopStyleColor(1);
+            if ( isActive ) {
+                ImGui::PopStyleColor(3);
+            } else {
+                Utils::UIThemeUtils::popTransparentButtonStyles();
+            }  // 弹出 Button, Hovered, Active, Text
         };
 
     CLayVBox vbox;
     vbox.setPadding(0, 0, 0, 0)
         .setSpacing(0)
-        .addElement("FileExplorerButton",
+        .addElement("SearchButton",
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
                         DrawSidebarButton(
-                            "File", SideBarTab::FileExplorer, rect);
+                            ICON_MMM_SEARCH, SideBarTab::Search, rect);
+                    })
+        .addElement("FileExplorerButton",
+                    Sizing::Fixed(sidebarWidth),
+                    Sizing::Fixed(sidebarWidth),
+                    [=](Clay_BoundingBox rect, bool isHovered) {
+                        DrawSidebarButton(ICON_MMM_FOLDER_OPEN,
+                                          SideBarTab::FileExplorer,
+                                          rect);  // \uf15b file
                     })
         .addElement("AudioExplorerButton",
                     Sizing::Fixed(sidebarWidth),
                     Sizing::Fixed(sidebarWidth),
                     [=](Clay_BoundingBox rect, bool isHovered) {
-                        DrawSidebarButton(
-                            "Audio", SideBarTab::AudioExplorer, rect);
+                        DrawSidebarButton(ICON_MMM_MUSIC,
+                                          SideBarTab::AudioExplorer,
+                                          rect);  // \uf001 music
                     })
-        .addSpring();
+        .addElement("BeatMapExplorerButton",
+                    Sizing::Fixed(sidebarWidth),
+                    Sizing::Fixed(sidebarWidth),
+                    [=](Clay_BoundingBox rect, bool isHovered) {
+                        DrawSidebarButton(
+                            ICON_MMM_FILE,
+                            SideBarTab::BeatMapExplorer,
+                            rect);  // \uf07c folder-open (打开文件)
+                    })
+        .addSpring()
+        .addElement("SettingsButton",
+                    Sizing::Fixed(sidebarWidth),
+                    Sizing::Fixed(sidebarWidth),
+                    [=](Clay_BoundingBox rect, bool isHovered) {
+                        DrawSidebarButton(ICON_MMM_COG,
+                                          SideBarTab::Settings,
+                                          rect);  // \uf013 cog
+                    });
     vbox.render(ctx);
 
     // --- 弹出样式变量 ---
     ImGui::PopStyleVar(6);
-}
-
-/// @brief 是否需要重载
-bool SideBarUI::needReload()
-{
-    return std::exchange(m_needReload, false);
-}
-
-/// @brief 重载纹理
-void SideBarUI::reloadTextures(vk::PhysicalDevice& physicalDevice,
-                               vk::Device&         logicalDevice,
-                               vk::CommandPool& cmdPool, vk::Queue& queue)
-{
-    auto&          skin     = Config::SkinManager::instance();
-    const uint32_t iconSize = 32;
-
-    // 直接调用基类生产接口，只需要给路径
-    m_tabIcons[SideBarTab::FileExplorer] =
-        loadTextureResource(skin.getAssetPath("side_bar.file_explorer_icon"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    m_tabIcons[SideBarTab::AudioExplorer] =
-        loadTextureResource(skin.getAssetPath("side_bar.audio_explorer_icon"),
-                            iconSize,
-                            physicalDevice,
-                            logicalDevice,
-                            cmdPool,
-                            queue,
-                            { { .83f, .83f, .83f, .83f } });
-
-    XINFO("SideBar textures reloaded.");
 }
 
 }  // namespace MMM::UI

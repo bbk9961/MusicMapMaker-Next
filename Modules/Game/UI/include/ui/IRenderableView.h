@@ -1,5 +1,6 @@
 #pragma once
 
+#include "config/AppConfig.h"
 #include "config/skin/SkinConfig.h"
 #include "config/skin/translation/Translation.h"
 #include "graphic/imguivk/VKOffScreenRenderer.h"
@@ -42,22 +43,28 @@ public:
             : m_view(view), m_width(width), m_height(height)
         {
             // 1. 在 Begin 之前设置窗口大小
-            // ImGuiCond_FirstUseEver: 只在第一次运行且没有 .ini
-            // 配置文件记录时生效 ImGuiCond_Always:
-            // 强制每一帧都固定这个大小（用户无法拖拽改变大小） ImGuiCond_Once:
-            // 每轮启动只设置一次
             ImGui::SetNextWindowSize(ImVec2((float)m_width, (float)m_height),
                                      ImGuiCond_FirstUseEver);
 
+            // 应用窗口标题字体
+            auto&   skinMgr   = Config::SkinManager::instance();
+            ImFont* titleFont = skinMgr.getFont("title");
+            if ( titleFont ) ImGui::PushFont(titleFont);
+
             ImGui::Begin(window_title);
+
+            // Begin 后立即弹出，确保后续内容使用默认字体
+            if ( titleFont ) ImGui::PopFont();
 
 
             // 1. 获取 ImGui 窗口分配给内容的实际大小
-            ImVec2 size = ImGui::GetContentRegionAvail();
+            ImVec2 size     = ImGui::GetContentRegionAvail();
+            float  dpiScale = Config::AppConfig::instance().getWindowContentScale();
             if ( size.x > 0 && size.y > 0 ) {
-                // 仅仅是发送请求，不会立刻改变渲染状态
+                // 核心修复：通知渲染器目标尺寸及其缩放倍率
                 view->setTargetSize(static_cast<uint32_t>(size.x),
-                                    static_cast<uint32_t>(size.y));
+                                    static_cast<uint32_t>(size.y),
+                                    dpiScale);
             }
 
             // 1. 必须清空上一帧的顶点
@@ -75,8 +82,8 @@ public:
                 } else {
                     ImGui::Text("%s", TR("Loading Surface...").data());
                 }
-                ImGui::End();
             }
+            ImGui::End();
         };
 
     private:
@@ -103,9 +110,11 @@ protected:
     /**
      * @brief 录制具体的绘制指令 (由 UI 层实现)
      */
-    void onRecordDrawCmds(vk::CommandBuffer& cmdBuf,
-                          vk::PipelineLayout pipelineLayout,
-                          vk::DescriptorSet  defaultDescriptor) override
+    void onRecordDrawCmds(vk::CommandBuffer&      cmdBuf,
+                          vk::PipelineLayout      pipelineLayout,
+                          vk::DescriptorSetLayout setLayout,
+                          vk::DescriptorSet       defaultDescriptor,
+                          uint32_t                frameIndex) override
     {
         for ( const auto& cmd : m_brush.getCmds() ) {
             if ( cmd.texture != VK_NULL_HANDLE ) {

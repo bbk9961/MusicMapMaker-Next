@@ -32,8 +32,8 @@ void VKRenderer::createCommandPool()
         // 可以随时重置
         .setFlags(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
     m_vkCommandPool =
-        m_vkLogicalDevice.createCommandPool(commandPoolCreateInfo);
-    XINFO("Created VK Command Pool.");
+        m_vkLogicalDevice.createCommandPool(commandPoolCreateInfo).value;
+    XDEBUG("Created VK Command Pool.");
 }
 
 /**
@@ -53,9 +53,10 @@ void VKRenderer::allocateCommandBuffers()
         // 这里分配主要的
         .setLevel(vk::CommandBufferLevel::ePrimary);
     m_vkCommandBuffers =
-        m_vkLogicalDevice.allocateCommandBuffers(commandBufferAllocateInfo);
+        m_vkLogicalDevice.allocateCommandBuffers(commandBufferAllocateInfo)
+            .value;
 
-    XINFO("Allocated VK Command Buffers.");
+    XDEBUG("Allocated VK Command Buffers.");
 }
 
 /**
@@ -72,18 +73,18 @@ void VKRenderer::createSemsWithFences()
         // 创建信号量
         vk::SemaphoreCreateInfo semaphoreCreateInfo;
         m_imageAvailableSems[i] =
-            m_vkLogicalDevice.createSemaphore(semaphoreCreateInfo);
+            m_vkLogicalDevice.createSemaphore(semaphoreCreateInfo).value;
         m_renderFinishedSems[i] =
-            m_vkLogicalDevice.createSemaphore(semaphoreCreateInfo);
-        XINFO("Created image Semaphores For ImageBuffer{}.", i);
+            m_vkLogicalDevice.createSemaphore(semaphoreCreateInfo).value;
+        XDEBUG("Created image Semaphores For ImageBuffer{}.", i);
 
         // 创建同步栅
         vk::FenceCreateInfo fenceCreateInfo;
         // 初始化为 Signaled，让第一帧可以直接通过 wait
         fenceCreateInfo.setFlags(vk::FenceCreateFlagBits::eSignaled);
         m_cmdAvailableFences[i] =
-            m_vkLogicalDevice.createFence(fenceCreateInfo);
-        XINFO("Created cmd Sync Fence For ImageBuffer{}.", i);
+            m_vkLogicalDevice.createFence(fenceCreateInfo).value;
+        XDEBUG("Created cmd Sync Fence For ImageBuffer{}.", i);
     }
 }
 
@@ -115,9 +116,20 @@ void VKRenderer::createDescriptPool()
         .setMaxSets(1000 * poolSizes.size())
         .setPoolSizes(poolSizes);
 
-    m_vkDescriptorPool = m_vkLogicalDevice.createDescriptorPool(poolInfo);
+    m_vkDescriptorPool = m_vkLogicalDevice.createDescriptorPool(poolInfo).value;
+    XDEBUG("Created Global Descriptor Pool for ImGui.");
 
-    XINFO("Created Global Descriptor Pool for ImGui.");
+    // 创建画笔纹理共享布局
+    vk::DescriptorSetLayoutBinding binding0(
+        0,
+        vk::DescriptorType::eCombinedImageSampler,
+        1,
+        vk::ShaderStageFlagBits::eFragment,
+        nullptr);
+    vk::DescriptorSetLayoutCreateInfo layoutInfo({}, binding0);
+    m_brushTextureLayout =
+        m_vkLogicalDevice.createDescriptorSetLayout(layoutInfo).value;
+    XDEBUG("Created Shared Brush Texture Layout.");
 }
 
 }  // namespace MMM::Graphic
