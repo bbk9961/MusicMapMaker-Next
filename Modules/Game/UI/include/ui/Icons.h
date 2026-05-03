@@ -34,8 +34,10 @@ constexpr const char* ICON_MMM_FILE_ADD =
 // --- Playback Icons ---
 constexpr const char* ICON_MMM_PLAY  = "\xef\x81\x8b";  ///< \uf04b play
 constexpr const char* ICON_MMM_PAUSE = "\xef\x81\x8c";  ///< \uf04c pause
+constexpr const char* ICON_MMM_STOP  = "\xef\x81\x8d";  ///< \uf04d stop
 
 // --- Edit Tool Icons ---
+constexpr const char* ICON_MMM_MOUSE = "\xef\xa3\x8c";  ///< \uf8cc mouse
 constexpr const char* ICON_MMM_MOUSE_POINTER =
     "\xef\x89\x85";  ///< \uf245 mouse-pointer (Move Tool)
 constexpr const char* ICON_MMM_MOVE_ARROWS =
@@ -56,6 +58,7 @@ constexpr const char* ICON_MMM_ARROWS_UP_DOWN =
     "\xef\x81\xbd";  ///< \uf07d arrows-up-down
 
 constexpr const char* ICON_MMM_MAGNET = "\xef\x81\xb6";  ///< \uf076 magnet
+constexpr const char* ICON_MMM_ARROW_DOWN = "\xef\x81\xa3";  ///< \uf063 arrow-down
 constexpr const char* ICON_MMM_BARS =
     "\xef\x83\x89";  ///< \uf0c9 bars (for beat divisor)
 
