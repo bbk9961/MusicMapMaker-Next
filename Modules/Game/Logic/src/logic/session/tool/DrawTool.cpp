@@ -14,13 +14,28 @@ namespace MMM::Logic
 
 void DrawTool::handleStartBrush(SessionContext& ctx, const CmdStartBrush& cmd)
 {
+    auto itCamera = ctx.cameras.find(cmd.cameraId);
+    if ( itCamera == ctx.cameras.end() ) return;
+
+    // 计算轨道边界
+    float leftX =
+        itCamera->second.viewportWidth * ctx.lastConfig.visual.trackLayout.left;
+    float rightX = itCamera->second.viewportWidth *
+                   ctx.lastConfig.visual.trackLayout.right;
+    if ( cmd.cameraId == "Preview" || cmd.cameraId == "PreviewCanvas" ) {
+        leftX  = ctx.lastConfig.visual.previewConfig.margin.left;
+        rightX = itCamera->second.viewportWidth -
+                 ctx.lastConfig.visual.previewConfig.margin.right;
+    }
+
+    // 在轨道外点击，忽略并防止进入绘制状态
+    if ( cmd.mouseX < leftX || cmd.mouseX > rightX ) {
+        return;
+    }
+
     ctx.brushState.isActive = true;
     ctx.brushState.duration = 0.0;
     ctx.brushState.dtrack   = 0;
-
-    // 计算初始吸附位置
-    auto itCamera = ctx.cameras.find(cmd.cameraId);
-    if ( itCamera == ctx.cameras.end() ) return;
 
     // 获取 BPM 事件供磁吸使用
     std::vector<const TimelineComponent*> bpmEvents;
@@ -40,7 +55,10 @@ void DrawTool::handleStartBrush(SessionContext& ctx, const CmdStartBrush& cmd)
 
     // 计算逻辑时间
     auto* cache = ctx.timelineRegistry.ctx().find<System::ScrollCache>();
-    if ( !cache ) return;
+    if ( !cache ) {
+        ctx.brushState.isActive = false;
+        return;
+    }
 
     float judgmentLineY =
         itCamera->second.viewportHeight * ctx.lastConfig.visual.judgeline_pos;
@@ -79,17 +97,6 @@ void DrawTool::handleStartBrush(SessionContext& ctx, const CmdStartBrush& cmd)
                                             ctx.cameras);
 
     ctx.brushState.time = snap.isSnapped ? snap.snappedTime : rawTime;
-
-    // 计算轨道
-    float leftX =
-        itCamera->second.viewportWidth * ctx.lastConfig.visual.trackLayout.left;
-    float rightX = itCamera->second.viewportWidth *
-                   ctx.lastConfig.visual.trackLayout.right;
-    if ( cmd.cameraId == "Preview" ) {
-        leftX  = ctx.lastConfig.visual.previewConfig.margin.left;
-        rightX = itCamera->second.viewportWidth -
-                 ctx.lastConfig.visual.previewConfig.margin.right;
-    }
     float trackAreaW   = rightX - leftX;
     float singleTrackW = trackAreaW / static_cast<float>(ctx.trackCount);
     int   track =
@@ -201,7 +208,10 @@ void DrawTool::handleUpdateBrush(SessionContext& ctx, const CmdUpdateBrush& cmd)
         if ( ctx.brushState.polylineSegments.empty() ) {
             // [Phase 1] 决定初始物件 (HOLD or FLICK)
             float diffY = std::abs(cmd.mouseY - ctx.brushState.startMouseY);
-            if ( diffY <= threshold ) {
+            bool timeChanged = std::abs(currentPosTime - ctx.brushState.holdStartTime) > 1e-5;
+
+            // 如果时间未改变（停留在同一拍）且垂直拖拽极小，则判断为普通音符或滑键
+            if ( !timeChanged && diffY <= 5.0f ) {
                 int dtrack = currentTrack - ctx.brushState.startTrack;
                 if ( dtrack != 0 && (ctx.brushState.startTrack + dtrack >= 0) &&
                      (ctx.brushState.startTrack + dtrack < ctx.trackCount) ) {
@@ -238,7 +248,7 @@ void DrawTool::handleUpdateBrush(SessionContext& ctx, const CmdUpdateBrush& cmd)
                 ctx.brushState.segmentStartMouseY = cmd.mouseY;
                 ctx.brushState.type               = ::MMM::NoteType::POLYLINE;
             } else if ( ctx.brushState.type == ::MMM::NoteType::FLICK &&
-                        diffY > threshold ) {
+                        (timeChanged || diffY > 5.0f) ) {
                 // FLICK 垂直位移 -> 开始 Polyline: [FLICK, HOLD]
                 NoteComponent::SubNote s1{ ::MMM::NoteType::FLICK,
                                            ctx.brushState.holdStartTime,
@@ -317,7 +327,9 @@ void DrawTool::handleUpdateBrush(SessionContext& ctx, const CmdUpdateBrush& cmd)
                     // 轨道稳定：检查垂直移动
                     float diffYLocal = std::abs(
                         cmd.mouseY - ctx.brushState.segmentStartMouseY);
-                    if ( diffYLocal > threshold ) {
+                    bool timeChangedLocal = std::abs(currentPosTime - last.timestamp) > 1e-5;
+
+                    if ( timeChangedLocal || diffYLocal > 5.0f ) {
                         // 开启新的 Hold
                         ctx.brushState.polylineSegments.push_back(
                             { ::MMM::NoteType::HOLD,
