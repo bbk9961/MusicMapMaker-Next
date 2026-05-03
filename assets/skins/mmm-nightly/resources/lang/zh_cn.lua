@@ -39,6 +39,8 @@ return {
 	["ui.settings.software.theme.auto"] = "自动 (跟随皮肤)",
 	["ui.settings.software.font.ascii"] = "ASCII 字体",
 	["ui.settings.software.font.cjk"] = "CJK 字体",
+	["ui.settings.software.font.multiplier"] = "界面字体大小倍率",
+	["ui.settings.software.ui_scale.multiplier"] = "界面全局缩放倍率",
 	["ui.settings.software.font.browse"] = "选择系统字体文件",
 	["ui.settings.software.font.restart"] = "字体已更改，需重启生效",
 	["ui.settings.software.picker_style"] = "选择器样式",
@@ -132,6 +134,11 @@ return {
 	["ui.settings.editor.cursor_system"] = "系统原生",
 	["ui.settings.editor.beat_divisor"] = "全局分拍数设置",
 	["ui.settings.editor.disable_scroll_accel_while_drawing"] = "绘制物件(Shift)时屏蔽滚动加速",
+	["ui.settings.editor.selection"] = "框选工具行为",
+	["ui.settings.editor.selection.strict"] = "严格 (完全包含)",
+	["ui.settings.editor.selection.intersection"] = "相交 (部分接触)",
+	["ui.settings.editor.selection.thickness"] = "选框边框宽度",
+	["ui.settings.editor.selection.rounding"] = "选框圆角半径",
 	["ui.settings.editor.sfx"] = "音效触发策略",
 	["ui.settings.editor.sfx_strategy"] = "折线内部音效",
 	["ui.settings.editor.sfx_flick_scale"] = "Flick音量随宽度增益",
@@ -230,6 +237,7 @@ return {
 	["ui.toolbar.scroll_snap"] = "滚动磁吸 (开启后滚动滚轮将吸附至分拍线)",
 	["ui.toolbar.scroll_timing_mapping"] = "开启/关闭 SCROLLTIMING 视觉映射",
 	["ui.toolbar.beat_divisor"] = "分拍数量设置",
+	["ui.toolbar.draw_beat_lines"] = "显示/隐藏分拍线",
 
 	-- Canvas / 主画布
 	["ui.canvas.time"] = "时间",

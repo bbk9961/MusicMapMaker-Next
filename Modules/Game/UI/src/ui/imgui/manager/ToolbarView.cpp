@@ -17,8 +17,8 @@ ToolbarView::ToolbarView(const std::string& name) : IUIView(name) {}
 
 void ToolbarView::update(UIManager* sourceManager)
 {
-    Config::SkinManager& skinCfg  = Config::SkinManager::instance();
-    float                dpiScale = Config::AppConfig::instance().getWindowContentScale();
+    Config::SkinManager& skinCfg = Config::SkinManager::instance();
+    float dpiScale = Config::AppConfig::instance().getWindowContentScale();
 
     // 从逻辑引擎同步当前工具状态
     m_currentTool = Logic::EditorEngine::instance().getCurrentTool();
@@ -79,7 +79,7 @@ void ToolbarView::update(UIManager* sourceManager)
         ImGui::GetWindowDrawList()->AddLine(
             p1, p2, col, std::floor(2.0f * dpiScale));
 
-        if ( toolFont ) ImGui::PushFont(toolFont);
+        if ( auto f = skinCfg.getFont("pure_icons") ) ImGui::PushFont(f);
 
         // 使用当前窗口的实际宽度作为按钮宽度，确保完全一致
         float drawW = ImGui::GetWindowWidth();
@@ -162,6 +162,25 @@ void ToolbarView::update(UIManager* sourceManager)
             if ( contentFont ) ImGui::PushFont(contentFont);
             ImGui::SetTooltip("%s",
                               TR("ui.toolbar.scroll_timing_mapping").data());
+            if ( contentFont ) ImGui::PopFont();
+        }
+        ImGui::PopStyleColor(3);
+
+        // --- 全局分拍线显示开关 ---
+        bool isDrawBeatLines = editorCfg.visual.drawBeatLines;
+        pushBtnStyle(isDrawBeatLines);
+
+        ImGui::SetCursorPosX(0);
+        if ( ImGui::Button(ICON_MMM_BARS, ImVec2(drawW, drawW)) ) {
+            auto newConfig                 = editorCfg;
+            newConfig.visual.drawBeatLines = !isDrawBeatLines;
+            Logic::EditorEngine::instance().setEditorConfig(newConfig);
+        }
+
+        if ( ImGui::IsItemHovered() ) {
+            ImFont* contentFont = skinCfg.getFont("content");
+            if ( contentFont ) ImGui::PushFont(contentFont);
+            ImGui::SetTooltip("%s", TR("ui.toolbar.draw_beat_lines").data());
             if ( contentFont ) ImGui::PopFont();
         }
         ImGui::PopStyleColor(3);

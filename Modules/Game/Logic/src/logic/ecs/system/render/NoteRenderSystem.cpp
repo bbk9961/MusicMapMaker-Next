@@ -221,12 +221,13 @@ void NoteRenderSystem::generateSnapshot(
 
     if ( cameraId != "Timeline" ) {
         // 先绘制拍线，使其在物件下方
-        bool shouldDrawBeatLines = true;
-        bool shouldDrawTimingLines =
-            false;  // 默认主画布不绘制 Timing 线，或者看需求
+        bool shouldDrawBeatLines   = config.visual.drawBeatLines;
+        bool shouldDrawTimingLines = false;
 
         if ( cameraId == "Preview" ) {
-            shouldDrawBeatLines   = config.visual.previewConfig.drawBeatLines;
+            // 预览区逻辑：若全局开启，则由预览区具体开关决定；若全局关闭，则强制关闭
+            shouldDrawBeatLines   = config.visual.drawBeatLines &&
+                                    config.visual.previewConfig.drawBeatLines;
             shouldDrawTimingLines = config.visual.previewConfig.drawTimingLines;
         }
 
@@ -368,18 +369,18 @@ void NoteRenderSystem::generateSnapshot(
             // 在鼠标位置绘制临时的判定线预览
             batcher.pushQuad(
                 leftX,
-                snapshot->previewHoverY + config.visual.judgelineWidth * 0.5f,
+                snapshot->previewHoverY + 2.0f * 0.5f,
                 trackAreaW,
-                config.visual.judgelineWidth,
+                2.0f,
                 { hoverBoxCol.r, hoverBoxCol.g, hoverBoxCol.b, 0.6f });
         }
 
         // 3. 绘制预览区判定红线 (最上层静态)
         batcher.setTexture(TextureID::None);
         batcher.pushQuad(leftX,
-                         judgmentLineY + config.visual.judgelineWidth * 0.5f,
+                         judgmentLineY + 2.0f * 0.5f,
                          trackAreaW,
-                         config.visual.judgelineWidth,
+                         2.0f,
                          { lineCol.r, lineCol.g, lineCol.b, lineCol.a });
     }
 
